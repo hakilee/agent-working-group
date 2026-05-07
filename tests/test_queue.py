@@ -102,6 +102,16 @@ class MessageQueueTests(unittest.TestCase):
         queue.retry("lead", reply)
         self.assertEqual(queue.status("lead")["pending"], 1)
 
+    def test_recv_is_not_safe_for_scheduling(self):
+        queue, _ = self.with_queue()
+        queue.send("lead", "worker", "instruction", "do work")
+
+        message = queue.receive("worker", timeout=0)
+
+        self.assertIsNotNone(message)
+        self.assertEqual(queue.status("worker")["pending"], 0)
+        self.assertEqual(queue.status("worker")["processed"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

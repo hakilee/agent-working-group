@@ -73,6 +73,12 @@ Exact file path, command output, or other completion criteria.
 - `question` should include enough context for a direct `answer`.
 - `answer` should include `replyTo` so the original question can be traced.
 
+## Scheduling Semantics
+
+Scheduled observers should inspect queues with non-consuming commands such as `status`, `pending`, `peek`, `processing`, `dead`, `log`, and `requeue-stale`.
+
+Do not schedule `recv` unless a real processor is attached to the output. `recv` moves messages out of `inbox/`; a cron job that only prints the message can silently lose work. See [Safe Scheduling](safe-scheduling.md) for safe cron, timer, and watchdog patterns.
+
 ## Retry Semantics
 
 `requeue-stale` scans `processing/` and compares the current time with `refs.receivedAtMs`. Messages older than `--older-than-sec` are requeued. Each retry records `refs.retriedAt` and increments `refs.retryCount`. If the next retry would exceed `--max-retries`, the message moves to `dead/`.
