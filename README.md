@@ -13,6 +13,7 @@ The package is designed around a practical working pattern: a lead decomposes wo
 - **Retry and dead letters:** stale unacked messages can be requeued or moved to `dead/` after retry limits.
 - **Inspectable operations:** `peek`, `status`, `processing`, `processed`, `dead`, and `log` expose state.
 - **No daemon required:** the CLI can be run manually, by agents, or from cron/watchdog jobs.
+- **Safe scheduling:** observers can inspect and recover queues without consuming work.
 
 ## Installation
 
@@ -170,3 +171,5 @@ This keeps implementation, documentation, and tests aligned.
 ## Current Scope
 
 This is intentionally simple and local-first. It does not require a broker, database, network service, or daemon. It is best suited for local agent orchestration, coding-agent experiments, and small workflow projects.
+
+For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached.
