@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-working-group"
+version = "0.1.0"
+description = "File-backed coordination primitives for small groups of coding agents."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Hak Lee" }]
+keywords = ["agents", "coordination", "queue", "message-queue", "workflow"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.scripts]
+awg = "agent_working_group.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
