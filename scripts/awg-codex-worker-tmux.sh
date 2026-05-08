@@ -7,6 +7,7 @@ WORKER=${WORKER:-codex-worker}
 LEAD=${LEAD:-lead}
 SESSION=${SESSION:-"awg-codex-${WORKER}"}
 LOG_DIR=${LOG_DIR:-"${AWG_ROOT}/log/codex-worker"}
+SUMMARY_DIR=${SUMMARY_DIR:-"${LOG_DIR}/run-summaries"}
 LOG_FILE=${LOG_FILE:-"${LOG_DIR}/${SESSION}.log"}
 RECV_TIMEOUT=${RECV_TIMEOUT:-5}
 MAX_TASKS=${MAX_TASKS:-1}
@@ -22,12 +23,12 @@ usage() {
 Usage: awg-codex-worker-tmux.sh <start|status|stop|kill|log|requeue-stale>
 
 Environment: AWG_ROOT, AWG_CLI, WORKER, LEAD, SESSION, MAX_TASKS,
-MAX_IDLE_SECONDS, RECV_TIMEOUT, MAX_RECV_ERRORS, REPORT_STATUS, LOG_FILE,
+MAX_IDLE_SECONDS, RECV_TIMEOUT, MAX_RECV_ERRORS, REPORT_STATUS, LOG_FILE, SUMMARY_DIR,
 AWG_CODEX_BIN, AWG_CODEX_REPO, AWG_CODEX_TIMEOUT_SECONDS.
 USAGE
 }
 
-mkdir -p "$LOG_DIR" "${AWG_ROOT}/tmp/locks"
+mkdir -p "$LOG_DIR" "$SUMMARY_DIR" "${AWG_ROOT}/tmp/locks"
 cmd=${1:-}
 case "$cmd" in
   start)
@@ -43,7 +44,7 @@ case "$cmd" in
       printf '[%s] pre-start status worker=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$WORKER"
       "$AWG_CLI" --root "$AWG_ROOT" status --as "$WORKER"
     } >>"$LOG_FILE" 2>&1
-    tmux new-session -d -s "$SESSION" "exec > >(tee -a $(printf %q "$LOG_FILE")) 2>&1; export AWG_CLI=$(printf %q "$AWG_CLI") AWG_ROOT=$(printf %q "$AWG_ROOT") WORKER=$(printf %q "$WORKER") LEAD=$(printf %q "$LEAD") LOG_DIR=$(printf %q "$LOG_DIR") RECV_TIMEOUT=$(printf %q "$RECV_TIMEOUT") MAX_TASKS=$(printf %q "$MAX_TASKS") MAX_IDLE_SECONDS=$(printf %q "$MAX_IDLE_SECONDS") MAX_RECV_ERRORS=$(printf %q "$MAX_RECV_ERRORS") REPORT_STATUS=$(printf %q "$REPORT_STATUS") AWG_CODEX_BIN=$(printf %q "${AWG_CODEX_BIN:-codex}") AWG_CODEX_REPO=$(printf %q "${AWG_CODEX_REPO:-}") AWG_CODEX_TIMEOUT_SECONDS=$(printf %q "${AWG_CODEX_TIMEOUT_SECONDS:-900}") AWG_CODEX_EPHEMERAL=$(printf %q "${AWG_CODEX_EPHEMERAL:-1}") AWG_CODEX_OUTPUT_DIR=$(printf %q "${AWG_CODEX_OUTPUT_DIR:-$LOG_DIR}"); exec bash $(printf %q "$WORKER_SCRIPT")"
+    tmux new-session -d -s "$SESSION" "exec > >(tee -a $(printf %q "$LOG_FILE")) 2>&1; export AWG_CLI=$(printf %q "$AWG_CLI") AWG_ROOT=$(printf %q "$AWG_ROOT") WORKER=$(printf %q "$WORKER") LEAD=$(printf %q "$LEAD") LOG_DIR=$(printf %q "$LOG_DIR") SUMMARY_DIR=$(printf %q "$SUMMARY_DIR") RUN_LOG_FILE=$(printf %q "$LOG_FILE") RECV_TIMEOUT=$(printf %q "$RECV_TIMEOUT") MAX_TASKS=$(printf %q "$MAX_TASKS") MAX_IDLE_SECONDS=$(printf %q "$MAX_IDLE_SECONDS") MAX_RECV_ERRORS=$(printf %q "$MAX_RECV_ERRORS") REPORT_STATUS=$(printf %q "$REPORT_STATUS") AWG_CODEX_BIN=$(printf %q "${AWG_CODEX_BIN:-codex}") AWG_CODEX_REPO=$(printf %q "${AWG_CODEX_REPO:-}") AWG_CODEX_TIMEOUT_SECONDS=$(printf %q "${AWG_CODEX_TIMEOUT_SECONDS:-900}") AWG_CODEX_EPHEMERAL=$(printf %q "${AWG_CODEX_EPHEMERAL:-1}") AWG_CODEX_OUTPUT_DIR=$(printf %q "${AWG_CODEX_OUTPUT_DIR:-$LOG_DIR}"); exec bash $(printf %q "$WORKER_SCRIPT")"
     echo "started session=$SESSION worker=$WORKER log=$LOG_FILE"
     ;;
   status)

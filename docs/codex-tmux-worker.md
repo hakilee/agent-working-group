@@ -94,6 +94,10 @@ redirections in executable variables.
 
 When the target path is a Git worktree, the adapter checks `git status --porcelain` before invoking Codex. The default is fail-closed on uncommitted changes so a worker cannot silently mix unrelated operator edits into an automated run. Use a clean branch or a dedicated worktree for worker jobs. Set `AWG_CODEX_ALLOW_DIRTY=1` only for an explicitly supervised run where mixing changes is intentional.
 
+## Run Summaries
+
+The bounded loop writes a small JSON run summary under `LOG_DIR/run-summaries` when it exits. The summary records worker name, lead name, start and stop timestamps, duration, stop reason, task count, and log location. Operators can use it as the first artifact for post-run inspection without reading queue internals.
+
 ## Failure Handling
 
 The adapter maps Codex outcomes into the executor bridge contract:

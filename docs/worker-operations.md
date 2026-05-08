@@ -129,3 +129,7 @@ The worker writes generated logs under `<AWG_ROOT>/log/worker-sessions/` and loc
 ## Codex Worker Repository Preflight
 
 Codex worker jobs should target a clean Git worktree. `scripts/awg-codex-executor.sh` checks `git status --porcelain` when the target is inside Git and returns a blocker before `codex exec` if uncommitted changes are present. Operators can set `AWG_CODEX_ALLOW_DIRTY=1` for an explicitly supervised exception.
+
+## Codex Worker Run Summaries
+
+The Codex worker loop writes one JSON summary per run under `LOG_DIR/run-summaries`. The file includes worker, lead, start and stop timestamps, duration, stop reason, task count, and log location. This is an inspection artifact only; it does not change queue acknowledgement or retry behavior.
