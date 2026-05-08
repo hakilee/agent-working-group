@@ -67,6 +67,18 @@ Use role names and generic queue structure in public docs and reports:
 
 Do not include local absolute paths, private agent names, chat identifiers, credentials, or hidden workspace details in public artifacts.
 
+## Read-Only Report Helper
+
+Use the optional helper when an operator needs a queue-state-only snapshot for one role:
+
+```bash
+scripts/awg-queue-reconciliation-report.sh --role <role>
+```
+
+The helper is read-only. It reports `inbox`, `processing`, and `dead` messages with `id`, `kind`, `from`, `to`, and `created` fields. It does not accept evidence paths, does not classify messages as superseded, and does not decide whether reconciliation is safe. The operator still applies the evidence gates manually.
+
+The helper must not call `recv`, `ack`, `retry`, `nack`, `requeue-stale`, or `prune`. It must not move, edit, or delete queue JSON files.
+
 ## Future Helper Boundary
 
 A future helper may be useful if it remains read-only and scoped to one role at a time. The first helper should list and categorize messages without changing queue state. Mutation, including `ack`, `retry`, `nack`, `requeue-stale`, or archive movement, must remain a separate slice with its own checklist.

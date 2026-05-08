@@ -92,6 +92,7 @@ awg dead --as=worker --limit=5
 awg status --as=worker --tz=Asia/Seoul
 awg prune --as=worker --processed-keep=100 --include-processing --processing-keep=20 --log-keep-lines=1000 --dry-run
 awg cleanup-artifacts --dry-run
+scripts/awg-queue-reconciliation-report.sh --role worker
 awg log --tz=Asia/Seoul
 ```
 
@@ -191,7 +192,7 @@ For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-execut
 
 For repository-first commit message and pull request title rules with Conventional Commits fallback, see [Repository Rules](docs/repository-rules.md). `scripts/awg-detect-repository-rules.sh` provides a read-only advisory scan for candidate rule sources.
 
-For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached. For old inbox messages that may be superseded, see [Queue Inbox Reconciliation](docs/queue-reconciliation.md).
+For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached. For old inbox messages that may be superseded, see [Queue Inbox Reconciliation](docs/queue-reconciliation.md) and the read-only reconciliation report helper.
 
 For bounded tmux worker scripts, safe-poll coexistence, and instruction auto-ack warnings, see [Worker Operations](docs/worker-operations.md). The worker scripts are queue runners, not AI executors; do not send `instruction` messages to an active queue runner unless acknowledging without execution is intentional.
 

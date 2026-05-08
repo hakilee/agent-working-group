@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -632,6 +633,108 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("evidence-first", content)
         self.assertIn("observation-only", content)
 
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+            "cl" + "aws",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+        self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
+
+    def test_queue_reconciliation_report_helper_is_read_only(self):
+        project_root = Path(__file__).resolve().parents[1]
+        script = project_root / "scripts" / "awg-queue-reconciliation-report.sh"
+        docs = [
+            project_root / "docs" / "queue-reconciliation.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        queue, root = self.with_queue()
+        inbox_id = queue.send("lead", "worker", "instruction", "inbox item")
+        processing_id = queue.send("lead", "worker", "question", "processing item")
+        queue.receive("worker", timeout=0, require_ack=True)
+        dead_id = queue.send("lead", "worker", "blocker", "dead item")
+        queue.receive("worker", timeout=0, require_ack=True)
+        queue.requeue_stale("worker", older_than_sec=-1, max_retries=0)
+
+        before = queue.status("worker")
+        wrapper_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, wrapper_dir, ignore_errors=True)
+        wrapper = wrapper_dir / "awg"
+        wrapper.write_text(
+            "#!/usr/bin/env bash\n"
+            f"PYTHONPATH={project_root / 'src'} python3 -m agent_working_group.cli \"$@\"\n",
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+        env = os.environ.copy()
+        env.update({"AWG_CLI": "awg", "AWG_ROOT": str(root), "PATH": f"{wrapper_dir}{os.pathsep}{env.get('PATH', '')}"})
+
+        result = subprocess.run(
+            [str(script), "--role", "worker"],
+            cwd=project_root,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        after = queue.status("worker")
+
+        self.assertEqual(before["pending"], after["pending"])
+        self.assertEqual(before["processing"], after["processing"])
+        self.assertEqual(before["dead"], after["dead"])
+        self.assertIn(inbox_id, result.stdout)
+        self.assertIn(processing_id, result.stdout)
+        self.assertIn(dead_id, result.stdout)
+        self.assertIn("## inbox", result.stdout)
+        self.assertIn("## processing", result.stdout)
+        self.assertIn("## dead", result.stdout)
+        self.assertIn("kind=instruction", result.stdout)
+        self.assertIn("from=lead", result.stdout)
+        self.assertIn("to=worker", result.stdout)
+        self.assertIn("created=", result.stdout)
+        self.assertIn("queue-state-only", result.stdout)
+        self.assertNotIn("superseded", result.stdout.lower())
+        self.assertNotRegex(result.stdout, r"/" + "Users/|/" + "home/|~" + r"/")
+
+        empty_result = subprocess.run(
+            [str(script), "--role", "reviewer"],
+            cwd=project_root,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        self.assertIn("- none", empty_result.stdout)
+
+        missing_role = subprocess.run(
+            [str(script)],
+            cwd=project_root,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertNotEqual(missing_role.returncode, 0)
+        self.assertIn("missing required --role", missing_role.stderr)
+
+        script_content = script.read_text(encoding="utf-8")
+        content = script_content + "\n" + "\n".join(path.read_text(encoding="utf-8") for path in docs)
+        self.assertIn("awg-queue-reconciliation-report.sh --role", content)
+        self.assertIn("reports queue state only", content)
+        self.assertIn("test_queue_reconciliation_report_helper_is_read_only", content)
+        self.assertNotRegex(script_content, r"\brecv\b")
+        self.assertNotRegex(script_content, r"\back\b|\bretry\b|\bnack\b|requeue-stale|\bprune\b")
+        self.assertNotRegex(script_content, r"\beval\b|bash\s+-c|sh\s+-c")
+        self.assertNotRegex(script_content, r"jq\s|sed\s+.*queues/.+json")
+        self.assertNotRegex(script_content, r"\bcurl\b|wget|http://|https://")
         forbidden_names = (
             "mat" + "dori",
             "mat" + "gukno",
