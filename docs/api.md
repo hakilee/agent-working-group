@@ -19,15 +19,31 @@ MessageQueue(root=None)
 ### Core Methods
 
 - `initialize(agents=())`: create queue directories and `log/messages.jsonl`.
-- `send(sender, recipient, kind, body, reply_to=None) -> str`: send a JSON message and return its UUID.
+- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: send a JSON message and return its UUID.
 - `receive(agent, timeout=None, require_ack=False) -> dict | None`: receive one message. Returns `None` on timeout.
 - `ack(agent, message_id) -> str`: acknowledge a message from `processing/`.
+- `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None) -> str`: acknowledge one reviewed inbox message by id without using `recv`.
 - `retry(agent, message_id) -> str`: requeue a message from `processing/` or `processed/`.
-- `requeue_stale(agent, older_than_sec=300, max_retries=None) -> dict`: requeue stale processing messages.
+- `nack(agent, message_id) -> str`: move a message from `processing/` to `dead/`.
+- `requeue_stale(agent, older_than_sec=300, max_retries=None) -> dict`: requeue stale processing messages or move them to `dead/` after retry limits.
+
+### Optional Send Metadata
+
+`send(...)` stores optional relationship and source metadata under `message["refs"]` only:
+
+- `correlation_id` -> `refs.correlationId`: stable id shared by related messages.
+- `parent_id` -> `refs.parentId`: direct parent message id when `replyTo` is not enough.
+- `source_channel` -> `refs.sourceChannel`: operator-defined source surface or intake path.
+- `report_target` -> `refs.reportTarget`: operator-defined place where progress or final summaries should be reported.
+- `repo` -> `refs.repo`: repository or project slug.
+- `workspace` -> `refs.workspace`: checkout, workspace, or workstream label.
+
+These fields are optional traceability conventions. They do not change delivery order, priority, acknowledgement, retry, pruning, cleanup, dead-letter behavior, queue selection, routing, or access control.
 
 ### Inspection Methods
 
 - `peek(agent) -> list[dict]`: inspect pending inbox messages without moving them.
+- `pending(agent, limit=None) -> list[dict]`: inspect pending inbox messages with optional limit.
 - `processing(agent, limit=None) -> list[dict]`: inspect unacknowledged messages.
 - `processed(agent, limit=None, tz="UTC") -> list[dict]`: inspect processed messages.
 - `dead(agent, limit=None) -> list[dict]`: inspect dead-letter messages.
@@ -48,6 +64,16 @@ prune(
 ```
 
 `prune` archives old processed queue files, optionally archives old processing files, and archives removed log lines before truncating the active log.
+
+```python
+cleanup_artifacts(
+    dry_run=True,
+    temp_file_min_age_sec=3600,
+    stale_lock_min_age_sec=600,
+)
+```
+
+`cleanup_artifacts` removes generated worker clutter without touching queue JSON.
 
 ## MessageKind and PRIORITIES
 
