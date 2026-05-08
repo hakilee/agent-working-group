@@ -117,6 +117,18 @@ The bounded loop writes a small JSON run summary under `LOG_DIR/run-summaries` w
 
 Status also reports `latest_summary=PATH` when a summary exists, or `latest_summary=none` before the first summary. This is an inspection pointer only; the wrapper does not parse summary contents or use them for control flow.
 
+## Stale Processing Recovery
+
+Use observation before mutation when a Codex worker run stops with work still in `processing/`:
+
+1. Confirm the tmux session is not running with `scripts/awg-codex-worker-tmux.sh status`, or intentionally stop it before recovery.
+2. Inspect queue status for the worker and identify the exact processing item, including its age and message id.
+3. Inspect `latest_summary=PATH` from status when present, then inspect the summary and log evidence. A summary or log is evidence, not authority to mutate queue state.
+4. Decide whether the processing item is genuinely stale. Use a conservative threshold higher than expected Codex execution and acknowledgement latency.
+5. Recover only with an explicit operator action such as `requeue-stale` after evidence review. Do not use `recv`, direct queue JSON edits, deletion, pruning, bulk recovery, or automatic ack/retry as part of stale inspection.
+
+If the worker may still be running, do not recover the item. Let the bounded worker finish or stop it intentionally, then inspect again.
+
 ## Failure Handling
 
 The adapter maps Codex outcomes into the executor bridge contract:

@@ -139,6 +139,18 @@ For code work, keep the Codex worker path explicit and bounded:
 
 This sequence does not create an always-on daemon, does not auto-dispatch work, and does not change queue ack/retry policy.
 
+## Codex Worker Stale Recovery
+
+Stale recovery for Codex worker processing items is an operator decision, not an automatic worker behavior. Follow this decision tree:
+
+1. Check `scripts/awg-codex-worker-tmux.sh status` and confirm the session is stopped, missing, or intentionally stopped for recovery.
+2. Review worker queue status and identify the exact processing item before considering any mutation.
+3. Use `latest_summary=PATH` and the worker log as evidence. They do not authorize ack, retry, delete, prune, or direct queue edits by themselves.
+4. Choose a conservative stale threshold that is higher than expected Codex runtime and bridge acknowledgement latency.
+5. Run recovery only as an explicit operator action after review, such as `REQUEUE_STALE=1 STALE_SECONDS=1800 scripts/awg-safe-poll.sh` for a generic worker queue when the threshold and target worker are appropriate.
+
+Do not run recovery while the tmux session may still be processing the item. Do not call `recv` for inspection, do not edit queue JSON directly, and do not bulk recover items without reviewing each affected message.
+
 ## Codex Worker Repository Preflight
 
 Codex worker jobs should target a clean Git worktree. `scripts/awg-codex-executor.sh` checks `git status --porcelain` when the target is inside Git and returns a blocker before `codex exec` if uncommitted changes are present. Operators can set `AWG_CODEX_ALLOW_DIRTY=1` for an explicitly supervised exception.
