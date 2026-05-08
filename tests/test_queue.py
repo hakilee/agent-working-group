@@ -107,6 +107,79 @@ class MessageQueueTests(unittest.TestCase):
         queue.retry("lead", reply)
         self.assertEqual(queue.status("lead")["pending"], 1)
 
+    def test_send_optional_correlation_refs_are_backward_compatible(self):
+        queue, _ = self.with_queue()
+
+        queue.send("lead", "worker", "note", "plain")
+        self.assertEqual(queue.peek("worker")[0]["refs"], {})
+
+        correlation_id = queue.send("lead", "worker", "note", "correlated", correlation_id="task-123")
+        correlation_message = next(message for message in queue.peek("worker") if message["id"] == correlation_id)
+        self.assertEqual(correlation_message["refs"], {"correlationId": "task-123"})
+
+        parent_id = queue.send("lead", "worker", "note", "child", parent_id="parent-1")
+        parent_message = next(message for message in queue.peek("worker") if message["id"] == parent_id)
+        self.assertEqual(parent_message["refs"], {"parentId": "parent-1"})
+
+        question_id = queue.send("lead", "worker", "question", "Need context?")
+        reply_id = queue.send(
+            "worker",
+            "lead",
+            "answer",
+            "done",
+            reply_to=question_id,
+            correlation_id="task-123",
+            parent_id=question_id,
+        )
+        reply = queue.peek("lead")[0]
+        self.assertEqual(reply["id"], reply_id)
+        self.assertEqual(reply["refs"]["replyTo"], question_id)
+        self.assertEqual(reply["refs"]["correlationId"], "task-123")
+        self.assertEqual(reply["refs"]["parentId"], question_id)
+        self.assertNotIn("correlationId", queue.peek("worker")[0]["refs"])
+
+    def test_cli_send_optional_correlation_flags_write_refs_only(self):
+        _, root = self.with_queue()
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "agent_working_group.cli",
+                "--root",
+                str(root),
+                "send",
+                "--from",
+                "lead",
+                "--to",
+                "worker",
+                "--kind",
+                "answer",
+                "--body",
+                "done",
+                "--reply-to",
+                "question-1",
+                "--correlation-id",
+                "task-123",
+                "--parent-id",
+                "question-1",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        message_id = result.stdout.strip()
+        message = MessageQueue(root).peek("worker")[0]
+        self.assertEqual(message["id"], message_id)
+        self.assertEqual(message["refs"], {
+            "replyTo": "question-1",
+            "correlationId": "task-123",
+            "parentId": "question-1",
+        })
+        self.assertNotIn("correlationId", message)
+        self.assertNotIn("parentId", message)
+
     def test_recv_is_not_safe_for_scheduling(self):
         queue, _ = self.with_queue()
         queue.send("lead", "worker", "instruction", "do work")
@@ -627,6 +700,8 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("test_repository_rules_docs_and_templates_are_safe", content)
         self.assertIn("correlationId", content)
         self.assertIn("parentId", content)
+        self.assertIn("--correlation-id", content)
+        self.assertIn("--parent-id", content)
         self.assertIn("optional conventions", content)
         self.assertIn("not required schema fields", content)
         self.assertIn("does not change delivery order", content)
