@@ -13,6 +13,8 @@ Review the pull request and report whether it is ready to merge.
 - Source branch:
 - Base branch:
 - PR title:
+- Intended squash merge title:
+- Commit/title rule source: repository rule path, or `none found; Conventional Commits fallback`
 
 ## Scope
 
@@ -32,6 +34,7 @@ Review the pull request and report whether it is ready to merge.
 - Documentation:
 - Safety and rollback:
 - Public comment suitability:
+- PR title and intended squash title follow the repository rule or Conventional Commits fallback:
 
 ## Requested Output
 

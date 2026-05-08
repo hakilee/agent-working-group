@@ -64,6 +64,8 @@ Close reports should include completed artifacts, verification evidence, queue m
 
 If the next safe follow-up is clear, create the next queue item instead of stopping at a chat-only "done" message.
 
+For commits, pull request titles, and squash merge titles, follow the target repository's documented rule first. If no explicit rule exists, use Conventional Commits. See [Repository Rules](repository-rules.md).
+
 ## Safe Scheduling And Observers
 
 Observers may run `status`, `pending`, `peek`, `processing`, `dead`, `log`, or conservative `requeue-stale`. Observers must not run `recv` unless they are the real processor for those messages.
@@ -86,4 +88,4 @@ Use the templates in `docs/templates/` for repeatable handoffs:
 - [PR Review Result Comment](templates/pr-review-result-comment.md)
 - [Artifact Index](templates/artifact-index.md)
 
-For pull request review gates, see [PR Review Gate](pr-review-gate.md). For artifact lifecycle and retention, see [Artifact Retention](artifact-retention.md).
+For pull request review gates, see [PR Review Gate](pr-review-gate.md). For artifact lifecycle and retention, see [Artifact Retention](artifact-retention.md). For commit and pull request title policy, see [Repository Rules](repository-rules.md).

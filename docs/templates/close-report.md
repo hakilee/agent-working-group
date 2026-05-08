@@ -19,6 +19,13 @@ State what changed and whether the task is complete.
 - Manual checks:
 - Reviewer signoff:
 
+## Commit And Pull Request Titles
+
+- Rule source: repository rule path, or `none found; Conventional Commits fallback`
+- Final commit message:
+- Final pull request title:
+- Final squash merge title:
+
 ## Decisions
 
 - Decision:
