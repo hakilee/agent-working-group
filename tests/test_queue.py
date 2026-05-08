@@ -1490,6 +1490,82 @@ class MessageQueueTests(unittest.TestCase):
         )
         return queue, message_id, result, root / "fake-codex.argv"
 
+    def make_git_repo(self, root):
+        repo = root / "repo"
+        repo.mkdir()
+        subprocess.run(["git", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True)
+        (repo / "README.md").write_text("ready\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return repo
+
+    def run_codex_prepare_worktree(self, repo, *args):
+        project_root = Path(__file__).resolve().parents[1]
+        return subprocess.run(
+            [str(project_root / "scripts" / "awg-codex-prepare-worktree.sh"), "--repo", str(repo), *args],
+            cwd=project_root,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=20,
+        )
+
+    def test_codex_prepare_worktree_reports_clean_state_without_mutation(self):
+        _, root = self.with_queue()
+        repo = self.make_git_repo(root)
+        before = subprocess.run(["git", "branch", "--show-current"], cwd=repo, check=True, text=True, capture_output=True).stdout.strip()
+
+        result = self.run_codex_prepare_worktree(repo)
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["ready"])
+        self.assertFalse(payload["dirty"])
+        self.assertFalse(payload["mutated"])
+        self.assertEqual(payload["branch"], before)
+        after = subprocess.run(["git", "branch", "--show-current"], cwd=repo, check=True, text=True, capture_output=True).stdout.strip()
+        self.assertEqual(after, before)
+
+    def test_codex_prepare_worktree_blocks_dirty_state(self):
+        _, root = self.with_queue()
+        repo = self.make_git_repo(root)
+        (repo / "dirty.txt").write_text("dirty\n", encoding="utf-8")
+
+        result = self.run_codex_prepare_worktree(repo)
+
+        self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+        payload = json.loads(result.stdout)
+        self.assertFalse(payload["ready"])
+        self.assertTrue(payload["dirty"])
+        self.assertFalse(payload["mutated"])
+        self.assertIn("uncommitted changes", payload["reason"])
+
+    def test_codex_prepare_worktree_requires_explicit_create_branch(self):
+        _, root = self.with_queue()
+        repo = self.make_git_repo(root)
+
+        result = self.run_codex_prepare_worktree(repo, "--branch", "worker/demo")
+
+        self.assertEqual(result.returncode, 1, result.stderr + result.stdout)
+        payload = json.loads(result.stdout)
+        self.assertFalse(payload["ready"])
+        self.assertFalse(payload["mutated"])
+        self.assertIn("current branch", payload["reason"])
+        branch = subprocess.run(["git", "branch", "--show-current"], cwd=repo, check=True, text=True, capture_output=True).stdout.strip()
+        self.assertNotEqual(branch, "worker/demo")
+
+        result = self.run_codex_prepare_worktree(repo, "--branch", "worker/demo", "--create-branch")
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["ready"])
+        self.assertTrue(payload["mutated"])
+        self.assertEqual(payload["branch"], "worker/demo")
+        branch = subprocess.run(["git", "branch", "--show-current"], cwd=repo, check=True, text=True, capture_output=True).stdout.strip()
+        self.assertEqual(branch, "worker/demo")
+
     def test_codex_executor_success_acks_after_codex_exit_zero(self):
         _, root = self.with_queue()
         queue, message_id, result, argv_path = self.run_codex_executor_bridge(root)
@@ -1644,6 +1720,7 @@ class MessageQueueTests(unittest.TestCase):
             project_root / "scripts" / "awg-codex-executor.sh",
             project_root / "scripts" / "awg-codex-worker-loop.sh",
             project_root / "scripts" / "awg-codex-worker-tmux.sh",
+            project_root / "scripts" / "awg-codex-prepare-worktree.sh",
             project_root / "README.md",
             project_root / "tests" / "test_queue.py",
         ]
@@ -1659,6 +1736,7 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("AWG_CODEX_ALLOW_DIRTY", content)
         self.assertIn("run summary", content.lower())
         self.assertIn("test_codex_worker_loop_writes_run_summary", content)
+        self.assertIn("test_codex_prepare_worktree_reports_clean_state_without_mutation", content)
         self.assertIn("MAX_TASKS", content)
         self.assertIn("MAX_IDLE_SECONDS", content)
         self.assertIn("test_codex_executor_success_acks_after_codex_exit_zero", content)
