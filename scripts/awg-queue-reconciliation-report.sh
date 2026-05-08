@@ -47,13 +47,13 @@ if [ -z "$ROLE" ]; then
 fi
 
 AWG_CLI=${AWG_CLI:-awg}
-AWG_ARGS=()
-if [ -n "${AWG_ROOT:-}" ]; then
-  AWG_ARGS+=(--root "$AWG_ROOT")
-fi
 
 run_awg() {
-  "$AWG_CLI" "${AWG_ARGS[@]}" "$@"
+  if [ -n "${AWG_ROOT:-}" ]; then
+    "$AWG_CLI" --root "$AWG_ROOT" "$@"
+  else
+    "$AWG_CLI" "$@"
+  fi
 }
 
 print_messages() {

@@ -685,6 +685,22 @@ class MessageQueueTests(unittest.TestCase):
             capture_output=True,
             check=True,
         )
+        default_root_cwd = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, default_root_cwd, ignore_errors=True)
+        default_queue = MessageQueue(default_root_cwd / ".agent-working-group")
+        default_queue.initialize(["worker"])
+        default_queue.send("lead", "worker", "note", "default root item")
+        default_env = env.copy()
+        default_env.pop("AWG_ROOT", None)
+        default_result = subprocess.run(
+            [str(script), "--role", "worker"],
+            cwd=default_root_cwd,
+            env=default_env,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        self.assertIn("kind=note", default_result.stdout)
         after = queue.status("worker")
 
         self.assertEqual(before["pending"], after["pending"])
