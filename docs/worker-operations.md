@@ -10,6 +10,32 @@ This guide describes the optional bounded worker scripts in `scripts/`. They are
 
 All scripts use `AWG_ROOT` and `awg --root`. If `AWG_ROOT` is unset, they use `.agent-working-group` under the current directory.
 
+## Helper Environment Contract
+
+Helper scripts run the AWG CLI through `AWG_CLI`, which is an executable name or executable path. It is not a shell command string. Helpers must invoke it as quoted `"$AWG_CLI"` and must not evaluate it through another shell.
+
+Use a wrapper executable when setup needs interpreter flags, environment variables, or module invocation:
+
+```bash
+#!/usr/bin/env bash
+exec python3 -m agent_working_group.cli "$@"
+```
+
+Point `AWG_CLI` at that wrapper executable. Do not put spaces, pipes, redirects, or chained shell operators in `AWG_CLI`.
+
+`AWG_ROOT` is the queue root directory passed to `awg --root` when a helper needs an explicit non-default queue. Use an absolute path or a valid relative path. It is a path value, not a command. When `AWG_ROOT` is unset, the AWG CLI default root is `.agent-working-group/` in the current directory.
+
+Current helper behavior:
+
+- `scripts/awg-executor-bridge.sh`: requires an explicit `AWG_ROOT` value.
+- `scripts/awg-pr-review-request.sh`: requires an explicit `AWG_ROOT` value.
+- `scripts/awg-safe-poll.sh`: defaults `AWG_ROOT` to `.agent-working-group` under the current directory.
+- `scripts/awg-worker-loop.sh`: defaults `AWG_ROOT` to `.agent-working-group` under the current directory.
+- `scripts/awg-worker-tmux.sh`: defaults `AWG_ROOT` to `.agent-working-group` under the current directory.
+- `scripts/awg-queue-reconciliation-report.sh`: supports unset `AWG_ROOT` and lets the AWG CLI use its default root.
+
+All current helpers quote `"$AWG_CLI"`. Keep that pattern for future helpers.
+
 ## Bounded Default
 
 Bounded operation is the default. Do not run an always-on worker without an explicit operating decision.

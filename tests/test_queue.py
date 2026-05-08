@@ -766,6 +766,56 @@ class MessageQueueTests(unittest.TestCase):
         self.assertNotRegex(content.lower(), platform_pattern)
         self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
 
+    def test_helper_environment_contract_is_documented_and_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        worker_docs = project_root / "docs" / "worker-operations.md"
+        spec_matrix = project_root / "docs" / "spec-matrix.md"
+        helper_scripts = [
+            project_root / "scripts" / "awg-executor-bridge.sh",
+            project_root / "scripts" / "awg-pr-review-request.sh",
+            project_root / "scripts" / "awg-queue-reconciliation-report.sh",
+            project_root / "scripts" / "awg-safe-poll.sh",
+            project_root / "scripts" / "awg-worker-loop.sh",
+            project_root / "scripts" / "awg-worker-tmux.sh",
+        ]
+        docs_content = worker_docs.read_text(encoding="utf-8") + "\n" + spec_matrix.read_text(encoding="utf-8")
+
+        self.assertIn("Helper Environment Contract", docs_content)
+        self.assertIn("AWG_CLI", docs_content)
+        self.assertIn("executable name or executable path", docs_content)
+        self.assertIn("not a shell command string", docs_content)
+        self.assertIn('quoted `"$AWG_CLI"`', docs_content)
+        self.assertIn("wrapper executable", docs_content)
+        self.assertIn("exec python3 -m agent_working_group.cli", docs_content)
+        self.assertIn("AWG_ROOT", docs_content)
+        self.assertIn("queue root directory", docs_content)
+        self.assertIn(".agent-working-group/", docs_content)
+        self.assertIn("test_helper_environment_contract_is_documented_and_safe", docs_content)
+        self.assertNotIn("PYTHONPATH", docs_content)
+        self.assertNotRegex(docs_content, r"\b(eval|bash\s+-c|sh\s+-c)\b")
+        self.assertNotRegex(docs_content, r"AWG_CLI=.*[|;&><]")
+
+        for script in helper_scripts:
+            content = script.read_text(encoding="utf-8")
+            self.assertIn('"$AWG_CLI"', content, script.name)
+            self.assertNotRegex(content, r"(?<!\")\$AWG_CLI(?!\")", script.name)
+            self.assertNotRegex(content, r"\beval\b|bash\s+-c|sh\s+-c", script.name)
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+            "cl" + "aws",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, docs_content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(docs_content, local_path_pattern)
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(docs_content.lower(), platform_pattern)
+        self.assertNotRegex(docs_content, r"[\uac00-\ud7af]")
+        self.assertNotRegex(docs_content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
+
     def test_safe_poll_script_does_not_consume_worker_inbox(self):
         project_root = Path(__file__).resolve().parents[1]
         script = project_root / "scripts" / "awg-safe-poll.sh"
