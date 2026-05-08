@@ -105,14 +105,15 @@ The helper requires an explicit source and destination directory. It creates the
 
 ### Path Safety Integration
 
-The archive helper is intentionally kept as a small bash script. It is not wired directly to the Python path-safety module because that would require a shell-to-Python bridge or a script rewrite, and this helper must preserve current valid usage.
+The archive helper supports opt-in allowed-base checks:
 
-For custom archive helpers or future revisions that add explicit allowed-base options, use the path safety guidance in [Path Safety](path-safety.md). A code-level integration should include tests for:
+```bash
+scripts/awg-archive-artifact.sh --allowed-base awg-ops --source awg-ops/active/202605081212-example.md --completed-dir awg-ops/completed
+scripts/awg-archive-artifact.sh --allowed-base awg-ops --source awg-ops/active/202605081212-example.md --completed-dir awg-ops/completed --apply
+```
 
-- valid source and destination behavior staying compatible
-- `..` traversal rejection
-- symlink escape rejection
-- destination containment
-- queue JSON preservation
+Without `--allowed-base`, existing valid usage remains backward-compatible. With `--allowed-base`, the helper validates both source and resolved destination with the Python path-safety helper before creating directories or moving files. Invalid, empty, or missing allowed-base values fail closed.
+
+Allowed-base mode rejects traversal, symlink escape, sibling-prefix traps, and queue directories. It does not add deletion behavior, and dry-run remains the default.
 
 Do not add implicit containment around the current working directory. If containment is needed, expose the allowed base explicitly so operators can choose the artifact workspace boundary.
