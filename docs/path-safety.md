@@ -36,3 +36,7 @@ Path safety changes should cover at least:
 ## Queue State
 
 Queue JSON files are live coordination state. Path containment helpers do not make it safe to move or delete queue JSON directly. Use queue-aware commands for queue state, and keep cleanup/archive helpers constrained to their documented scope.
+
+## Archive Helpers
+
+The repository archive helper is a small bash script and remains behavior-preserving for valid existing usage. Do not add an implicit containment boundary to that helper. If a future archive helper needs code-level containment, add explicit allowed-base inputs and tests for valid usage, traversal rejection, symlink escape rejection, destination containment, and queue JSON preservation.
