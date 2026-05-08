@@ -1567,6 +1567,74 @@ class MessageQueueTests(unittest.TestCase):
         self.assertEqual(lead_message["kind"], "blocker")
         self.assertIn("uncommitted changes", lead_message["body"])
 
+
+    def test_codex_worker_loop_writes_run_summary(self):
+        _, root = self.with_queue()
+        project_root = Path(__file__).resolve().parents[1]
+        wrapper = root / "awg-wrapper"
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f'PYTHONPATH={project_root / "src"} exec {sys.executable} -m agent_working_group.cli "$@"\n',
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+        fake_codex = root / "fake-codex"
+        fake_codex.write_text(
+            "#!/usr/bin/env python3\n"
+            "print('codex fake success')\n",
+            encoding="utf-8",
+        )
+        fake_codex.chmod(0o755)
+        repo = root / "repo"
+        repo.mkdir()
+        queue = MessageQueue(root)
+        message_id = queue.send("lead", "codex-worker", "instruction", "write summary", repo=str(repo), workspace=str(repo))
+        log_dir = root / "logs"
+        summary_dir = root / "summaries"
+        run_log = log_dir / "worker.log"
+
+        result = subprocess.run(
+            [str(project_root / "scripts" / "awg-codex-worker-loop.sh")],
+            cwd=project_root,
+            env={
+                **os.environ,
+                "AWG_CLI": str(wrapper),
+                "AWG_ROOT": str(root),
+                "WORKER": "codex-worker",
+                "LEAD": "lead",
+                "LOG_DIR": str(log_dir),
+                "SUMMARY_DIR": str(summary_dir),
+                "RUN_LOG_FILE": str(run_log),
+                "MAX_TASKS": "1",
+                "MAX_IDLE_SECONDS": "30",
+                "RECV_TIMEOUT": "1",
+                "REPORT_STATUS": "0",
+                "AWG_CODEX_BIN": str(fake_codex),
+                "AWG_CODEX_OUTPUT_DIR": str(root / "codex-output"),
+            },
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=20,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn("codex worker summary=", result.stdout)
+        summaries = list(summary_dir.glob("codex-worker.summary.*.json"))
+        self.assertEqual(len(summaries), 1)
+        payload = json.loads(summaries[0].read_text(encoding="utf-8"))
+        self.assertEqual(payload["worker"], "codex-worker")
+        self.assertEqual(payload["lead"], "lead")
+        self.assertEqual(payload["tasks"], 1)
+        self.assertEqual(payload["stopReason"], "max tasks")
+        self.assertEqual(payload["logDir"], str(log_dir))
+        self.assertEqual(payload["logFile"], str(run_log))
+        self.assertIn("startedAt", payload)
+        self.assertIn("stoppedAt", payload)
+        self.assertGreaterEqual(payload["durationSeconds"], 0)
+        self.assertEqual(queue.status("codex-worker")["processing"], 0)
+        self.assertEqual(queue.processed("codex-worker", limit=1)[0]["id"], message_id)
+
     def test_codex_worker_docs_and_scripts_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [
@@ -1589,6 +1657,8 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("AWG_CODEX_BIN", content)
         self.assertIn("AWG_CODEX_REPO", content)
         self.assertIn("AWG_CODEX_ALLOW_DIRTY", content)
+        self.assertIn("run summary", content.lower())
+        self.assertIn("test_codex_worker_loop_writes_run_summary", content)
         self.assertIn("MAX_TASKS", content)
         self.assertIn("MAX_IDLE_SECONDS", content)
         self.assertIn("test_codex_executor_success_acks_after_codex_exit_zero", content)
