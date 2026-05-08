@@ -33,6 +33,7 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 | Guarantee | Test coverage |
 | --- | --- |
 | The Codex worker docs define a manual bounded end-to-end operator flow from worktree prep through evidence review and reviewed queue reconciliation. | `tests/test_queue.py::MessageQueueTests.test_codex_worker_operator_flow_docs_are_safe` |
+| Codex worker stale recovery is observation-before-mutation and requires stopped/session-reviewed evidence before any explicit operator recovery action. | `tests/test_queue.py::MessageQueueTests.test_codex_worker_stale_recovery_docs_are_safe` |
 | Codex worker tmux status surfaces the latest run summary path without parsing it for control flow. | `tests/test_queue.py::MessageQueueTests.test_codex_worker_tmux_status_reports_latest_summary_path`, `tests/test_queue.py::MessageQueueTests.test_codex_worker_tmux_status_handles_missing_summary` |
 | The Codex worktree prep helper is read-only by default, reports clean/dirty readiness, and requires an explicit flag before branch creation. | `tests/test_queue.py::MessageQueueTests.test_codex_prepare_worktree_reports_clean_state_without_mutation`, `tests/test_queue.py::MessageQueueTests.test_codex_prepare_worktree_blocks_dirty_state`, `tests/test_queue.py::MessageQueueTests.test_codex_prepare_worktree_requires_explicit_create_branch` |
 | The Codex worker writes a local run summary artifact without changing queue ack/retry behavior. | `tests/test_queue.py::MessageQueueTests.test_codex_worker_loop_writes_run_summary` |
