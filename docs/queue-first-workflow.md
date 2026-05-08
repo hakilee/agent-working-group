@@ -80,3 +80,7 @@ Use the templates in `docs/templates/` for repeatable handoffs:
 - [QA Checklist Request](templates/qa-checklist-request.md)
 - [Review Result](templates/review-result.md)
 - [Close Report](templates/close-report.md)
+- [PR Review Request](templates/pr-review-request.md)
+- [PR Review Result Comment](templates/pr-review-result-comment.md)
+
+For pull request review gates, see [PR Review Gate](pr-review-gate.md).
