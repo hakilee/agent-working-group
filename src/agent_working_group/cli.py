@@ -69,6 +69,11 @@ def build_parser() -> argparse.ArgumentParser:
     prune.add_argument("--log-keep-lines", type=int)
     prune.add_argument("--dry-run", action="store_true")
 
+    cleanup = sub.add_parser("cleanup-artifacts")
+    cleanup.add_argument("--dry-run", action="store_true")
+    cleanup.add_argument("--temp-file-min-age-sec", type=float, default=3600)
+    cleanup.add_argument("--stale-lock-min-age-sec", type=float, default=600)
+
     log = sub.add_parser("log")
     log.add_argument("--follow", action="store_true")
     log.add_argument("--local", action="store_true")
@@ -132,6 +137,13 @@ def main(argv=None) -> int:
                 args.dry_run,
                 args.include_processing,
                 args.processing_keep,
+            ))
+            return 0
+        if args.command == "cleanup-artifacts":
+            print_json(queue.cleanup_artifacts(
+                args.dry_run,
+                args.temp_file_min_age_sec,
+                args.stale_lock_min_age_sec,
             ))
             return 0
         if args.command == "log":

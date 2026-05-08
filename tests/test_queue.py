@@ -1,4 +1,6 @@
+import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -111,6 +113,59 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIsNotNone(message)
         self.assertEqual(queue.status("worker")["pending"], 0)
         self.assertEqual(queue.status("worker")["processed"], 1)
+
+    def test_cleanup_artifacts_preserves_queue_json_in_dry_run(self):
+        queue, root = self.with_queue()
+        paths = queue.paths("worker")
+        for index, directory in enumerate((paths.inbox, paths.processing, paths.processed, paths.dead), start=1):
+            message = directory / f"000000000000{index}_10_test{index}.json"
+            message.write_text(
+                '{"id":"test-%d","kind":"note","from":"lead","to":"worker","body":"state","refs":{},"priority":10}\n' % index,
+                encoding="utf-8",
+            )
+
+        log_dir = root / "log" / "worker-sessions"
+        log_dir.mkdir(parents=True)
+        temp_file = log_dir / "worker.msg.old.json"
+        temp_file.write_text("{}", encoding="utf-8")
+        old = time.time() - 7200
+        os.utime(temp_file, (old, old))
+
+        result = queue.cleanup_artifacts(dry_run=True)
+
+        self.assertIn(str(temp_file), result["candidates"])
+        self.assertEqual(result["queueJsonPreserved"], 4)
+        self.assertEqual(len(list((root / "queues" / "worker" / "inbox").glob("*.json"))), 1)
+        self.assertEqual(len(list((root / "queues" / "worker" / "processing").glob("*.json"))), 1)
+        self.assertEqual(len(list((root / "queues" / "worker" / "processed").glob("*.json"))), 1)
+        self.assertEqual(len(list((root / "queues" / "worker" / "dead").glob("*.json"))), 1)
+
+    def test_cleanup_artifacts_handles_stale_active_and_nonempty_locks(self):
+        queue, root = self.with_queue()
+        locks = root / "tmp" / "locks"
+        stale = locks / "worker-worker-loop.lockdir"
+        active = locks / "active-worker-loop.lockdir"
+        nonempty = locks / "manual-worker-loop.lockdir"
+        stale.mkdir()
+        active.mkdir()
+        nonempty.mkdir()
+        (nonempty / "owner").write_text("pid", encoding="utf-8")
+        old = time.time() - 7200
+        os.utime(stale, (old, old))
+        os.utime(nonempty, (old, old))
+
+        result = queue.cleanup_artifacts(dry_run=True, stale_lock_min_age_sec=600)
+
+        self.assertIn(str(stale), result["candidates"])
+        self.assertTrue(any(item["path"] == str(active) for item in result["preserved"]))
+        self.assertTrue(any(item["path"] == str(nonempty) for item in result["manualReview"]))
+
+        result = queue.cleanup_artifacts(dry_run=False, stale_lock_min_age_sec=600)
+
+        self.assertFalse(stale.exists())
+        self.assertTrue(active.exists())
+        self.assertTrue(nonempty.exists())
+        self.assertIn(str(stale), result["removed"])
 
 
 if __name__ == "__main__":

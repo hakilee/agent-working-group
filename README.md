@@ -71,6 +71,7 @@ Primary methods:
 - `requeue_stale(agent, older_than_sec=300, max_retries=None)`: requeue stale unacked messages or move them to `dead/`.
 - `status(agent, tz="UTC")`, `peek(agent)`, `processing(agent)`, `processed(agent)`, `dead(agent)`: inspect queue state.
 - `prune(agent=None, processed_keep=1000, include_processing=False, processing_keep=100, log_keep_lines=None, dry_run=False)`: archive old queue/log data.
+- `cleanup_artifacts(dry_run=True, temp_file_min_age_sec=3600, stale_lock_min_age_sec=600)`: remove generated worker clutter without touching queue JSON.
 
 ## CLI Overview
 
@@ -89,6 +90,7 @@ awg processed --as=worker --limit=5 --tz=Asia/Seoul
 awg dead --as=worker --limit=5
 awg status --as=worker --tz=Asia/Seoul
 awg prune --as=worker --processed-keep=100 --include-processing --processing-keep=20 --log-keep-lines=1000 --dry-run
+awg cleanup-artifacts --dry-run
 awg log --tz=Asia/Seoul
 ```
 
@@ -173,3 +175,5 @@ This keeps implementation, documentation, and tests aligned.
 This is intentionally simple and local-first. It does not require a broker, database, network service, or daemon. It is best suited for local agent orchestration, coding-agent experiments, and small workflow projects.
 
 For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached.
+
+For cleanup of worker temp files and stale worker lock directories, see [Cleanup Artifacts](docs/cleanup-artifacts.md). Cleanup jobs must not delete queue JSON directly.

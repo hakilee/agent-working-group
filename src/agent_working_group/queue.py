@@ -337,6 +337,68 @@ class MessageQueue:
             lines.append(json.dumps(message, ensure_ascii=False, separators=(",", ":")))
         return lines
 
+    def cleanup_artifacts(
+        self,
+        dry_run: bool = True,
+        temp_file_min_age_sec: float = 3600,
+        stale_lock_min_age_sec: float = 600,
+    ) -> dict:
+        """Remove generated clutter without touching queue state."""
+        now = time.time()
+        worker_log_dir = self.root / "log" / "worker-sessions"
+        locks_dir = self.root / "tmp" / "locks"
+        candidates: list[Path] = []
+        removed: list[str] = []
+        preserved: list[dict[str, str]] = []
+        manual_review: list[dict[str, str]] = []
+
+        for pattern in ("*.msg.*.json", "*.msg.*.json.err"):
+            if worker_log_dir.exists():
+                for path in worker_log_dir.glob(pattern):
+                    if not path.is_file():
+                        continue
+                    age = now - path.stat().st_mtime
+                    if age >= temp_file_min_age_sec:
+                        candidates.append(path)
+                    else:
+                        preserved.append({"path": str(path), "reason": "worker temp file is too new"})
+
+        if locks_dir.exists():
+            for path in locks_dir.glob("*-worker-loop.lockdir"):
+                if not path.is_dir():
+                    continue
+                age = now - path.stat().st_mtime
+                if age < stale_lock_min_age_sec:
+                    preserved.append({"path": str(path), "reason": "worker lock directory is too new"})
+                    continue
+                if any(path.iterdir()):
+                    manual_review.append({"path": str(path), "reason": "worker lock directory is not empty; refusing rm -rf"})
+                    continue
+                candidates.append(path)
+
+        queue_json = [str(path) for path in (self.root / "queues").glob("*/*/*.json") if path.is_file()] if (self.root / "queues").exists() else []
+
+        if not dry_run:
+            for path in candidates:
+                if path.is_dir():
+                    try:
+                        path.rmdir()
+                        removed.append(str(path))
+                    except OSError:
+                        manual_review.append({"path": str(path), "reason": "rmdir failed; refusing rm -rf"})
+                else:
+                    path.unlink(missing_ok=True)
+                    removed.append(str(path))
+
+        return {
+            "dryRun": dry_run,
+            "candidates": [str(path) for path in candidates],
+            "removed": removed,
+            "preserved": preserved,
+            "manualReview": manual_review,
+            "queueJsonPreserved": len(queue_json),
+        }
+
 
 
 def files_to_prune(files, keep: int):
