@@ -25,7 +25,7 @@ Scheduled observers should use non-consuming commands:
 - `send --kind=note` can notify a lead about pending work.
 - `requeue-stale --as=<agent>` can recover stale processing messages when retry limits are configured.
 
-A safe observer can check state, send a rate-limited reminder, and requeue stale work without consuming new instructions.
+A safe observer can check state, send a rate-limited reminder, and requeue stale work without consuming new instructions. The repository includes `scripts/awg-safe-poll.sh` as a generic template for this pattern.
 
 ```bash
 #!/usr/bin/env bash

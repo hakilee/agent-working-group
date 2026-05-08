@@ -176,4 +176,6 @@ This is intentionally simple and local-first. It does not require a broker, data
 
 For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached.
 
+For bounded tmux worker scripts, safe-poll coexistence, and instruction auto-ack warnings, see [Worker Operations](docs/worker-operations.md). The worker scripts are queue runners, not AI executors; do not send `instruction` messages to an active queue runner unless acknowledging without execution is intentional.
+
 For cleanup of worker temp files and stale worker lock directories, see [Cleanup Artifacts](docs/cleanup-artifacts.md). Cleanup jobs must not delete queue JSON directly.

@@ -1,4 +1,6 @@
 import os
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -166,6 +168,125 @@ class MessageQueueTests(unittest.TestCase):
         self.assertTrue(active.exists())
         self.assertTrue(nonempty.exists())
         self.assertIn(str(stale), result["removed"])
+
+    def test_worker_loop_auto_acks_instruction_without_execution(self):
+        queue, root = self.with_queue()
+        message_id = queue.send("lead", "worker", "instruction", "record the risk")
+        wrapper = root / "awg-wrapper"
+        project_root = Path(__file__).resolve().parents[1]
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f"PYTHONPATH={project_root / 'src'} exec {sys.executable} -m agent_working_group.cli \"$@\"\n",
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+
+        result = subprocess.run(
+            [str(project_root / "scripts" / "awg-worker-loop.sh")],
+            cwd=project_root,
+            env={
+                **os.environ,
+                "AWG_CLI": str(wrapper),
+                "AWG_ROOT": str(root),
+                "WORKER": "worker",
+                "LEAD": "lead",
+                "MAX_TASKS": "1",
+                "MAX_IDLE_SECONDS": "30",
+                "RECV_TIMEOUT": "1",
+                "REPORT_STATUS": "0",
+            },
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn("acknowledging without AI execution", result.stdout)
+        self.assertEqual(queue.status("worker")["processing"], 0)
+        processed = queue.processed("worker", limit=1)[0]
+        self.assertEqual(processed["id"], message_id)
+        self.assertIn("ackedAt", processed["refs"])
+
+    def test_worker_idle_timeout_resets_after_message(self):
+        queue, root = self.with_queue()
+        wrapper = root / "awg-wrapper"
+        project_root = Path(__file__).resolve().parents[1]
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f"PYTHONPATH={project_root / 'src'} exec {sys.executable} -m agent_working_group.cli \"$@\"\n",
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+
+        process = subprocess.Popen(
+            [str(project_root / "scripts" / "awg-worker-loop.sh")],
+            cwd=project_root,
+            env={
+                **os.environ,
+                "AWG_CLI": str(wrapper),
+                "AWG_ROOT": str(root),
+                "WORKER": "worker",
+                "LEAD": "lead",
+                "MAX_TASKS": "2",
+                "MAX_IDLE_SECONDS": "3",
+                "RECV_TIMEOUT": "1",
+                "REPORT_STATUS": "0",
+            },
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.addCleanup(lambda: process.poll() is None and process.kill())
+
+        time.sleep(2)
+        first_id = queue.send("lead", "worker", "note", "first")
+        time.sleep(2)
+        second_id = queue.send("lead", "worker", "note", "second")
+        stdout, stderr = process.communicate(timeout=10)
+
+        self.assertEqual(process.returncode, 0, stderr + stdout)
+        self.assertIn("reason=max tasks", stdout)
+        processed_ids = {message["id"] for message in queue.processed("worker")}
+        self.assertIn(first_id, processed_ids)
+        self.assertIn(second_id, processed_ids)
+
+    def test_worker_scripts_are_generic_and_portable(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "scripts" / "awg-worker-loop.sh",
+            project_root / "scripts" / "awg-worker-tmux.sh",
+            project_root / "scripts" / "awg-safe-poll.sh",
+            project_root / "docs" / "worker-operations.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        self.assertNotRegex(content, r"/Users/|/home/|~/|\$HOME")
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+        self.assertNotIn(".XXXXXX" + ".json", content)
+        self.assertIn("mktemp \"${LOG_DIR}/${WORKER}.msg.XXXXXX\"", content)
+        self.assertIn("MAX_RECV_ERRORS=0", content)
+        self.assertIn("acknowledge them without doing the work", content)
+
+    def test_safe_poll_script_does_not_consume_worker_inbox(self):
+        project_root = Path(__file__).resolve().parents[1]
+        script = project_root / "scripts" / "awg-safe-poll.sh"
+        content = script.read_text(encoding="utf-8")
+
+        self.assertNotRegex(content, r"\brecv\b")
+        self.assertIn("status --as", content)
+        self.assertIn("send --from poller --to \"$LEAD\" --kind note", content)
+        self.assertIn("requeue-stale --as \"$WORKER\"", content)
 
 
 if __name__ == "__main__":
