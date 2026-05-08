@@ -180,7 +180,7 @@ For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). F
 
 For filesystem containment rules used by helper code, see [Path Safety](docs/path-safety.md). Path helpers should resolve canonical paths, fail closed, and reject symlink or traversal escapes.
 
-Reusable templates live in [docs/templates](docs/templates/): [Task Spec](docs/templates/task-spec.md), [QA Checklist Request](docs/templates/qa-checklist-request.md), [Review Result](docs/templates/review-result.md), [Close Report](docs/templates/close-report.md), [PR Review Request](docs/templates/pr-review-request.md), and [PR Review Result Comment](docs/templates/pr-review-result-comment.md).
+Reusable templates live in [docs/templates](docs/templates/): [Task Spec](docs/templates/task-spec.md), [QA Checklist Request](docs/templates/qa-checklist-request.md), [Review Result](docs/templates/review-result.md), [Close Report](docs/templates/close-report.md), [PR Review Request](docs/templates/pr-review-request.md), and [PR Review Result Comment](docs/templates/pr-review-result-comment.md). `scripts/awg-independent-analysis-template.sh` prints stdout-only independent-analysis section scaffolds aligned with the task spec, review result, and close report templates.
 
 For queue-first pull request review gates and public-safe PR comments, see [PR Review Gate](docs/pr-review-gate.md). Review results can be summarized back to the pull request, but the workflow must never auto-merge or auto-approve.
 

@@ -45,6 +45,14 @@ Use this lightweight comparison flow:
 4. If conclusions disagree, record the disagreement, the resolution path, and whether follow-up work, retest, or explicit acceptance is required.
 5. Close only after agreement is reached, the disagreement is resolved, or the remaining risk is explicitly accepted.
 
+For copy-paste scaffolds that match the task spec, review result, and close report templates, run:
+
+```bash
+scripts/awg-independent-analysis-template.sh [task-spec|review-result|close-report|all]
+```
+
+The helper is advisory and stdout-only. It does not decide whether independent analysis is required, does not modify files, and must not become an enforcement gate.
+
 ## Worker Responsibilities
 
 Workers should receive durable tasks with `recv --require-ack`. The message should remain in `processing` until the task is complete, intentionally superseded, or moved by the retry/dead-letter policy.
