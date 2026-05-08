@@ -14,7 +14,7 @@ Use this workflow when a pull request needs independent review before merge. The
 ## Lead Responsibilities
 
 - Put the full review request in the AWG queue, not a chat-only message.
-- Include repository, PR number or URL, branch, scope, checklist path, expected checks, and requested output path.
+- Include repository, PR number or URL, branch, scope, checklist path, expected checks, requested output path, and the commit/title rule source.
 - Keep the PR comment concise and public-safe.
 - Do not merge while the review verdict is `FAIL` or unresolved `CONDITIONAL PASS`.
 - Record any accepted risk before merge.
@@ -23,6 +23,7 @@ Use this workflow when a pull request needs independent review before merge. The
 
 - Treat the AWG instruction as the source of truth.
 - Review the diff, docs, tests, and requested checks without relying on chat-only context.
+- Check that the pull request title and intended squash merge title follow the repository rule, or Conventional Commits when no explicit rule exists.
 - Write full findings to a file or AWG `status` message.
 - Use `PASS`, `CONDITIONAL PASS`, or `FAIL`.
 - Leave the instruction unacknowledged until the requested QA result is complete.
@@ -43,7 +44,7 @@ Do not include private agent names, local paths, private chat references, creden
 
 ## Merge Gate
 
-- `PASS`: merge is allowed after the lead confirms required checks.
+- `PASS`: merge is allowed after the lead confirms required checks, including pull request title and intended squash title policy.
 - `CONDITIONAL PASS`: merge is blocked until listed conditions are fixed or explicitly accepted and documented.
 - `FAIL`: merge is blocked. Fix blockers and request review again.
 
@@ -68,3 +69,4 @@ If AWG is unavailable, write the review request to a file and record why queue-f
 - [Review Result](templates/review-result.md)
 - [Close Report](templates/close-report.md)
 - [Artifact Retention](artifact-retention.md)
+- [Repository Rules](repository-rules.md)

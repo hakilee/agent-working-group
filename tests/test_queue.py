@@ -512,6 +512,57 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
+    def test_repository_rules_docs_and_templates_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "repository-rules.md",
+            project_root / "docs" / "templates" / "pr-review-request.md",
+            project_root / "docs" / "templates" / "close-report.md",
+            project_root / "docs" / "pr-review-gate.md",
+            project_root / "docs" / "queue-first-workflow.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        repository_rules = (project_root / "docs" / "repository-rules.md").read_text(encoding="utf-8")
+        pr_review_gate = (project_root / "docs" / "pr-review-gate.md").read_text(encoding="utf-8")
+        close_report = (project_root / "docs" / "templates" / "close-report.md").read_text(encoding="utf-8")
+        pr_request = (project_root / "docs" / "templates" / "pr-review-request.md").read_text(encoding="utf-8")
+
+        self.assertIn("Repository rule first", repository_rules)
+        self.assertIn("If no explicit repository rule exists, use Conventional Commits", repository_rules)
+        self.assertIn("<type>(scope): <description>", repository_rules)
+        self.assertIn("Git commit messages", repository_rules)
+        self.assertIn("pull request titles", repository_rules)
+        self.assertIn("squash merge commit titles", repository_rules)
+        self.assertIn("keep the pull request title aligned with the intended squash commit title", repository_rules)
+        self.assertIn("1. contribution docs", repository_rules)
+        self.assertIn("6. if no explicit rule is found", repository_rules)
+        self.assertIn("Record which rule source was used", repository_rules)
+
+        self.assertIn("Intended squash merge title", pr_request)
+        self.assertIn("Commit/title rule source", pr_request)
+        self.assertIn("PR title and intended squash title follow", pr_request)
+        self.assertIn("Rule source", close_report)
+        self.assertIn("Final commit message", close_report)
+        self.assertIn("Final pull request title", close_report)
+        self.assertIn("Final squash merge title", close_report)
+        self.assertIn("Check that the pull request title and intended squash merge title", pr_review_gate)
+        self.assertIn("including pull request title and intended squash title policy", pr_review_gate)
+        self.assertIn("Repository Rules", content)
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
 
 if __name__ == "__main__":
     unittest.main()
