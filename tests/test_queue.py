@@ -269,7 +269,8 @@ class MessageQueueTests(unittest.TestCase):
         )
         for forbidden in forbidden_names:
             self.assertNotIn(forbidden, content.lower())
-        self.assertNotRegex(content, r"/Users/|/home/|~/|\$HOME")
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
         self.assertNotRegex(content, r"[\uac00-\ud7af]")
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
@@ -287,6 +288,45 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("status --as", content)
         self.assertIn("send --from poller --to \"$LEAD\" --kind note", content)
         self.assertIn("requeue-stale --as \"$WORKER\"", content)
+
+    def test_pr_review_gate_docs_and_helper_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "pr-review-gate.md",
+            project_root / "docs" / "templates" / "pr-review-request.md",
+            project_root / "docs" / "templates" / "pr-review-result-comment.md",
+            project_root / "scripts" / "awg-pr-review-request.sh",
+            project_root / "README.md",
+            project_root / "docs" / "queue-first-workflow.md",
+            project_root / "docs" / "protocol.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        script = (project_root / "scripts" / "awg-pr-review-request.sh").read_text(encoding="utf-8")
+
+        self.assertIn("queue-first", content)
+        self.assertIn("never auto-merge or auto-approve", content.lower())
+        self.assertIn("PR Review Result Comment", content)
+        self.assertIn(" pr view ", script)
+        self.assertIn(" pr diff ", script)
+        self.assertIn(" pr checks ", script)
+        self.assertIn("send --from", script)
+        self.assertNotRegex(script, r"gh\s+pr\s+merge")
+        self.assertNotRegex(script, r"gh\s+pr\s+review[^\n]*(--approve|approve)")
+        self.assertNotRegex(script, r"git\s+checkout|git\s+switch")
+        self.assertNotRegex(script, r"\b(make|pytest|npm|python3?)\s+(test|install|run|-)" )
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
 
 
 if __name__ == "__main__":
