@@ -40,5 +40,5 @@ Use this flow whenever the package evolves.
 ## Naming Rules
 
 - Do not use local agent names.
-- Do not reference private Discord channels or local project paths in public docs.
+- Do not reference private chat channels or local project paths in public docs.
 - Prefer role names: `lead`, `worker`, `reviewer`, `observer`.
