@@ -24,6 +24,15 @@ State the outcome in one or two sentences.
 - Required documentation:
 - Required review or signoff:
 
+## Independent Analysis Requirement
+
+Use only for large, high-risk, or strategically important analysis/design work. Leave as `not required` for trivial one-step work or routine tasks.
+
+- Required: yes/no/not required
+- Lead analysis artifact or summary:
+- Worker/reviewer analysis artifact or summary:
+- Comparison required before closure: yes/no
+
 ## Workspace
 
 Describe the repository, package, or artifact area. Use portable paths such as repository-relative paths when possible.

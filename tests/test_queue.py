@@ -548,6 +548,60 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
+    def test_independent_lead_analysis_docs_and_templates_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "queue-first-workflow.md",
+            project_root / "docs" / "templates" / "task-spec.md",
+            project_root / "docs" / "templates" / "review-result.md",
+            project_root / "docs" / "templates" / "close-report.md",
+            project_root / "docs" / "spec-matrix.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        workflow = (project_root / "docs" / "queue-first-workflow.md").read_text(encoding="utf-8")
+        task_spec = (project_root / "docs" / "templates" / "task-spec.md").read_text(encoding="utf-8")
+        review_result = (project_root / "docs" / "templates" / "review-result.md").read_text(encoding="utf-8")
+        close_report = (project_root / "docs" / "templates" / "close-report.md").read_text(encoding="utf-8")
+
+        self.assertIn("Independent Lead Analysis", workflow)
+        self.assertIn("large, high-risk, or strategically important analysis and design work", workflow)
+        self.assertIn("trivial one-step work", workflow)
+        self.assertIn("This rule is selective", workflow)
+        self.assertIn("If conclusions disagree", workflow)
+        self.assertIn("record the disagreement", workflow)
+        self.assertIn("Close only after agreement is reached", workflow)
+
+        self.assertIn("Independent Analysis Requirement", task_spec)
+        self.assertIn("Lead analysis artifact or summary", task_spec)
+        self.assertIn("Worker/reviewer analysis artifact or summary", task_spec)
+        self.assertIn("Comparison required before closure", task_spec)
+        self.assertIn("Independent Analysis Comparison", review_result)
+        self.assertIn("Lead analysis summary", review_result)
+        self.assertIn("Worker/reviewer analysis summary", review_result)
+        self.assertIn("Disagreements", review_result)
+        self.assertIn("Resolution or required follow-up", review_result)
+        self.assertIn("Lead analysis completed", close_report)
+        self.assertIn("Worker or reviewer analysis completed", close_report)
+        self.assertIn("Comparison result", close_report)
+        self.assertIn("Disagreements found", close_report)
+        self.assertIn("Resolution before closure", close_report)
+
+        self.assertIn("test_independent_lead_analysis_docs_and_templates_are_safe", content)
+        self.assertIn("without forcing ceremony on trivial work", content)
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
     def test_repository_rules_docs_and_templates_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [

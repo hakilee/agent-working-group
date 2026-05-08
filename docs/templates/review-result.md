@@ -34,6 +34,16 @@ List findings in severity order. Include a file reference or reproducible eviden
 - Failed:
 - Not applicable:
 
+## Independent Analysis Comparison
+
+Use when the task required independent lead analysis. Otherwise write `not applicable`.
+
+- Lead analysis summary:
+- Worker/reviewer analysis summary:
+- Agreement:
+- Disagreements:
+- Resolution or required follow-up:
+
 ## Residual Risks
 
 - Risk:
