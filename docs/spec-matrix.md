@@ -32,6 +32,7 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 
 | Guarantee | Test coverage |
 | --- | --- |
+| The Codex tmux worker is opt-in, manual bounded by default, uses the executor bridge, treats instruction bodies as prompt data instead of shell, and acknowledges only after structured success. | `tests/test_queue.py::MessageQueueTests.test_codex_executor_success_acks_after_codex_exit_zero`, `tests/test_queue.py::MessageQueueTests.test_codex_executor_nonzero_does_not_ack`, `tests/test_queue.py::MessageQueueTests.test_codex_executor_requires_explicit_repo`, `tests/test_queue.py::MessageQueueTests.test_codex_worker_docs_and_scripts_are_safe` |
 | The executor bridge is opt-in and is not part of `MessageQueue` core behavior. | `tests/test_queue.py::MessageQueueTests.test_executor_bridge_docs_and_scripts_are_safe` |
 | The bridge acknowledges an `instruction` only after a structured `success` result. | `tests/test_queue.py::MessageQueueTests.test_executor_bridge_success_acks_after_status` |
 | Retry results return the original message to the inbox without `ack`. | `tests/test_queue.py::MessageQueueTests.test_executor_bridge_retry_requeues_without_ack` |

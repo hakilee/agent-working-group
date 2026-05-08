@@ -1438,6 +1438,154 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
+
+    def run_codex_executor_bridge(self, root, fake_exit=0, fake_output="codex fake success", body="change one file", repo=None):
+        project_root = Path(__file__).resolve().parents[1]
+        wrapper = root / "awg-wrapper"
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f"PYTHONPATH={project_root / 'src'} exec {sys.executable} -m agent_working_group.cli \"$@\"\n",
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+        fake_codex = root / "fake-codex"
+        fake_codex.write_text(
+            "#!/usr/bin/env python3\n"
+            "import os, pathlib, sys\n"
+            "pathlib.Path(os.environ['FAKE_CODEX_ARGV']).write_text('\\n'.join(sys.argv), encoding='utf-8')\n"
+            "print(os.environ.get('FAKE_CODEX_OUTPUT', 'codex fake success'))\n"
+            "raise SystemExit(int(os.environ.get('FAKE_CODEX_EXIT', '0')))\n",
+            encoding="utf-8",
+        )
+        fake_codex.chmod(0o755)
+        repo_path = repo or (root / "repo")
+        repo_path.mkdir(parents=True, exist_ok=True)
+        queue = MessageQueue(root)
+        message_id = queue.send("lead", "codex-worker", "instruction", body, repo=str(repo_path), workspace=str(repo_path))
+        env = {
+            **os.environ,
+            "AWG_CLI": str(wrapper),
+            "AWG_ROOT": str(root),
+            "WORKER": "codex-worker",
+            "LEAD": "lead",
+            "RECV_TIMEOUT": "1",
+            "AWG_CODEX_BIN": str(fake_codex),
+            "AWG_CODEX_OUTPUT_DIR": str(root / "codex-output"),
+            "FAKE_CODEX_ARGV": str(root / "fake-codex.argv"),
+            "FAKE_CODEX_OUTPUT": fake_output,
+            "FAKE_CODEX_EXIT": str(fake_exit),
+        }
+        result = subprocess.run(
+            [
+                str(project_root / "scripts" / "awg-executor-bridge.sh"),
+                "--",
+                str(project_root / "scripts" / "awg-codex-executor.sh"),
+            ],
+            cwd=project_root,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=20,
+        )
+        return queue, message_id, result, root / "fake-codex.argv"
+
+    def test_codex_executor_success_acks_after_codex_exit_zero(self):
+        _, root = self.with_queue()
+        queue, message_id, result, argv_path = self.run_codex_executor_bridge(root)
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertEqual(queue.status("codex-worker")["processing"], 0)
+        processed = queue.processed("codex-worker", limit=1)[0]
+        self.assertEqual(processed["id"], message_id)
+        self.assertIn("ackedAt", processed["refs"])
+        lead_message = queue.peek("lead")[0]
+        self.assertEqual(lead_message["kind"], "status")
+        self.assertIn("executor success", lead_message["body"])
+        self.assertIn("codex exec returned exit code 0", lead_message["body"])
+        argv = argv_path.read_text(encoding="utf-8")
+        self.assertIn("exec", argv)
+        self.assertIn("--skip-git-repo-check", argv)
+        self.assertIn("--sandbox", argv)
+        self.assertIn("change one file", argv)
+
+    def test_codex_executor_nonzero_does_not_ack(self):
+        _, root = self.with_queue()
+        queue, message_id, result, _ = self.run_codex_executor_bridge(root, fake_exit=7, fake_output="boom")
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertEqual(queue.status("codex-worker")["processing"], 1)
+        processing = queue.processing("codex-worker", limit=1)[0]
+        self.assertEqual(processing["id"], message_id)
+        self.assertNotIn("ackedAt", processing["refs"])
+        lead_message = queue.peek("lead")[0]
+        self.assertEqual(lead_message["kind"], "status")
+        self.assertIn("operator decides", lead_message["body"])
+
+    def test_codex_executor_requires_explicit_repo(self):
+        _, root = self.with_queue()
+        queue = MessageQueue(root)
+        message_id = queue.send("lead", "codex-worker", "instruction", "do work")
+        project_root = Path(__file__).resolve().parents[1]
+        wrapper = root / "awg-wrapper"
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f"PYTHONPATH={project_root / 'src'} exec {sys.executable} -m agent_working_group.cli \"$@\"\n",
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+        env = {**os.environ, "AWG_CLI": str(wrapper), "AWG_ROOT": str(root), "WORKER": "codex-worker", "LEAD": "lead", "RECV_TIMEOUT": "1"}
+        result = subprocess.run(
+            [str(project_root / "scripts" / "awg-executor-bridge.sh"), "--", str(project_root / "scripts" / "awg-codex-executor.sh")],
+            cwd=project_root,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=20,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertEqual(queue.status("codex-worker")["processing"], 1)
+        self.assertEqual(queue.processing("codex-worker", limit=1)[0]["id"], message_id)
+        self.assertEqual(queue.peek("lead")[0]["kind"], "question")
+
+    def test_codex_worker_docs_and_scripts_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "codex-tmux-worker.md",
+            project_root / "docs" / "worker-operations.md",
+            project_root / "docs" / "ai-executor-bridge.md",
+            project_root / "scripts" / "awg-codex-executor.sh",
+            project_root / "scripts" / "awg-codex-worker-loop.sh",
+            project_root / "scripts" / "awg-codex-worker-tmux.sh",
+            project_root / "README.md",
+            project_root / "tests" / "test_queue.py",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        scripts = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths if path.suffix == ".sh")
+
+        self.assertIn("Codex Tmux Worker", content)
+        self.assertIn("codex exec", content)
+        self.assertIn("manual bounded", content)
+        self.assertIn("acknowledges only after structured success", content)
+        self.assertIn("AWG_CODEX_BIN", content)
+        self.assertIn("AWG_CODEX_REPO", content)
+        self.assertIn("MAX_TASKS", content)
+        self.assertIn("MAX_IDLE_SECONDS", content)
+        self.assertIn("test_codex_executor_success_acks_after_codex_exit_zero", content)
+        self.assertNotRegex(scripts, r"\beval\b|bash\s+-c|sh\s+-c")
+        self.assertNotRegex(scripts, r"jq\s|sed\s+-i|python3[^\n]+queues/.+json")
+        self.assertNotRegex(scripts, r"curl\b|wget|http://|https://")
+        forbidden_names = ("mat" + "dori", "mat" + "gukno", "happy" + "-" + "haki")
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
     def test_spec_matrix_and_correlation_docs_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         spec_matrix = project_root / "docs" / "spec-matrix.md"

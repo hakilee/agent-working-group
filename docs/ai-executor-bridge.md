@@ -81,3 +81,7 @@ Adapter requirements:
 - never read, write, or move queue directories directly
 
 Deterministic template modes are controlled by `AWG_REAL_EXECUTOR_MODE` for tests and smoke checks. A private real adapter should replace the mode handler with provider-specific logic outside this repository while preserving the same contract.
+
+## Codex Executor Adapter
+
+`scripts/awg-codex-executor.sh` is an opt-in adapter for code-related instructions. It reads the AWG message JSON file, resolves an explicit repository from `refs.repo`, `refs.workspace`, or `AWG_CODEX_REPO`, and calls `codex exec` with the instruction body as prompt data. It acknowledges only after structured success through this bridge. See [Codex Tmux Worker](codex-tmux-worker.md) for tmux operation.
