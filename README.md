@@ -186,7 +186,7 @@ For queue-first pull request review gates and public-safe PR comments, see [PR R
 
 For operational Markdown artifact lifecycle, timestamped filenames, and active/completed/archive retention, see [Artifact Retention](docs/artifact-retention.md).
 
-For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-executor-bridge.md). The bridge acknowledges only successful instruction execution and never executes message bodies as shell.
+For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-executor-bridge.md). The bridge acknowledges only successful instruction execution and never executes message bodies as shell. `scripts/awg-real-executor-template.sh` provides a provider-neutral adapter template for private real executor wrappers.
 
 For repository-first commit message and pull request title rules with Conventional Commits fallback, see [Repository Rules](docs/repository-rules.md).
 
