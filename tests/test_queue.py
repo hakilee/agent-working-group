@@ -264,7 +264,38 @@ class MessageQueueTests(unittest.TestCase):
         self.assertEqual(reply["refs"]["parentId"], question_id)
         self.assertNotIn("correlationId", queue.peek("worker")[0]["refs"])
 
-    def test_cli_send_optional_correlation_flags_write_refs_only(self):
+    def test_send_optional_source_metadata_refs_are_backward_compatible(self):
+        queue, _ = self.with_queue()
+
+        plain_id = queue.send("lead", "worker", "note", "plain")
+        plain = next(message for message in queue.peek("worker") if message["id"] == plain_id)
+        self.assertEqual(plain["refs"], {})
+
+        message_id = queue.send(
+            "lead",
+            "worker",
+            "instruction",
+            "do work",
+            correlation_id="task-123",
+            source_channel="work-intake",
+            report_target="work-updates",
+            repo="example/repo",
+            workspace="repo-main",
+        )
+        message = next(message for message in queue.peek("worker") if message["id"] == message_id)
+        self.assertEqual(message["refs"], {
+            "correlationId": "task-123",
+            "sourceChannel": "work-intake",
+            "reportTarget": "work-updates",
+            "repo": "example/repo",
+            "workspace": "repo-main",
+        })
+        self.assertNotIn("sourceChannel", message)
+        self.assertNotIn("reportTarget", message)
+        self.assertNotIn("repo", message)
+        self.assertNotIn("workspace", message)
+
+    def test_cli_send_optional_correlation_and_source_flags_write_refs_only(self):
         _, root = self.with_queue()
         result = subprocess.run(
             [
@@ -288,6 +319,14 @@ class MessageQueueTests(unittest.TestCase):
                 "task-123",
                 "--parent-id",
                 "question-1",
+                "--source-channel",
+                "work-intake",
+                "--report-target",
+                "work-updates",
+                "--repo",
+                "example/repo",
+                "--workspace",
+                "repo-main",
             ],
             text=True,
             capture_output=True,
@@ -302,9 +341,17 @@ class MessageQueueTests(unittest.TestCase):
             "replyTo": "question-1",
             "correlationId": "task-123",
             "parentId": "question-1",
+            "sourceChannel": "work-intake",
+            "reportTarget": "work-updates",
+            "repo": "example/repo",
+            "workspace": "repo-main",
         })
         self.assertNotIn("correlationId", message)
         self.assertNotIn("parentId", message)
+        self.assertNotIn("sourceChannel", message)
+        self.assertNotIn("reportTarget", message)
+        self.assertNotIn("repo", message)
+        self.assertNotIn("workspace", message)
 
     def test_recv_is_not_safe_for_scheduling(self):
         queue, _ = self.with_queue()
@@ -1407,12 +1454,19 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("test_repository_rules_docs_and_templates_are_safe", content)
         self.assertIn("correlationId", content)
         self.assertIn("parentId", content)
+        self.assertIn("sourceChannel", content)
+        self.assertIn("reportTarget", content)
+        self.assertIn("workspace", content)
         self.assertIn("--correlation-id", content)
         self.assertIn("--parent-id", content)
+        self.assertIn("--source-channel", content)
+        self.assertIn("--report-target", content)
         self.assertIn("optional conventions", content)
         self.assertIn("not required schema fields", content)
         self.assertIn("does not change delivery order", content)
         self.assertIn("does not change queue delivery", content)
+        self.assertIn("queue selection", content)
+        self.assertIn("automatic routing", content)
         self.assertIn("backward-compatible", content)
 
         forbidden_names = (

@@ -146,6 +146,10 @@ class MessageQueue:
         *,
         correlation_id: object = None,
         parent_id: object = None,
+        source_channel: object = None,
+        report_target: object = None,
+        repo: object = None,
+        workspace: object = None,
     ) -> str:
         if kind not in PRIORITIES:
             raise ValueError(f"unknown kind: {kind}")
@@ -160,6 +164,14 @@ class MessageQueue:
             refs["correlationId"] = correlation_id
         if parent_id:
             refs["parentId"] = parent_id
+        if source_channel:
+            refs["sourceChannel"] = source_channel
+        if report_target:
+            refs["reportTarget"] = report_target
+        if repo:
+            refs["repo"] = repo
+        if workspace:
+            refs["workspace"] = workspace
         message = {
             "id": message_id,
             "kind": kind,
