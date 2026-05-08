@@ -55,6 +55,131 @@ class MessageQueueTests(unittest.TestCase):
         self.assertEqual(processed[0]["id"], message_id)
         self.assertIn("ackedAt", processed[0]["refs"])
 
+
+    def test_ack_pending_moves_inbox_to_processed_with_acked_at(self):
+        queue, _ = self.with_queue()
+        message_id = queue.send("lead", "worker", "instruction", "do work")
+
+        result = queue.ack_pending("worker", message_id)
+
+        self.assertEqual(result, message_id)
+        self.assertEqual(queue.status("worker")["pending"], 0)
+        processed = queue.processed("worker", limit=1)
+        self.assertEqual(processed[0]["id"], message_id)
+        self.assertIn("ackedAt", processed[0]["refs"])
+
+    def test_ack_pending_optional_expect_flags_match_and_cli_support(self):
+        queue, root = self.with_queue()
+        message_id = queue.send("lead", "worker", "instruction", "do work")
+        message = queue.peek("worker")[0]
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "agent_working_group.cli",
+                "--root",
+                str(root),
+                "ack-pending",
+                "--as",
+                "worker",
+                "--id",
+                message_id,
+                "--expect-kind",
+                message["kind"],
+                "--expect-from",
+                message["from"],
+                "--expect-to",
+                message["to"],
+                "--expect-created-at",
+                message["createdAt"],
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), message_id)
+        self.assertEqual(MessageQueue(root).status("worker")["processed"], 1)
+
+    def test_ack_pending_missing_or_wrong_state_fails_without_moving(self):
+        queue, _ = self.with_queue()
+        missing_id = "missing-message"
+        processing_id = queue.send("lead", "worker", "instruction", "processing")
+        queue.receive("worker", timeout=0, require_ack=True)
+        processed_id = queue.send("lead", "worker", "instruction", "processed")
+        queue.receive("worker", timeout=0)
+        dead_id = queue.send("lead", "worker", "instruction", "dead")
+        queue.receive("worker", timeout=0, require_ack=True)
+        queue.requeue_stale("worker", older_than_sec=0, max_retries=0)
+
+        for message_id in (missing_id, processing_id, processed_id, dead_id):
+            before = queue.status("worker")
+            with self.assertRaises(FileNotFoundError):
+                queue.ack_pending("worker", message_id)
+            self.assertEqual(queue.status("worker"), before)
+
+    def test_ack_pending_expect_flag_mismatches_fail_closed(self):
+        cases = [
+            ("expect_kind", "status", "expect-kind mismatch"),
+            ("expect_from", "other", "expect-from mismatch"),
+            ("expect_to", "other", "expect-to mismatch"),
+            ("expect_created_at", "2000-01-01T00:00:00Z", "expect-created-at mismatch"),
+        ]
+        for option, wrong_value, message_text in cases:
+            with self.subTest(option=option):
+                queue, _ = self.with_queue()
+                message_id = queue.send("lead", "worker", "instruction", "do work")
+                before = queue.peek("worker")[0].copy()
+                with self.assertRaisesRegex(ValueError, message_text):
+                    queue.ack_pending("worker", message_id, **{option: wrong_value})
+                after = queue.peek("worker")[0]
+                self.assertEqual(after["id"], message_id)
+                self.assertNotIn("ackedAt", after["refs"])
+                self.assertEqual(after["kind"], before["kind"])
+                self.assertEqual(after["from"], before["from"])
+                self.assertEqual(after["to"], before["to"])
+                self.assertEqual(after["createdAt"], before["createdAt"])
+
+    def test_ack_pending_duplicate_inbox_id_fails_closed(self):
+        queue, root = self.with_queue()
+        message_id = queue.send("lead", "worker", "instruction", "do work")
+        paths = queue.paths("worker")
+        original = next(paths.inbox.glob("*.json"))
+        duplicate = paths.inbox / f"9999999999999_50_{message_id[:8]}_duplicate.json"
+        duplicate.write_text(original.read_text(encoding="utf-8"), encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "multiple inbox files match id"):
+            queue.ack_pending("worker", message_id)
+
+        self.assertEqual(MessageQueue(root).status("worker")["pending"], 2)
+        self.assertEqual(MessageQueue(root).status("worker")["processed"], 0)
+
+    def test_ack_pending_without_expect_flags_preserves_message_fields_and_log(self):
+        queue, _ = self.with_queue()
+        message_id = queue.send("lead", "worker", "instruction", "do work")
+        original = queue.peek("worker")[0]
+        log_before = queue.log_lines()
+
+        queue.ack_pending("worker", message_id)
+
+        processed = queue.processed("worker", limit=1)[0]
+        for field in ("kind", "from", "to", "body", "createdAt", "priority"):
+            self.assertEqual(processed[field], original[field])
+        self.assertIn("ackedAt", processed["refs"])
+        self.assertEqual(queue.log_lines(), log_before)
+
+    def test_ack_still_requires_processing_not_inbox(self):
+        queue, _ = self.with_queue()
+        message_id = queue.send("lead", "worker", "instruction", "do work")
+
+        with self.assertRaises(FileNotFoundError):
+            queue.ack("worker", message_id)
+
+        self.assertEqual(queue.status("worker")["pending"], 1)
+        self.assertEqual(queue.status("worker")["processed"], 0)
+
     def test_prune_archives_processed_and_log_lines(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "note", "one")
@@ -647,6 +772,47 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
         self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
+
+    def test_ack_pending_docs_and_spec_matrix_are_safe(self):
+        queue_source = Path("src/agent_working_group/queue.py").read_text(encoding="utf-8")
+        cli_source = Path("src/agent_working_group/cli.py").read_text(encoding="utf-8")
+        docs = Path("docs/queue-reconciliation.md").read_text(encoding="utf-8")
+        matrix = Path("docs/spec-matrix.md").read_text(encoding="utf-8")
+        readme = Path("README.md").read_text(encoding="utf-8")
+
+        self.assertIn("def ack_pending", queue_source)
+        ack_pending_body = queue_source.split("def ack_pending", 1)[1].split("def retry", 1)[0]
+        self.assertNotIn("receive(", ack_pending_body)
+        self.assertIn("with self.lock(agent):", ack_pending_body)
+        self.assertIn("find_message_file(paths.inbox", ack_pending_body)
+        self.assertIn("find_message_files(paths.inbox", ack_pending_body)
+        self.assertIn("refs", ack_pending_body)
+        self.assertIn("ackedAt", ack_pending_body)
+        self.assertIn("ack-pending", cli_source)
+        self.assertIn("--expect-kind", cli_source)
+        self.assertIn("--expect-from", cli_source)
+        self.assertIn("--expect-to", cli_source)
+        self.assertIn("--expect-created-at", cli_source)
+        self.assertIn("ack-pending", docs)
+        self.assertIn("not for normal worker processing", docs)
+        self.assertIn("does not call `recv`", docs)
+        self.assertIn("does not support bulk mode", docs)
+        self.assertIn("test_ack_pending", matrix)
+        self.assertIn("ack_pending", readme)
+
+        combined = "\n".join([queue_source, cli_source, docs, matrix, readme])
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "cl" + "aws",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, combined.lower())
+        local_path_pattern = "/" + "Users/" + r"[^\s`]+"
+        self.assertNotRegex(combined, local_path_pattern)
+        korean_pattern = "[" + "\\uac00" + "-" + "\\ud7af" + "]"
+        self.assertNotRegex(combined, korean_pattern)
 
     def test_queue_reconciliation_action_policy_docs_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
