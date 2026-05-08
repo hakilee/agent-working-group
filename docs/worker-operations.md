@@ -126,6 +126,19 @@ Rules:
 
 The worker writes generated logs under `<AWG_ROOT>/log/worker-sessions/` and lock directories under `<AWG_ROOT>/tmp/locks/`. Use `awg cleanup-artifacts --dry-run` before deleting generated worker clutter. Cleanup must not delete queue JSON directly.
 
+## Codex Worker End-to-End Operator Flow
+
+For code work, keep the Codex worker path explicit and bounded:
+
+1. Run `scripts/awg-codex-prepare-worktree.sh --repo DIR` and confirm the target is ready. Dirty Git worktrees fail closed in the Codex adapter unless `AWG_CODEX_ALLOW_DIRTY=1` is set for an explicitly supervised exception.
+2. Send an `instruction` with explicit `--repo DIR` and `--workspace DIR` refs so the adapter does not infer the target.
+3. Start `scripts/awg-codex-worker-tmux.sh start` with bounds such as `MAX_TASKS=1`, `MAX_IDLE_SECONDS=900`, and a clear `SESSION` name.
+4. Use `scripts/awg-codex-worker-tmux.sh status` to see session state, queue state, and `latest_summary=PATH` when a run summary exists.
+5. Inspect the summary and log evidence. The summary points to `logFile` when available; otherwise use the tmux wrapper `log` command.
+6. Reconcile queue state only after evidence review. Use safe reviewed-item operations, not direct queue JSON edits, and do not assume a summary or log is enough to ack, retry, or delete work.
+
+This sequence does not create an always-on daemon, does not auto-dispatch work, and does not change queue ack/retry policy.
+
 ## Codex Worker Repository Preflight
 
 Codex worker jobs should target a clean Git worktree. `scripts/awg-codex-executor.sh` checks `git status --porcelain` when the target is inside Git and returns a blocker before `codex exec` if uncommitted changes are present. Operators can set `AWG_CODEX_ALLOW_DIRTY=1` for an explicitly supervised exception.

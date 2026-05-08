@@ -65,6 +65,19 @@ scripts/awg-codex-worker-tmux.sh stop
 scripts/awg-codex-worker-tmux.sh kill
 ```
 
+## Operator Flow
+
+Use this sequence for a manual bounded Codex worker run:
+
+1. Prepare the target repository with `scripts/awg-codex-prepare-worktree.sh --repo DIR`. The helper is read-only by default and should report a clean worktree before dispatch. If a branch is needed, use `--branch NAME --create-branch` explicitly.
+2. Send one instruction with explicit `--repo DIR` and `--workspace DIR` refs. The message body is prompt data only, not shell.
+3. Start the worker with bounded limits such as `MAX_TASKS=1` and `MAX_IDLE_SECONDS=900`.
+4. Run `scripts/awg-codex-worker-tmux.sh status` to inspect tmux state, queue state, and `latest_summary=PATH`.
+5. Inspect the run summary first, then the log named by the summary or `scripts/awg-codex-worker-tmux.sh log`.
+6. Reconcile queue state only after reviewing evidence. Use reviewed-item primitives such as `ack-pending` for inbox reconciliation when appropriate; do not treat a summary or log file as automatic permission to ack, retry, or delete anything.
+
+This flow stays manual and bounded. Summary and log files are inspection artifacts, not worker control state.
+
 ## Safety Rules
 
 - Treat the message body as prompt data, never as shell.
