@@ -402,6 +402,12 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("sibling-prefix", content)
         self.assertIn("Queue JSON files are live coordination state", content)
         self.assertIn("test_path_safety_helper_rejects_escapes", content)
+        self.assertIn("Allowed Base Policy", content)
+        self.assertIn("explicit directory boundary", content)
+        self.assertIn("Do not infer the boundary from the current working directory", content)
+        self.assertIn("Queue directories are not valid artifact or workspace write targets", content)
+        self.assertIn("fail closed before writing or moving anything", content)
+        self.assertIn("does not add an enforcement gate", content)
 
         forbidden_names = (
             "mat" + "dori",
@@ -520,6 +526,12 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("YYYYMMDDHHMM-short-description.md", content)
         self.assertIn("Delete artifacts only when an explicit retention rule says deletion is safe", content)
         self.assertIn("Queue JSON files are live coordination state", content)
+        self.assertIn("Allowed Base For Artifact Automation", content)
+        self.assertIn("artifact workspace root as an explicit allowed base", content)
+        self.assertIn("helpers should not infer it from the current working directory", content)
+        self.assertIn("Queue directories are live coordination state and are never valid artifact targets", content)
+        self.assertIn("fail closed when the allowed base is missing or invalid", content)
+        self.assertIn("does not make artifact movement automatic", content)
         self.assertIn("dry-run", script)
         self.assertIn("mv \"$SOURCE\" \"$DEST\"", script)
         self.assertNotRegex(script, r"\brm\b|unlink")
