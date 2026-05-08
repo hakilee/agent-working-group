@@ -1711,6 +1711,81 @@ class MessageQueueTests(unittest.TestCase):
         self.assertEqual(queue.status("codex-worker")["processing"], 0)
         self.assertEqual(queue.processed("codex-worker", limit=1)[0]["id"], message_id)
 
+    def test_codex_worker_tmux_status_reports_latest_summary_path(self):
+        _, root = self.with_queue()
+        project_root = Path(__file__).resolve().parents[1]
+        wrapper = root / "awg-wrapper"
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f'PYTHONPATH={project_root / "src"} exec {sys.executable} -m agent_working_group.cli "$@"\n',
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+        log_dir = root / "logs"
+        summary_dir = log_dir / "run-summaries"
+        summary_dir.mkdir(parents=True)
+        older = summary_dir / "codex-worker.summary.20260101000000.json"
+        latest = summary_dir / "codex-worker.summary.20260101000100.json"
+        older.write_text("{}\n", encoding="utf-8")
+        latest.write_text("{}\n", encoding="utf-8")
+        os.utime(older, (1, 1))
+        os.utime(latest, (2, 2))
+
+        result = subprocess.run(
+            [str(project_root / "scripts" / "awg-codex-worker-tmux.sh"), "status"],
+            cwd=project_root,
+            env={
+                **os.environ,
+                "AWG_CLI": str(wrapper),
+                "AWG_ROOT": str(root),
+                "WORKER": "codex-worker",
+                "SESSION": "awg-codex-test-status",
+                "LOG_DIR": str(log_dir),
+                "SUMMARY_DIR": str(summary_dir),
+            },
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=20,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn("session=awg-codex-test-status stopped", result.stdout)
+        self.assertIn(f"latest_summary={latest}", result.stdout)
+        self.assertNotIn(f"latest_summary={older}", result.stdout)
+
+    def test_codex_worker_tmux_status_handles_missing_summary(self):
+        _, root = self.with_queue()
+        project_root = Path(__file__).resolve().parents[1]
+        wrapper = root / "awg-wrapper"
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f'PYTHONPATH={project_root / "src"} exec {sys.executable} -m agent_working_group.cli "$@"\n',
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+
+        result = subprocess.run(
+            [str(project_root / "scripts" / "awg-codex-worker-tmux.sh"), "status"],
+            cwd=project_root,
+            env={
+                **os.environ,
+                "AWG_CLI": str(wrapper),
+                "AWG_ROOT": str(root),
+                "WORKER": "codex-worker",
+                "SESSION": "awg-codex-test-status-empty",
+                "LOG_DIR": str(root / "logs"),
+                "SUMMARY_DIR": str(root / "logs" / "run-summaries"),
+            },
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=20,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn("latest_summary=none", result.stdout)
+
     def test_codex_worker_docs_and_scripts_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [
@@ -1736,6 +1811,7 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("AWG_CODEX_ALLOW_DIRTY", content)
         self.assertIn("run summary", content.lower())
         self.assertIn("test_codex_worker_loop_writes_run_summary", content)
+        self.assertIn("test_codex_worker_tmux_status_reports_latest_summary_path", content)
         self.assertIn("test_codex_prepare_worktree_reports_clean_state_without_mutation", content)
         self.assertIn("MAX_TASKS", content)
         self.assertIn("MAX_IDLE_SECONDS", content)

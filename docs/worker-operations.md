@@ -134,6 +134,8 @@ Codex worker jobs should target a clean Git worktree. `scripts/awg-codex-executo
 
 The Codex worker loop writes one JSON summary per run under `LOG_DIR/run-summaries`. The file includes worker, lead, start and stop timestamps, duration, stop reason, task count, and log location. This is an inspection artifact only; it does not change queue acknowledgement or retry behavior.
 
+Status reports `latest_summary=PATH` when a summary exists, or `latest_summary=none` before the first summary. Use this as a pointer from session status to run evidence; do not treat summary contents as worker control state.
+
 ## Codex Worker Branch and Worktree Prep
 
 Run `scripts/awg-codex-prepare-worktree.sh --repo DIR` before dispatching a Codex job when you want an operator-facing readiness report. The default mode is read-only and reports branch, HEAD, dirty state, upstream relation when available, and readiness. Use `--branch NAME` to require a specific current branch. Use `--branch NAME --create-branch` only when you explicitly want the helper to create and switch to a new branch from a clean worktree. The helper does not commit, push, open PRs, merge, delete branches, or mutate queue JSON.
