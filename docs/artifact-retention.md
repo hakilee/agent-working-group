@@ -92,3 +92,17 @@ scripts/awg-archive-artifact.sh --source awg-ops/active/202605081212-example.md 
 ```
 
 The helper requires an explicit source and destination directory. It creates the destination directory if needed.
+
+### Path Safety Integration
+
+The archive helper is intentionally kept as a small bash script. It is not wired directly to the Python path-safety module because that would require a shell-to-Python bridge or a script rewrite, and this helper must preserve current valid usage.
+
+For custom archive helpers or future revisions that add explicit allowed-base options, use the path safety guidance in [Path Safety](path-safety.md). A code-level integration should include tests for:
+
+- valid source and destination behavior staying compatible
+- `..` traversal rejection
+- symlink escape rejection
+- destination containment
+- queue JSON preservation
+
+Do not add implicit containment around the current working directory. If containment is needed, expose the allowed base explicitly so operators can choose the artifact workspace boundary.

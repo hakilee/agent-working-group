@@ -343,6 +343,40 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
+    def test_archive_helper_path_safety_guidance_is_docs_only_and_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "artifact-retention.md",
+            project_root / "docs" / "path-safety.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        script = project_root / "scripts" / "awg-archive-artifact.sh"
+        script_content = script.read_text(encoding="utf-8")
+
+        self.assertIn("intentionally kept as a small bash script", content)
+        self.assertIn("not wired directly to the Python path-safety module", content)
+        self.assertIn("valid existing usage", content)
+        self.assertIn("Do not add implicit containment", content)
+        self.assertIn("explicit allowed-base", content)
+        self.assertIn("queue JSON preservation", content)
+        self.assertIn("*/queues/*/*.json", script_content)
+        self.assertIn("mv \"$SOURCE\" \"$DEST\"", script_content)
+        self.assertNotIn("python", script_content.lower())
+        self.assertNotRegex(script_content, r"(^|[;&|])\s*rm\b")
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
     def test_safe_poll_script_does_not_consume_worker_inbox(self):
         project_root = Path(__file__).resolve().parents[1]
         script = project_root / "scripts" / "awg-safe-poll.sh"
