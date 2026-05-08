@@ -23,6 +23,16 @@ awg-ops/
 
 Use repository-relative paths or deployment-specific configuration to choose where this workspace lives. Public docs should not assume a local absolute path.
 
+## Allowed Base For Artifact Automation
+
+Artifact automation should treat the artifact workspace root as an explicit allowed base. Operators or configuration choose that base; helpers should not infer it from the current working directory.
+
+For the structure above, the allowed base is the `awg-ops/` directory. `active/`, `completed/`, and `archive/` are valid artifact targets only when their resolved paths remain inside that base. Queue directories are live coordination state and are never valid artifact targets.
+
+If a future helper receives an allowed base and a source or destination path, it should fail closed when the allowed base is missing or invalid, then verify containment before writing or moving files. Use the path safety guidance in [Path Safety](path-safety.md) for traversal, symlink escape, and sibling-prefix protections.
+
+This policy does not make artifact movement automatic. Moving a close report from `active/` to `completed/` remains an operator decision unless a future workflow explicitly scopes and tests automation for that action. Deletion remains an explicit exception, not a default cleanup behavior.
+
 ## Timestamped Filenames
 
 Name new Markdown artifacts with a local or agreed project timestamp:

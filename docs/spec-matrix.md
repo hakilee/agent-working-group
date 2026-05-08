@@ -47,6 +47,7 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 | Important analysis/design work records independent lead analysis, worker or reviewer analysis, comparison, disagreement handling, and closure decision without forcing ceremony on trivial work. | `tests/test_queue.py::MessageQueueTests.test_independent_lead_analysis_docs_and_templates_are_safe` |
 | The independent-analysis scaffold helper is advisory, stdout-only, backward-compatible with existing template fields, and does not force ceremony on trivial work. | `tests/test_queue.py::MessageQueueTests.test_independent_analysis_template_helper_outputs_required_fields`, `tests/test_queue.py::MessageQueueTests.test_independent_analysis_template_helper_is_safe_and_documented` |
 | Filesystem helper code uses canonical containment checks that fail closed for traversal, symlink escape, sibling-prefix traps, and ambiguous inputs. | `tests/test_queue.py::MessageQueueTests.test_path_safety_helper_rejects_escapes`, `tests/test_queue.py::MessageQueueTests.test_path_safety_docs_are_safe` |
+| Artifact/workspace automation uses explicit allowed-base design, fails closed when the base is missing or invalid, excludes queue directories, and does not infer containment from the current working directory. | `tests/test_queue.py::MessageQueueTests.test_path_safety_docs_are_safe`, `tests/test_queue.py::MessageQueueTests.test_artifact_retention_docs_and_helper_are_safe` |
 
 ## Correlation Metadata Convention
 
