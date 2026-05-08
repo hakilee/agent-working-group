@@ -1483,6 +1483,57 @@ class MessageQueueTests(unittest.TestCase):
         self.assertNotRegex(content.lower(), platform_pattern)
 
 
+    def test_operator_runbook_and_api_docs_are_current_and_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        readme = project_root / "README.md"
+        api = project_root / "docs" / "api.md"
+        runbook = project_root / "docs" / "operator-runbook.md"
+        spec_matrix = project_root / "docs" / "spec-matrix.md"
+        queue_source = project_root / "src" / "agent_working_group" / "queue.py"
+        content = "\n".join(
+            path.read_text(encoding="utf-8") for path in (readme, api, runbook, spec_matrix)
+        )
+
+        self.assertTrue(runbook.exists())
+        self.assertIn("Operator Runbook", content)
+        self.assertIn("Clean Clone Setup", content)
+        self.assertIn("What The Repository Provides", content)
+        self.assertIn("What Operators Must Provide", content)
+        self.assertIn("Queue Partitioning", content)
+        self.assertIn("Default to one queue per role", content)
+        self.assertIn("source_channel=None", content)
+        self.assertIn("report_target=None", content)
+        self.assertIn("repo=None", content)
+        self.assertIn("workspace=None", content)
+        self.assertIn("refs.sourceChannel", content)
+        self.assertIn("refs.reportTarget", content)
+        self.assertIn("traceability", content)
+        self.assertIn("does not change delivery order", content)
+        self.assertIn("credentials", content)
+        self.assertIn("notification surfaces", content)
+        self.assertIn("artifact", content.lower())
+        self.assertIn("docs/operator-runbook.md", readme.read_text(encoding="utf-8"))
+        self.assertIn("test_operator_runbook_and_api_docs_are_current_and_safe", spec_matrix.read_text(encoding="utf-8"))
+
+        queue_text = queue_source.read_text(encoding="utf-8")
+        self.assertIn("source_channel: object = None", queue_text)
+        self.assertIn("report_target: object = None", queue_text)
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+        self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
+
+
     def run_independent_analysis_helper(self, mode="all"):
         project_root = Path(__file__).resolve().parents[1]
         script = project_root / "scripts" / "awg-independent-analysis-template.sh"

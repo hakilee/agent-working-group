@@ -65,15 +65,17 @@ status = queue.status("worker", tz="Asia/Seoul")
 Primary methods:
 
 - `initialize(agents)`: create queue directories and log files.
-- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None) -> str`: send a message and return its id.
+- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: send a message and return its id; optional metadata is stored only under `refs`.
 - `receive(agent, timeout=None, require_ack=False) -> dict | None`: receive one message, or `None` on timeout.
 - `ack(agent, message_id)`: move a `processing/` message to `processed/`.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None)`: explicitly acknowledge one reviewed inbox message by id.
 - `retry(agent, message_id)`: requeue a message from `processing/` or `processed/`.
 - `requeue_stale(agent, older_than_sec=300, max_retries=None)`: requeue stale unacked messages or move them to `dead/`.
-- `status(agent, tz="UTC")`, `peek(agent)`, `processing(agent)`, `processed(agent)`, `dead(agent)`: inspect queue state.
+- `status(agent, tz="UTC")`, `peek(agent)`, `pending(agent)`, `processing(agent)`, `processed(agent)`, `dead(agent)`, `log_lines(tz="UTC")`: inspect queue state.
 - `prune(agent=None, processed_keep=1000, include_processing=False, processing_keep=100, log_keep_lines=None, dry_run=False)`: archive old queue/log data.
 - `cleanup_artifacts(dry_run=True, temp_file_min_age_sec=3600, stale_lock_min_age_sec=600)`: remove generated worker clutter without touching queue JSON.
+
+For the full Python surface, see [Python API Reference](docs/api.md).
 
 ## CLI Overview
 
@@ -178,7 +180,9 @@ This keeps implementation, documentation, and tests aligned.
 
 This is intentionally simple and local-first. It does not require a broker, database, network service, or daemon. It is best suited for local agent orchestration, coding-agent experiments, and small workflow projects.
 
-For queue-first planning, handoff, review, and closure patterns, see [Queue-First Workflow](docs/queue-first-workflow.md). Substantive specs should go through AWG queue messages; chat should only announce that a queue item was added.
+For a clean-clone operator setup, see [Operator Runbook](docs/operator-runbook.md). It distinguishes the workflow that ships with this repository from environment-specific choices such as agent identities, notification surfaces, credentials, and private artifact locations.
+
+For queue-first planning, handoff, review, and closure patterns, see [Queue-First Workflow](docs/queue-first-workflow.md). Substantive specs should go through AWG queue messages; external chat or issue trackers should only announce that a queue item was added.
 
 For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message and cross-surface traceability, see the `refs.correlationId`, `refs.parentId`, `refs.sourceChannel`, `refs.reportTarget`, `refs.repo`, and `refs.workspace` conventions in [Working-Group Queue Protocol](docs/protocol.md). `awg send` can set them with optional `--correlation-id`, `--parent-id`, `--source-channel`, `--report-target`, `--repo`, and `--workspace` flags.
 
