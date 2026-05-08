@@ -823,6 +823,123 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
+
+    def run_independent_analysis_helper(self, mode="all"):
+        project_root = Path(__file__).resolve().parents[1]
+        script = project_root / "scripts" / "awg-independent-analysis-template.sh"
+        return subprocess.run(
+            [str(script), mode],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def independent_section(self, content, heading):
+        start = content.index(heading)
+        rest = content[start:]
+        next_heading = rest.find("\n## ", 1)
+        return rest if next_heading == -1 else rest[:next_heading]
+
+    def bullet_fields(self, section):
+        return [line for line in section.splitlines() if line.startswith("- ")]
+
+    def test_independent_analysis_template_helper_outputs_required_fields(self):
+        project_root = Path(__file__).resolve().parents[1]
+        task_template = (project_root / "docs" / "templates" / "task-spec.md").read_text(encoding="utf-8")
+        review_template = (project_root / "docs" / "templates" / "review-result.md").read_text(encoding="utf-8")
+        close_template = (project_root / "docs" / "templates" / "close-report.md").read_text(encoding="utf-8")
+
+        expectations = {
+            "task-spec": (
+                "## Independent Analysis Requirement",
+                self.independent_section(task_template, "## Independent Analysis Requirement"),
+            ),
+            "review-result": (
+                "## Independent Analysis Comparison",
+                self.independent_section(review_template, "## Independent Analysis Comparison"),
+            ),
+            "close-report": (
+                "## Independent Analysis",
+                self.independent_section(close_template, "## Independent Analysis"),
+            ),
+        }
+
+        all_result = self.run_independent_analysis_helper("all")
+        self.assertEqual(all_result.returncode, 0, all_result.stderr)
+        self.assertIn("## Independent Analysis Requirement", all_result.stdout)
+        self.assertIn("## Independent Analysis Comparison", all_result.stdout)
+        self.assertIn("## Independent Analysis", all_result.stdout)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            marker = root / "marker.txt"
+            marker.write_text("unchanged", encoding="utf-8")
+            before = {str(path.relative_to(root)): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+            result = self.run_independent_analysis_helper("all")
+            after = {str(path.relative_to(root)): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(before, after)
+
+        for mode, (heading, template_section) in expectations.items():
+            result = self.run_independent_analysis_helper(mode)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(heading, result.stdout)
+            self.assertEqual(
+                self.bullet_fields(template_section),
+                self.bullet_fields(result.stdout),
+            )
+            local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+            self.assertNotRegex(result.stdout, local_path_pattern)
+
+    def test_independent_analysis_template_helper_is_safe_and_documented(self):
+        project_root = Path(__file__).resolve().parents[1]
+        script_path = project_root / "scripts" / "awg-independent-analysis-template.sh"
+        checked_paths = [
+            script_path,
+            project_root / "docs" / "queue-first-workflow.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+            project_root / "docs" / "templates" / "task-spec.md",
+            project_root / "docs" / "templates" / "review-result.md",
+            project_root / "docs" / "templates" / "close-report.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        script = script_path.read_text(encoding="utf-8")
+
+        self.assertTrue(script_path.exists())
+        self.assertTrue(os.access(script_path, os.X_OK))
+        self.assertIn("#!/usr/bin/env bash", script)
+        self.assertIn("set -euo pipefail", script)
+        self.assertIn("--help", script)
+        self.assertIn("stdout only", script)
+        self.assertIn("does not decide whether independent", script)
+        self.assertIn("task-spec|review-result|close-report|all", script)
+        self.assertIn("scripts/awg-independent-analysis-template.sh", content)
+        self.assertIn("advisory and stdout-only", content)
+        self.assertIn("does not modify files", content)
+        self.assertIn("must not become an enforcement gate", content)
+        self.assertIn("test_independent_analysis_template_helper_outputs_required_fields", content)
+        self.assertIn("test_independent_analysis_template_helper_is_safe_and_documented", content)
+        self.assertIn("without forcing ceremony on trivial work", content)
+
+        self.assertNotRegex(script, r"\beval\b|bash\s+-c|sh\s+-c")
+        self.assertNotRegex(script, r"\bcurl\b|\bwget\b|https?://")
+        self.assertNotRegex(script, r"jq\s|sed\s+-i|queues/.+json")
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+            "cl" + "aws",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
     def test_independent_lead_analysis_docs_and_templates_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [
