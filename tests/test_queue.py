@@ -512,6 +512,42 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
+    def test_spec_matrix_and_correlation_docs_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        spec_matrix = project_root / "docs" / "spec-matrix.md"
+        protocol = project_root / "docs" / "protocol.md"
+        readme = project_root / "README.md"
+        content = "\n".join(path.read_text(encoding="utf-8") for path in (spec_matrix, protocol, readme))
+
+        self.assertTrue(spec_matrix.exists())
+        self.assertIn("Spec Matrix", content)
+        self.assertIn("test_send_receive_ack_retry_and_dead", content)
+        self.assertIn("test_worker_loop_auto_acks_instruction_without_execution", content)
+        self.assertIn("test_executor_bridge_does_not_execute_message_body_as_shell", content)
+        self.assertIn("test_pr_review_gate_docs_and_helper_are_safe", content)
+        self.assertIn("test_artifact_retention_docs_and_helper_are_safe", content)
+        self.assertIn("test_repository_rules_docs_and_templates_are_safe", content)
+        self.assertIn("correlationId", content)
+        self.assertIn("parentId", content)
+        self.assertIn("optional conventions", content)
+        self.assertIn("not required schema fields", content)
+        self.assertIn("does not change delivery order", content)
+        self.assertIn("does not change queue delivery", content)
+        self.assertIn("backward-compatible", content)
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
     def test_repository_rules_docs_and_templates_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [

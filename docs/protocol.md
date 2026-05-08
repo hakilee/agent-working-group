@@ -75,6 +75,47 @@ Exact file path, command output, or other completion criteria.
 - `question` should include enough context for a direct `answer`.
 - `answer` should include `replyTo` so the original question can be traced.
 
+## Correlation Metadata Convention
+
+`refs` may carry optional correlation metadata for multi-message work. These are conventions, not required schema fields, and older messages remain valid without them.
+
+- `refs.correlationId`: stable id shared by messages that belong to the same task, review, incident, or handoff.
+- `refs.parentId`: id of the message that directly caused this message when `replyTo` is not enough to describe the relationship.
+
+Use correlation metadata for traceability only. It does not change delivery order, priority, acknowledgement, retry, pruning, cleanup, or dead-letter behavior. Do not depend on it for access control or queue routing.
+
+Example multi-message task flow:
+
+```json
+{
+  "kind": "instruction",
+  "refs": {
+    "correlationId": "task-20260508-spec-matrix"
+  }
+}
+```
+
+```json
+{
+  "kind": "status",
+  "refs": {
+    "correlationId": "task-20260508-spec-matrix",
+    "parentId": "<instruction-message-id>",
+    "replyTo": "<instruction-message-id>"
+  }
+}
+```
+
+```json
+{
+  "kind": "question",
+  "refs": {
+    "correlationId": "task-20260508-spec-matrix",
+    "parentId": "<status-message-id>"
+  }
+}
+```
+
 ## Scheduling Semantics
 
 Scheduled observers should inspect queues with non-consuming commands such as `status`, `pending`, `peek`, `processing`, `dead`, `log`, and `requeue-stale`.
