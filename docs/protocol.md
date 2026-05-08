@@ -75,23 +75,27 @@ Exact file path, command output, or other completion criteria.
 - `question` should include enough context for a direct `answer`.
 - `answer` should include `replyTo` so the original question can be traced.
 
-## Correlation Metadata Convention
+## Source And Correlation Metadata Convention
 
-`refs` may carry optional correlation metadata for multi-message work. These are conventions, not required schema fields, and older messages remain valid without them.
+`refs` may carry optional metadata for multi-message work and cross-surface traceability. These are conventions, not required schema fields, and older messages remain valid without them.
 
 - `refs.correlationId`: stable id shared by messages that belong to the same task, review, incident, or handoff.
 - `refs.parentId`: id of the message that directly caused this message when `replyTo` is not enough to describe the relationship.
+- `refs.sourceChannel`: operator-defined source surface, intake path, or channel label for the request.
+- `refs.reportTarget`: operator-defined destination where progress or final reports should be summarized.
+- `refs.repo`: repository or project slug associated with the work.
+- `refs.workspace`: workspace, checkout, or workstream label associated with the work.
 
-Use correlation metadata for traceability only. It does not change delivery order, priority, acknowledgement, retry, pruning, cleanup, or dead-letter behavior. Do not depend on it for access control or queue routing.
+Use this metadata for traceability only. It does not change delivery order, priority, acknowledgement, retry, pruning, cleanup, dead-letter behavior, queue selection, or access control. Do not depend on it for permission checks or automatic routing.
 
 The CLI can set these optional refs when sending a message:
 
 ```bash
-awg send --from=lead --to=worker --kind=instruction --body="Review the change" --correlation-id=task-123
+awg send --from=lead --to=worker --kind=instruction --body="Review the change" --correlation-id=task-123 --source-channel=work-intake --report-target=work-updates --repo=example/repo --workspace=repo-main
 awg send --from=worker --to=lead --kind=status --body="done" --reply-to=<instruction-id> --correlation-id=task-123 --parent-id=<instruction-id>
 ```
 
-Omit these flags when no correlation metadata is needed. Messages without these refs remain valid and backward-compatible.
+Omit these flags when no source or correlation metadata is needed. Messages without these refs remain valid and backward-compatible.
 
 Example multi-message task flow:
 

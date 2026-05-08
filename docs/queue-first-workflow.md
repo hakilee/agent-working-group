@@ -4,6 +4,14 @@ Agent Working Group is queue-first. Substantive work instructions, review reques
 
 Queue-first coordination keeps the full task context in one durable message. It prevents long chat messages from splitting, losing mentions, or becoming unavailable to agents that join later.
 
+## Queue Partitioning
+
+Default to one role queue for low-volume coordination. Treat chat channels and other surfaces as notification and reporting locations, not as default queue partitions.
+
+When work comes from several surfaces, keep the shared role queue but include source metadata on the message: `refs.sourceChannel`, `refs.reportTarget`, `refs.repo`, `refs.workspace`, and `refs.correlationId`. This keeps the queue durable while preserving where the work came from and where status should go.
+
+Split queues by repository or workstream when tasks are substantial, concurrent, or need separate lifecycle ownership. Split queues by surface only when privacy, audience, retention, or permission boundaries require it.
+
 ## When To Use The Queue
 
 Use an `instruction` message for any work that has scope, constraints, exit criteria, or expected artifacts. This includes implementation tasks, review requests, QA checklist requests, release checks, and closure reports.
@@ -28,6 +36,7 @@ Every substantive `instruction` should include:
 - requested output artifact or location
 - verification commands or evidence expected
 - reply path for status, questions, blockers, and final report
+- source metadata when the work crosses surfaces, repositories, or workstreams
 
 Prefer one bounded task per queue item. If a task has multiple phases, define the current phase and the next decision point.
 

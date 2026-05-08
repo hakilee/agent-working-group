@@ -180,7 +180,7 @@ This is intentionally simple and local-first. It does not require a broker, data
 
 For queue-first planning, handoff, review, and closure patterns, see [Queue-First Workflow](docs/queue-first-workflow.md). Substantive specs should go through AWG queue messages; chat should only announce that a queue item was added.
 
-For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message traceability, see the `refs.correlationId` and `refs.parentId` convention in [Working-Group Queue Protocol](docs/protocol.md). `awg send` can set them with optional `--correlation-id` and `--parent-id` flags.
+For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message and cross-surface traceability, see the `refs.correlationId`, `refs.parentId`, `refs.sourceChannel`, `refs.reportTarget`, `refs.repo`, and `refs.workspace` conventions in [Working-Group Queue Protocol](docs/protocol.md). `awg send` can set them with optional `--correlation-id`, `--parent-id`, `--source-channel`, `--report-target`, `--repo`, and `--workspace` flags.
 
 For filesystem containment rules used by helper code, see [Path Safety](docs/path-safety.md). Path helpers should resolve canonical paths, fail closed, and reject symlink or traversal escapes.
 

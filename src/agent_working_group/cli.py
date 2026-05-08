@@ -28,6 +28,10 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--reply-to")
     send.add_argument("--correlation-id")
     send.add_argument("--parent-id")
+    send.add_argument("--source-channel")
+    send.add_argument("--report-target")
+    send.add_argument("--repo")
+    send.add_argument("--workspace")
     send.add_argument("--body", required=True)
 
     recv = sub.add_parser("recv")
@@ -109,6 +113,10 @@ def main(argv=None) -> int:
                 args.reply_to,
                 correlation_id=args.correlation_id,
                 parent_id=args.parent_id,
+                source_channel=args.source_channel,
+                report_target=args.report_target,
+                repo=args.repo,
+                workspace=args.workspace,
             ))
             return 0
         if args.command == "recv":
