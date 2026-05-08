@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -1481,6 +1482,104 @@ class MessageQueueTests(unittest.TestCase):
         self.assertNotRegex(content, r"[\uac00-\ud7af]")
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
+
+
+    def test_two_agent_example_workflow_is_runnable_and_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        script = project_root / "examples" / "two_agent_loop.sh"
+        docs = project_root / "examples" / "README.md"
+        readme = project_root / "README.md"
+        runbook = project_root / "docs" / "operator-runbook.md"
+        spec_matrix = project_root / "docs" / "spec-matrix.md"
+        content = "\n".join(
+            path.read_text(encoding="utf-8") for path in (script, docs, readme, runbook, spec_matrix)
+        )
+
+        self.assertTrue(script.exists())
+        self.assertTrue(docs.exists())
+        self.assertTrue(script.stat().st_mode & 0o111)
+        self.assertIn("examples/two_agent_loop.sh", content)
+        self.assertIn("demo-task-001", content)
+        self.assertIn("--source-channel", content)
+        self.assertIn("--report-target", content)
+        self.assertIn("--repo", content)
+        self.assertIn("--workspace", content)
+        self.assertIn("traceability-only", content)
+        self.assertIn("Refusing to reset non-temporary demo root", content)
+        self.assertIn("/tmp/agent-working-group-demo", content)
+        self.assertIn("test_two_agent_example_workflow_is_runnable_and_safe", content)
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+            "cl" + "aws",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+        self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
+
+        with tempfile.TemporaryDirectory() as temp:
+            temp_path = Path(temp)
+            awg_wrapper = temp_path / "awg-wrapper"
+            awg_wrapper.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                f"cd {project_root}\n"
+                "exec python3 -m agent_working_group.cli \"$@\"\n",
+                encoding="utf-8",
+            )
+            awg_wrapper.chmod(0o755)
+            demo_root = temp_path / "demo-root"
+            blocked_root = temp_path / "not-under-tmp"
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(project_root / "src")
+            env["AWG_BIN"] = str(awg_wrapper)
+
+            blocked = subprocess.run(
+                [str(script), str(blocked_root)],
+                text=True,
+                capture_output=True,
+                env=env,
+                check=False,
+            )
+            self.assertNotEqual(blocked.returncode, 0)
+            self.assertIn("Refusing to reset non-temporary demo root", blocked.stderr)
+
+            demo_root = Path("/tmp") / f"awg-example-test-{os.getpid()}"
+            shutil.rmtree(demo_root, ignore_errors=True)
+            try:
+                result = subprocess.run(
+                    [str(script), str(demo_root)],
+                    text=True,
+                    capture_output=True,
+                    env=env,
+                    check=False,
+                    timeout=30,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+                self.assertIn("sent task:", result.stdout)
+                self.assertIn("reviewer final status", result.stdout)
+                self.assertIn("lead final status", result.stdout)
+                self.assertIn('"pending": 0', result.stdout)
+                self.assertIn('"processing": 0', result.stdout)
+
+                messages = list((demo_root / "queues" / "reviewer" / "processed").glob("*.json"))
+                self.assertEqual(len(messages), 1)
+                message = json.loads(messages[0].read_text(encoding="utf-8"))
+                self.assertEqual(message["refs"]["correlationId"], "demo-task-001")
+                self.assertEqual(message["refs"]["sourceChannel"], "local-demo")
+                self.assertEqual(message["refs"]["reportTarget"], "terminal")
+                self.assertEqual(message["refs"]["repo"], "example/project")
+                self.assertEqual(message["refs"]["workspace"], "demo-main")
+                self.assertIn("ackedAt", message["refs"])
+            finally:
+                shutil.rmtree(demo_root, ignore_errors=True)
 
 
     def test_operator_runbook_and_api_docs_are_current_and_safe(self):
