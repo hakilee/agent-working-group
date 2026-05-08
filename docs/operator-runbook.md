@@ -128,6 +128,7 @@ Use accurate timestamped Markdown filenames such as `YYYYMMDDHHMM-short-descript
 
 ## Related Docs
 
+- [Examples](../examples/README.md)
 - [Queue-First Workflow](queue-first-workflow.md)
 - [Working-Group Queue Protocol](protocol.md)
 - [Python API Reference](api.md)
