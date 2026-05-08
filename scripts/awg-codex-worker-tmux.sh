@@ -18,6 +18,13 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 WORKER_SCRIPT=${WORKER_SCRIPT:-"${SCRIPT_DIR}/awg-codex-worker-loop.sh"}
 LOCK_PATH="${AWG_ROOT}/tmp/locks/${WORKER}-codex-worker-loop.lockdir"
 
+latest_summary() {
+  if [[ ! -d "$SUMMARY_DIR" ]]; then
+    return 1
+  fi
+  find "$SUMMARY_DIR" -maxdepth 1 -type f -name "${WORKER}.summary.*.json" -print0 2>/dev/null     | xargs -0 ls -t 2>/dev/null     | head -n 1
+}
+
 usage() {
   cat <<USAGE
 Usage: awg-codex-worker-tmux.sh <start|status|stop|kill|log|requeue-stale>
@@ -54,6 +61,11 @@ case "$cmd" in
       echo "session=$SESSION stopped"
     fi
     "$AWG_CLI" --root "$AWG_ROOT" status --as "$WORKER"
+    if summary_path=$(latest_summary) && [[ -n "$summary_path" ]]; then
+      echo "latest_summary=$summary_path"
+    else
+      echo "latest_summary=none"
+    fi
     ;;
   stop)
     tmux send-keys -t "$SESSION" C-c 2>/dev/null || true
