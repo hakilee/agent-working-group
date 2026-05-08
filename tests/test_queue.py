@@ -1786,6 +1786,38 @@ class MessageQueueTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         self.assertIn("latest_summary=none", result.stdout)
 
+    def test_codex_worker_operator_flow_docs_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        docs = "\n".join(
+            (project_root / rel).read_text(encoding="utf-8")
+            for rel in [
+                "docs/codex-tmux-worker.md",
+                "docs/worker-operations.md",
+                "docs/spec-matrix.md",
+            ]
+        )
+
+        self.assertIn("Operator Flow", docs)
+        self.assertIn("Codex Worker End-to-End Operator Flow", docs)
+        self.assertIn("scripts/awg-codex-prepare-worktree.sh --repo DIR", docs)
+        self.assertIn("--workspace DIR", docs)
+        self.assertIn("MAX_TASKS=1", docs)
+        self.assertIn("MAX_IDLE_SECONDS=900", docs)
+        self.assertIn("latest_summary=PATH", docs)
+        self.assertIn("summary and log", docs.lower())
+        self.assertIn("ack-pending", docs)
+        self.assertIn("manual and bounded", docs.lower())
+        self.assertIn("inspection artifacts, not worker control state", docs)
+        self.assertIn("does not change queue ack/retry policy", docs)
+        self.assertIn("does not create an always-on daemon", docs)
+        self.assertNotIn("start an always-on daemon", docs.lower())
+        self.assertNotRegex(docs, r"[\uac00-\ud7af]")
+        self.assertNotRegex(docs, "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME")
+        self.assertNotRegex(docs.lower(), "dis" + "cord|sl" + "ack|tele" + "gram")
+        forbidden_names = ("mat" + "dori", "mat" + "gukno", "happy" + "-" + "haki")
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, docs.lower())
+
     def test_codex_worker_docs_and_scripts_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [
@@ -1812,6 +1844,7 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("run summary", content.lower())
         self.assertIn("test_codex_worker_loop_writes_run_summary", content)
         self.assertIn("test_codex_worker_tmux_status_reports_latest_summary_path", content)
+        self.assertIn("test_codex_worker_operator_flow_docs_are_safe", content)
         self.assertIn("test_codex_prepare_worktree_reports_clean_state_without_mutation", content)
         self.assertIn("MAX_TASKS", content)
         self.assertIn("MAX_IDLE_SECONDS", content)
