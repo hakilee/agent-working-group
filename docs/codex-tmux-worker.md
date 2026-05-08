@@ -90,6 +90,10 @@ scripts/awg-codex-worker-tmux.sh kill
 These values are data values. Do not use shell command strings, pipes, or
 redirections in executable variables.
 
+## Branch and Worktree Prep
+
+Use `scripts/awg-codex-prepare-worktree.sh --repo DIR` before dispatch when you want a fast readiness report. The helper is read-only by default: it reports the current branch, short HEAD, dirty state, upstream relation when available, and whether the target is ready for Codex worker dispatch. Passing `--branch NAME` verifies the current branch without switching. Passing both `--branch NAME --create-branch` is the explicit mutation path for creating and switching to a new branch from a clean worktree. It never commits, pushes, opens PRs, merges, deletes branches, or edits queue files.
+
 ## Repository Cleanliness
 
 When the target path is a Git worktree, the adapter checks `git status --porcelain` before invoking Codex. The default is fail-closed on uncommitted changes so a worker cannot silently mix unrelated operator edits into an automated run. Use a clean branch or a dedicated worktree for worker jobs. Set `AWG_CODEX_ALLOW_DIRTY=1` only for an explicitly supervised run where mixing changes is intentional.
