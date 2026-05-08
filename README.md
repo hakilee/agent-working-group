@@ -64,7 +64,7 @@ status = queue.status("worker", tz="Asia/Seoul")
 Primary methods:
 
 - `initialize(agents)`: create queue directories and log files.
-- `send(sender, recipient, kind, body, reply_to=None) -> str`: send a message and return its id.
+- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None) -> str`: send a message and return its id.
 - `receive(agent, timeout=None, require_ack=False) -> dict | None`: receive one message, or `None` on timeout.
 - `ack(agent, message_id)`: move a `processing/` message to `processed/`.
 - `retry(agent, message_id)`: requeue a message from `processing/` or `processed/`.
@@ -176,7 +176,7 @@ This is intentionally simple and local-first. It does not require a broker, data
 
 For queue-first planning, handoff, review, and closure patterns, see [Queue-First Workflow](docs/queue-first-workflow.md). Substantive specs should go through AWG queue messages; chat should only announce that a queue item was added.
 
-For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message traceability, see the `refs.correlationId` and `refs.parentId` convention in [Working-Group Queue Protocol](docs/protocol.md).
+For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message traceability, see the `refs.correlationId` and `refs.parentId` convention in [Working-Group Queue Protocol](docs/protocol.md). `awg send` can set them with optional `--correlation-id` and `--parent-id` flags.
 
 For filesystem containment rules used by helper code, see [Path Safety](docs/path-safety.md). Path helpers should resolve canonical paths, fail closed, and reject symlink or traversal escapes.
 

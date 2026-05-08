@@ -84,6 +84,15 @@ Exact file path, command output, or other completion criteria.
 
 Use correlation metadata for traceability only. It does not change delivery order, priority, acknowledgement, retry, pruning, cleanup, or dead-letter behavior. Do not depend on it for access control or queue routing.
 
+The CLI can set these optional refs when sending a message:
+
+```bash
+awg send --from=lead --to=worker --kind=instruction --body="Review the change" --correlation-id=task-123
+awg send --from=worker --to=lead --kind=status --body="done" --reply-to=<instruction-id> --correlation-id=task-123 --parent-id=<instruction-id>
+```
+
+Omit these flags when no correlation metadata is needed. Messages without these refs remain valid and backward-compatible.
+
 Example multi-message task flow:
 
 ```json

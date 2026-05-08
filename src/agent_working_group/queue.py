@@ -136,7 +136,17 @@ class MessageQueue:
             finally:
                 fcntl.flock(handle, fcntl.LOCK_UN)
 
-    def send(self, sender: str, recipient: str, kind: str, body: str, reply_to: object = None) -> str:
+    def send(
+        self,
+        sender: str,
+        recipient: str,
+        kind: str,
+        body: str,
+        reply_to: object = None,
+        *,
+        correlation_id: object = None,
+        parent_id: object = None,
+    ) -> str:
         if kind not in PRIORITIES:
             raise ValueError(f"unknown kind: {kind}")
         self.initialize([recipient])
@@ -146,6 +156,10 @@ class MessageQueue:
         refs: dict = {}
         if reply_to:
             refs["replyTo"] = reply_to
+        if correlation_id:
+            refs["correlationId"] = correlation_id
+        if parent_id:
+            refs["parentId"] = parent_id
         message = {
             "id": message_id,
             "kind": kind,

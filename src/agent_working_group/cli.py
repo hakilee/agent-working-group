@@ -26,6 +26,8 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--to", required=True, dest="recipient")
     send.add_argument("--kind", required=True)
     send.add_argument("--reply-to")
+    send.add_argument("--correlation-id")
+    send.add_argument("--parent-id")
     send.add_argument("--body", required=True)
 
     recv = sub.add_parser("recv")
@@ -91,7 +93,15 @@ def main(argv=None) -> int:
             queue.initialize(args.agent)
             return 0
         if args.command == "send":
-            print(queue.send(args.sender, args.recipient, args.kind, args.body, args.reply_to))
+            print(queue.send(
+                args.sender,
+                args.recipient,
+                args.kind,
+                args.body,
+                args.reply_to,
+                correlation_id=args.correlation_id,
+                parent_id=args.parent_id,
+            ))
             return 0
         if args.command == "recv":
             message = queue.receive(args.agent, args.timeout, args.require_ack)
