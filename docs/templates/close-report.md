@@ -29,6 +29,14 @@ State what changed and whether the task is complete.
 - Risk:
 - Mitigation or follow-up:
 
+## Artifact Retention
+
+- Active artifacts moved to `completed/`:
+- Artifacts retained in `active/` and why:
+- Archive or deletion policy applied:
+
+Prefer timestamped filenames such as `YYYYMMDDHHMM-short-description.md`. Move completed artifacts to `completed/` instead of deleting them unless an explicit retention rule says deletion is safe.
+
 ## Follow-Up Tasks
 
 - Next safe task:

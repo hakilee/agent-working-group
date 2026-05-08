@@ -60,7 +60,9 @@ A useful review result includes:
 
 ## Close Reports
 
-Close reports should include completed artifacts, verification evidence, queue messages handled, and remaining risks. If the next safe follow-up is clear, create the next queue item instead of stopping at a chat-only "done" message.
+Close reports should include completed artifacts, verification evidence, queue messages handled, and remaining risks. Store shared operational artifacts in a neutral workspace and prefer timestamped filenames such as `YYYYMMDDHHMM-short-description.md`. When work closes, move related artifacts from `active/` to `completed/` instead of deleting them. See [Artifact Retention](artifact-retention.md).
+
+If the next safe follow-up is clear, create the next queue item instead of stopping at a chat-only "done" message.
 
 ## Safe Scheduling And Observers
 
@@ -82,5 +84,6 @@ Use the templates in `docs/templates/` for repeatable handoffs:
 - [Close Report](templates/close-report.md)
 - [PR Review Request](templates/pr-review-request.md)
 - [PR Review Result Comment](templates/pr-review-result-comment.md)
+- [Artifact Index](templates/artifact-index.md)
 
-For pull request review gates, see [PR Review Gate](pr-review-gate.md).
+For pull request review gates, see [PR Review Gate](pr-review-gate.md). For artifact lifecycle and retention, see [Artifact Retention](artifact-retention.md).

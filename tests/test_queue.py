@@ -328,6 +328,45 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
+    def test_artifact_retention_docs_and_helper_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "artifact-retention.md",
+            project_root / "docs" / "templates" / "artifact-index.md",
+            project_root / "docs" / "templates" / "close-report.md",
+            project_root / "scripts" / "awg-archive-artifact.sh",
+            project_root / "README.md",
+            project_root / "docs" / "queue-first-workflow.md",
+            project_root / "docs" / "pr-review-gate.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        script = (project_root / "scripts" / "awg-archive-artifact.sh").read_text(encoding="utf-8")
+
+        self.assertIn("awg-ops/", content)
+        self.assertIn("active/", content)
+        self.assertIn("completed/", content)
+        self.assertIn("archive/", content)
+        self.assertIn("YYYYMMDDHHMM-short-description.md", content)
+        self.assertIn("Delete artifacts only when an explicit retention rule says deletion is safe", content)
+        self.assertIn("Queue JSON files are live coordination state", content)
+        self.assertIn("dry-run", script)
+        self.assertIn("mv \"$SOURCE\" \"$DEST\"", script)
+        self.assertNotRegex(script, r"\brm\b|unlink")
+        self.assertRegex(script, r"queues/.+json")
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
 
 if __name__ == "__main__":
     unittest.main()

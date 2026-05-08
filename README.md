@@ -180,6 +180,8 @@ Reusable templates live in [docs/templates](docs/templates/): [Task Spec](docs/t
 
 For queue-first pull request review gates and public-safe PR comments, see [PR Review Gate](docs/pr-review-gate.md). Review results can be summarized back to the pull request, but the workflow must never auto-merge or auto-approve.
 
+For operational Markdown artifact lifecycle, timestamped filenames, and active/completed/archive retention, see [Artifact Retention](docs/artifact-retention.md).
+
 For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached.
 
 For bounded tmux worker scripts, safe-poll coexistence, and instruction auto-ack warnings, see [Worker Operations](docs/worker-operations.md). The worker scripts are queue runners, not AI executors; do not send `instruction` messages to an active queue runner unless acknowledging without execution is intentional.
