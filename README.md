@@ -174,6 +174,10 @@ This keeps implementation, documentation, and tests aligned.
 
 This is intentionally simple and local-first. It does not require a broker, database, network service, or daemon. It is best suited for local agent orchestration, coding-agent experiments, and small workflow projects.
 
+For queue-first planning, handoff, review, and closure patterns, see [Queue-First Workflow](docs/queue-first-workflow.md). Substantive specs should go through AWG queue messages; chat should only announce that a queue item was added.
+
+Reusable templates live in [docs/templates](docs/templates/): [Task Spec](docs/templates/task-spec.md), [QA Checklist Request](docs/templates/qa-checklist-request.md), [Review Result](docs/templates/review-result.md), and [Close Report](docs/templates/close-report.md).
+
 For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached.
 
 For bounded tmux worker scripts, safe-poll coexistence, and instruction auto-ack warnings, see [Worker Operations](docs/worker-operations.md). The worker scripts are queue runners, not AI executors; do not send `instruction` messages to an active queue runner unless acknowledging without execution is intentional.
