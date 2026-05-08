@@ -367,6 +367,151 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
+    def run_executor_bridge(self, root, status="success", body="do work", kind="instruction"):
+        project_root = Path(__file__).resolve().parents[1]
+        wrapper = root / "awg-wrapper"
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f"PYTHONPATH={project_root / 'src'} exec {sys.executable} -m agent_working_group.cli \"$@\"\n",
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+        queue = MessageQueue(root)
+        message_id = queue.send("lead", "worker", kind, body)
+        result = subprocess.run(
+            [
+                str(project_root / "scripts" / "awg-executor-bridge.sh"),
+                "--",
+                str(project_root / "scripts" / "awg-fake-executor.sh"),
+            ],
+            cwd=project_root,
+            env={
+                **os.environ,
+                "AWG_CLI": str(wrapper),
+                "AWG_ROOT": str(root),
+                "WORKER": "worker",
+                "LEAD": "lead",
+                "RECV_TIMEOUT": "1",
+                "FAKE_EXECUTOR_STATUS": status,
+            },
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
+        return queue, message_id, result
+
+    def test_executor_bridge_success_acks_after_status(self):
+        _, root = self.with_queue()
+        queue, message_id, result = self.run_executor_bridge(root, status="success")
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertEqual(queue.status("worker")["processing"], 0)
+        processed = queue.processed("worker", limit=1)[0]
+        self.assertEqual(processed["id"], message_id)
+        self.assertIn("ackedAt", processed["refs"])
+        lead_message = queue.peek("lead")[0]
+        self.assertEqual(lead_message["kind"], "status")
+        self.assertIn("executor success", lead_message["body"])
+        self.assertEqual(lead_message["refs"]["replyTo"], message_id)
+
+    def test_executor_bridge_retry_requeues_without_ack(self):
+        _, root = self.with_queue()
+        queue, message_id, result = self.run_executor_bridge(root, status="retry")
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertEqual(queue.status("worker")["pending"], 1)
+        self.assertEqual(queue.status("worker")["processing"], 0)
+        pending = queue.peek("worker")[0]
+        self.assertEqual(pending["id"], message_id)
+        self.assertNotIn("ackedAt", pending["refs"])
+        self.assertEqual(pending["refs"]["retryCount"], 1)
+        self.assertIn("executor retry", queue.peek("lead")[0]["body"])
+
+    def test_executor_bridge_question_blocker_failed_and_malformed_do_not_ack(self):
+        expectations = {
+            "question": ("question", "fake question?"),
+            "blocker": ("blocker", "executor blocker"),
+            "failed": ("status", "operator decides"),
+            "malformed": ("status", "malformed"),
+            "unknown": ("status", "unknown status"),
+            "nonzero": ("status", "failed before structured success"),
+        }
+        for status, (lead_kind, body_fragment) in expectations.items():
+            with self.subTest(status=status):
+                _, root = self.with_queue()
+                queue, message_id, result = self.run_executor_bridge(root, status=status)
+
+                self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+                self.assertEqual(queue.status("worker")["processing"], 1)
+                processing = queue.processing("worker", limit=1)[0]
+                self.assertEqual(processing["id"], message_id)
+                self.assertNotIn("ackedAt", processing["refs"])
+                lead_message = queue.peek("lead")[0]
+                self.assertEqual(lead_message["kind"], lead_kind)
+                self.assertIn(body_fragment, lead_message["body"])
+                self.assertEqual(lead_message["refs"]["replyTo"], message_id)
+
+    def test_executor_bridge_non_instruction_returns_to_inbox_without_ack(self):
+        for kind in ("note", "status", "question", "answer"):
+            with self.subTest(kind=kind):
+                _, root = self.with_queue()
+                queue, message_id, result = self.run_executor_bridge(root, status="success", kind=kind)
+
+                self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+                self.assertEqual(queue.status("worker")["pending"], 1)
+                self.assertEqual(queue.status("worker")["processing"], 0)
+                pending = queue.peek("worker")[0]
+                self.assertEqual(pending["id"], message_id)
+                self.assertNotIn("ackedAt", pending["refs"])
+                self.assertEqual(pending["refs"]["retryCount"], 1)
+
+    def test_executor_bridge_does_not_execute_message_body_as_shell(self):
+        _, root = self.with_queue()
+        marker = root / "body-was-executed"
+        body = f"touch {marker}"
+        queue, message_id, result = self.run_executor_bridge(root, status="success", body=body)
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertFalse(marker.exists())
+        self.assertEqual(queue.processed("worker", limit=1)[0]["id"], message_id)
+
+    def test_executor_bridge_docs_and_scripts_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "ai-executor-bridge.md",
+            project_root / "scripts" / "awg-executor-bridge.sh",
+            project_root / "scripts" / "awg-fake-executor.sh",
+            project_root / "README.md",
+            project_root / "tests" / "test_queue.py",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        bridge = (project_root / "scripts" / "awg-executor-bridge.sh").read_text(encoding="utf-8")
+
+        self.assertIn("Never execute message body as shell", content)
+        self.assertIn("Queue JSON must only move through queue-aware commands", content)
+        self.assertIn("opt-in helper", content)
+        self.assertIn("not part of `MessageQueue` core", content)
+        self.assertIn("bridge connects", content)
+        self.assertIn("FAKE_EXECUTOR_STATUS", content)
+        self.assertNotRegex(bridge, r"\beval\b|bash\s+-c|sh\s+-c")
+        self.assertNotRegex(bridge, r"jq\s|sed\s+-i|python3[^\n]+queues/.+json")
+        self.assertIn("ack --as \"$WORKER\" --id \"$ID\"", bridge)
+        self.assertLess(bridge.index("case \"$STATUS\""), bridge.index("ack --as \"$WORKER\" --id \"$ID\""))
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
 
 if __name__ == "__main__":
     unittest.main()
