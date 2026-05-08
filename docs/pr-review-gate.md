@@ -6,7 +6,7 @@ Use this workflow when a pull request needs independent review before merge. The
 
 1. Lead opens or identifies a pull request.
 2. Lead sends an AWG `instruction` to a reviewer using the [PR Review Request Template](templates/pr-review-request.md).
-3. Reviewer receives the instruction with `recv --require-ack` and writes the full QA result to a file or AWG `status`.
+3. Reviewer receives the instruction with `recv --require-ack` and writes the full QA result to a file in a neutral ops workspace or AWG `status`.
 4. Lead verifies any required fixes or conditions.
 5. Lead posts a concise public-safe summary to the pull request using the [PR Review Result Comment Template](templates/pr-review-result-comment.md).
 6. Lead merges only after `PASS` or after an accepted conditional resolution has been fixed and rechecked.
@@ -57,7 +57,7 @@ The helper is opt-in. It must not merge, approve, checkout, build, test, or exec
 
 ## Failure Handling
 
-If `gh` is unavailable or unauthenticated, record a `blocker` or write the review request as a file. Keep the review artifacts in AWG or files until the PR comment can be posted safely.
+If `gh` is unavailable or unauthenticated, record a `blocker` or write the review request as a timestamped file in a neutral ops workspace. Keep the review artifacts in AWG or files until the PR comment can be posted safely.
 
 If AWG is unavailable, write the review request to a file and record why queue-first delivery was skipped. Add the queue item when AWG is available again.
 
@@ -67,3 +67,4 @@ If AWG is unavailable, write the review request to a file and record why queue-f
 - [PR Review Result Comment](templates/pr-review-result-comment.md)
 - [Review Result](templates/review-result.md)
 - [Close Report](templates/close-report.md)
+- [Artifact Retention](artifact-retention.md)

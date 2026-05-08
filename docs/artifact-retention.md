@@ -1,0 +1,94 @@
+# Artifact Retention
+
+Use this guide for operational Markdown artifacts produced by Agent Working Group workflows: task specs, QA requests, review results, implementation reports, PR comment drafts, and close reports.
+
+This is separate from queue retention. Queue JSON files are live coordination state and must be managed with queue-aware commands such as `ack`, `retry`, `prune`, and `cleanup-artifacts`.
+
+## Neutral Workspace
+
+Use a neutral operations workspace for shared artifacts. Do not use a reviewer-specific or worker-specific folder as the default source of truth.
+
+Recommended structure:
+
+```text
+awg-ops/
+  active/
+  completed/
+  archive/
+```
+
+- `active/`: current specs, QA requests, implementation reports, and review results that are still part of open work.
+- `completed/`: closed work artifacts kept for audit and future handoff.
+- `archive/`: older completed artifacts retained but no longer part of routine review.
+
+Use repository-relative paths or deployment-specific configuration to choose where this workspace lives. Public docs should not assume a local absolute path.
+
+## Timestamped Filenames
+
+Name new Markdown artifacts with a local or agreed project timestamp:
+
+```text
+YYYYMMDDHHMM-short-description.md
+```
+
+Examples:
+
+```text
+202605081212-artifact-retention-scope.md
+202605081245-pr-review-result.md
+```
+
+The timestamp makes creation order visible even when files move between `active/`, `completed/`, and `archive/`.
+
+## Lifecycle
+
+1. Create new shared specs and QA requests in `active/`.
+2. Keep implementation results and review results in `active/` while the task is still open.
+3. When the task closes, move the related artifacts to `completed/`.
+4. Move older completed artifacts to `archive/` only through an explicit retention policy.
+5. Delete artifacts only when an explicit retention rule says deletion is safe.
+
+Archive is the default cleanup action for completed work. Deletion is an exception.
+
+## What This Does Not Clean
+
+Do not use this artifact lifecycle for queue state:
+
+```text
+<AWG_ROOT>/queues/<agent>/inbox/*.json
+<AWG_ROOT>/queues/<agent>/processing/*.json
+<AWG_ROOT>/queues/<agent>/processed/*.json
+<AWG_ROOT>/queues/<agent>/dead/*.json
+```
+
+Use queue-aware commands instead:
+
+- `ack`, `retry`, and `nack` for processing messages
+- `requeue-stale` for stale processing recovery
+- `prune` for processed queue/log retention
+- `cleanup-artifacts --dry-run` for generated worker clutter
+
+`prune` archives queue/log data. `cleanup-artifacts` removes generated worker temp files and stale empty lock directories. Neither command is a Markdown close-report organizer.
+
+## Public-Safe Artifacts
+
+Operational artifacts may later be copied into public documentation, pull request comments, or issue comments. Keep them safe by default:
+
+- use role names such as `lead`, `worker`, and `reviewer`
+- avoid private agent names
+- avoid private chat references
+- avoid local absolute paths
+- avoid credentials, secrets, and hidden workspace details
+
+## Helper Script
+
+`scripts/awg-archive-artifact.sh` is an optional helper for moving one artifact into `completed/` or `archive/`. It is dry-run by default and never deletes files.
+
+Use it to make artifact movement explicit:
+
+```bash
+scripts/awg-archive-artifact.sh --source awg-ops/active/202605081212-example.md --completed-dir awg-ops/completed
+scripts/awg-archive-artifact.sh --source awg-ops/active/202605081212-example.md --completed-dir awg-ops/completed --apply
+```
+
+The helper requires an explicit source and destination directory. It creates the destination directory if needed.
