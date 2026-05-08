@@ -65,3 +65,19 @@ AWG_ROOT=.agent-working-group WORKER=worker LEAD=lead \
 ```
 
 The fake executor is deterministic and intended for tests and local smoke checks.
+
+## Real Executor Adapter Template
+
+`scripts/awg-real-executor-template.sh` is an opt-in adapter template for external AI executors. It is not used by default and does not make network calls. Use it as a private wrapper boundary: validate local configuration first, pass the message JSON file path to the real executor implementation, then print exactly one structured JSON object to stdout.
+
+Adapter requirements:
+
+- receive the message JSON file path as the first argument
+- validate required configuration before attempting execution
+- fail closed when configuration is missing by returning structured `failed` output
+- keep the instruction body as data; never execute it as shell
+- write exactly one JSON object to stdout for bridge parsing
+- use the existing statuses: `success`, `retry`, `question`, `blocker`, or `failed`
+- never read, write, or move queue directories directly
+
+Deterministic template modes are controlled by `AWG_REAL_EXECUTOR_MODE` for tests and smoke checks. A private real adapter should replace the mode handler with provider-specific logic outside this repository while preserving the same contract.

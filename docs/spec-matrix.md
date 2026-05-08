@@ -34,6 +34,7 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 | Non-instruction messages are returned to the inbox without `ack` and are not executed. | `tests/test_queue.py::MessageQueueTests.test_executor_bridge_non_instruction_returns_to_inbox_without_ack` |
 | Message bodies are never executed as shell commands. | `tests/test_queue.py::MessageQueueTests.test_executor_bridge_does_not_execute_message_body_as_shell`, `tests/test_queue.py::MessageQueueTests.test_executor_bridge_docs_and_scripts_are_safe` |
 | Queue JSON moves only through queue-aware commands, not direct JSON mutation by bridge scripts. | `tests/test_queue.py::MessageQueueTests.test_executor_bridge_docs_and_scripts_are_safe` |
+| The real executor adapter template is opt-in, provider-neutral, deterministic in tests, fails closed without config, and preserves the same no-shell-execution/no-ack-before-success contract. | `tests/test_queue.py::MessageQueueTests.test_real_executor_template_success_acks_after_status`, `tests/test_queue.py::MessageQueueTests.test_real_executor_template_retry_requeues_without_ack`, `tests/test_queue.py::MessageQueueTests.test_real_executor_template_non_success_outcomes_do_not_ack`, `tests/test_queue.py::MessageQueueTests.test_real_executor_template_missing_config_fails_closed`, `tests/test_queue.py::MessageQueueTests.test_real_executor_template_does_not_execute_message_body_as_shell`, `tests/test_queue.py::MessageQueueTests.test_executor_bridge_docs_and_scripts_are_safe` |
 
 ## Review, Artifact, And Repository Policy
 
