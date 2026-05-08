@@ -422,26 +422,30 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
-    def test_archive_helper_path_safety_guidance_is_docs_only_and_safe(self):
+    def test_archive_helper_path_safety_integration_is_opt_in_and_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [
             project_root / "docs" / "artifact-retention.md",
             project_root / "docs" / "path-safety.md",
+            project_root / "docs" / "spec-matrix.md",
         ]
         content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
         script = project_root / "scripts" / "awg-archive-artifact.sh"
         script_content = script.read_text(encoding="utf-8")
 
-        self.assertIn("intentionally kept as a small bash script", content)
-        self.assertIn("not wired directly to the Python path-safety module", content)
-        self.assertIn("valid existing usage", content)
-        self.assertIn("Do not add implicit containment", content)
-        self.assertIn("explicit allowed-base", content)
+        self.assertIn("supports opt-in allowed-base checks", content)
+        self.assertIn("Without `--allowed-base`, existing valid usage remains backward-compatible", content)
+        self.assertIn("uses a Python bridge to call `require_contained_path()`", content)
+        self.assertIn("Do not add an implicit containment", content)
         self.assertIn("queue JSON preservation", content)
-        self.assertIn("*/queues/*/*.json", script_content)
+        self.assertIn("--allowed-base", script_content)
+        self.assertIn("require_contained_path", script_content)
+        self.assertIn("python3 -c", script_content)
         self.assertIn("mv \"$SOURCE\" \"$DEST\"", script_content)
-        self.assertNotIn("python", script_content.lower())
-        self.assertNotRegex(script_content, r"(^|[;&|])\s*rm\b")
+        self.assertNotRegex(script_content, r"(^|[;&|])\s*rm\b|unlink")
+        self.assertNotRegex(script_content, r"\beval\b|bash\s+-c|sh\s+-c")
+        self.assertNotRegex(script_content, r"jq\s|sed\s+-i")
+        self.assertNotRegex(script_content, r"\bcurl\b|wget|http://|https://")
 
         forbidden_names = (
             "mat" + "dori",
@@ -455,6 +459,145 @@ class MessageQueueTests(unittest.TestCase):
         self.assertNotRegex(content, r"[\uac00-\ud7af]")
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
+
+    def run_archive_helper(self, *args):
+        project_root = Path(__file__).resolve().parents[1]
+        return subprocess.run(
+            [str(project_root / "scripts" / "awg-archive-artifact.sh"), *map(str, args)],
+            cwd=project_root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def test_archive_helper_allowed_base_accepts_contained_paths(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            ops = root / "awg-ops"
+            active = ops / "active"
+            completed = ops / "completed"
+            active.mkdir(parents=True)
+            source = active / "artifact.md"
+            source.write_text("ok", encoding="utf-8")
+
+            dry_run = self.run_archive_helper(
+                "--allowed-base", ops,
+                "--source", source,
+                "--completed-dir", completed,
+            )
+            self.assertEqual(dry_run.returncode, 0, dry_run.stderr)
+            self.assertIn("dry-run: would move", dry_run.stdout)
+            self.assertTrue(source.exists())
+
+            apply = self.run_archive_helper(
+                "--allowed-base", ops,
+                "--source", source,
+                "--completed-dir", completed,
+                "--apply",
+            )
+            self.assertEqual(apply.returncode, 0, apply.stderr)
+            self.assertFalse(source.exists())
+            self.assertEqual((completed / "artifact.md").read_text(encoding="utf-8"), "ok")
+
+    def test_archive_helper_allowed_base_rejects_escapes_and_queue_paths(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            ops = root / "workspace"
+            active = ops / "active"
+            completed = ops / "completed"
+            active.mkdir(parents=True)
+            source = active / "artifact.md"
+            source.write_text("ok", encoding="utf-8")
+
+            invalid_base = self.run_archive_helper(
+                "--allowed-base", root / "missing",
+                "--source", source,
+                "--completed-dir", completed,
+            )
+            self.assertNotEqual(invalid_base.returncode, 0)
+            self.assertTrue(source.exists())
+
+            empty_base = self.run_archive_helper(
+                "--allowed-base", "",
+                "--source", source,
+                "--completed-dir", completed,
+            )
+            self.assertEqual(empty_base.returncode, 64)
+            self.assertTrue(source.exists())
+
+            traversal = self.run_archive_helper(
+                "--allowed-base", ops,
+                "--source", source,
+                "--completed-dir", ops / ".." / "outside",
+            )
+            self.assertNotEqual(traversal.returncode, 0)
+            self.assertTrue(source.exists())
+            self.assertFalse((root / "outside" / "artifact.md").exists())
+
+            outside = root / "outside"
+            outside.mkdir()
+            outside_file = outside / "external.md"
+            outside_file.write_text("external", encoding="utf-8")
+            symlink = active / "linked.md"
+            symlink.symlink_to(outside_file)
+            symlink_escape = self.run_archive_helper(
+                "--allowed-base", ops,
+                "--source", symlink,
+                "--completed-dir", completed,
+            )
+            self.assertNotEqual(symlink_escape.returncode, 0)
+            self.assertTrue(outside_file.exists())
+
+            sibling = root / "workspace-other"
+            sibling.mkdir()
+            sibling_source = sibling / "artifact.md"
+            sibling_source.write_text("trap", encoding="utf-8")
+            sibling_trap = self.run_archive_helper(
+                "--allowed-base", ops,
+                "--source", sibling_source,
+                "--completed-dir", completed,
+            )
+            self.assertNotEqual(sibling_trap.returncode, 0)
+            self.assertTrue(sibling_source.exists())
+
+            queue_source = ops / "queues" / "worker" / "inbox" / "message.json"
+            queue_source.parent.mkdir(parents=True)
+            queue_source.write_text("{}", encoding="utf-8")
+            queue_source_result = self.run_archive_helper(
+                "--allowed-base", ops,
+                "--source", queue_source,
+                "--completed-dir", completed,
+            )
+            self.assertEqual(queue_source_result.returncode, 65)
+            self.assertTrue(queue_source.exists())
+
+            queue_dest_result = self.run_archive_helper(
+                "--allowed-base", ops,
+                "--source", source,
+                "--completed-dir", ops / "queues" / "worker" / "processed",
+            )
+            self.assertEqual(queue_dest_result.returncode, 65)
+            self.assertTrue(source.exists())
+
+    def test_archive_helper_without_allowed_base_preserves_existing_usage(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            active = root / "active"
+            completed = root / "completed"
+            active.mkdir()
+            source = active / "artifact.md"
+            source.write_text("ok", encoding="utf-8")
+
+            dry_run = self.run_archive_helper("--source", source, "--completed-dir", completed)
+            self.assertEqual(dry_run.returncode, 0, dry_run.stderr)
+            self.assertIn("dry-run: would move", dry_run.stdout)
+            self.assertTrue(source.exists())
+            self.assertTrue(completed.exists())
+
+            apply = self.run_archive_helper("--source", source, "--completed-dir", completed, "--apply")
+            self.assertEqual(apply.returncode, 0, apply.stderr)
+            self.assertFalse(source.exists())
+            self.assertTrue((completed / "artifact.md").exists())
 
     def test_safe_poll_script_does_not_consume_worker_inbox(self):
         project_root = Path(__file__).resolve().parents[1]
