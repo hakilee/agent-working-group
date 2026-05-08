@@ -79,6 +79,34 @@ The helper is read-only. It reports `inbox`, `processing`, and `dead` messages w
 
 The helper must not call `recv`, `ack`, `retry`, `nack`, `requeue-stale`, or `prune`. It must not move, edit, or delete queue JSON files.
 
+## Future Action Policy
+
+A future reconciliation mutation action may be considered only after observation and evidence review are complete. This section defines a policy boundary for future work; it does not implement mutation tooling and does not authorize historical inbox cleanup by itself.
+
+Allowed future action categories are limited to:
+
+- `ack`: only when the operator has evidence that the specific message is already completed or superseded by completed work.
+- `retry`: only when the operator has evidence that the specific processing item should return to the inbox for normal handling.
+
+Do not use `nack`, `requeue-stale`, `prune`, deletion, or archive movement as reconciliation actions under this policy. Those commands solve different lifecycle or archival problems and need separate scopes if they are ever considered.
+
+Every future action must satisfy all evidence gates before the command is run:
+
+- queue-state report reference
+- completed or archived operational artifact path, close report, or merged pull request URL
+- per-item operator decision recorded before action
+- target role and message id
+
+Evidence must exist before action. Do not run a command first and create evidence afterward. The evidence gate applies even when the case appears obvious.
+
+Future actions must be item-by-item and role-scoped. Bulk actions are prohibited. Grouping more than one message requires an explicit operator decision that names each message id and explains why the group shares the same evidence.
+
+All future actions must use AWG CLI queue-aware commands. Direct queue JSON reads, edits, moves, or deletion are prohibited. `recv` must not be used for reconciliation mutation because it is a consuming processing command, not an audit action.
+
+Tools must not automatically classify messages as `superseded` or safe to mutate. Classification remains an operator decision based on evidence.
+
+Record an audit trail for every future mutation action. The audit record should include evidence reference, operator decision, command category, role, message id, result, and remaining risk. Use the [Queue Reconciliation Action Audit](templates/queue-reconciliation-action-audit.md) template when a future scoped action is approved.
+
 ## Future Helper Boundary
 
-A future helper may be useful if it remains read-only and scoped to one role at a time. The first helper should list and categorize messages without changing queue state. Mutation, including `ack`, `retry`, `nack`, `requeue-stale`, or archive movement, must remain a separate slice with its own checklist.
+A future helper may be useful if it remains read-only and scoped to one role at a time. The first helper should list and categorize messages without changing queue state. Mutation helper work must remain a separate slice with its own checklist, tests, and operator approval.
