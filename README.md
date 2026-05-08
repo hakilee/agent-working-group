@@ -14,6 +14,7 @@ The package is designed around a practical working pattern: a lead decomposes wo
 - **Inspectable operations:** `peek`, `status`, `processing`, `processed`, `dead`, and `log` expose state.
 - **No daemon required:** the CLI can be run manually, by agents, or from cron/watchdog jobs.
 - **Safe scheduling:** observers can inspect and recover queues without consuming work.
+- **Queue reconciliation policy:** old inbox items require evidence before any future reconciliation action.
 
 ## Installation
 
@@ -190,7 +191,7 @@ For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-execut
 
 For repository-first commit message and pull request title rules with Conventional Commits fallback, see [Repository Rules](docs/repository-rules.md). `scripts/awg-detect-repository-rules.sh` provides a read-only advisory scan for candidate rule sources.
 
-For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached.
+For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached. For old inbox messages that may be superseded, see [Queue Inbox Reconciliation](docs/queue-reconciliation.md).
 
 For bounded tmux worker scripts, safe-poll coexistence, and instruction auto-ack warnings, see [Worker Operations](docs/worker-operations.md). The worker scripts are queue runners, not AI executors; do not send `instruction` messages to an active queue runner unless acknowledging without execution is intentional.
 

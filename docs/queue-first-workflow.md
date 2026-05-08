@@ -86,11 +86,13 @@ Close reports should include completed artifacts, verification evidence, queue m
 
 If the next safe follow-up is clear, create the next queue item instead of stopping at a chat-only "done" message.
 
+If old inbox messages remain after closure, do not bulk consume them. Use the evidence-first policy in [Queue Inbox Reconciliation](queue-reconciliation.md): observe one queue at a time, link items to completed artifacts, merged pull requests, or close reports, and leave unknown items in place.
+
 For commits, pull request titles, and squash merge titles, follow the target repository's documented rule first. If no explicit rule exists, use Conventional Commits. See [Repository Rules](repository-rules.md).
 
 ## Safe Scheduling And Observers
 
-Observers may run `status`, `pending`, `peek`, `processing`, `dead`, `log`, or conservative `requeue-stale`. Observers must not run `recv` unless they are the real processor for those messages.
+Observers may run `status`, `pending`, `peek`, `processing`, `dead`, or `log`. Conservative `requeue-stale` is recovery, not reconciliation. Observers must not run `recv` unless they are the real processor for those messages.
 
 Queue runners that automatically acknowledge messages are not task executors. Do not send substantive `instruction` messages to an auto-ack runner unless acknowledgement without execution is intentional.
 
@@ -110,4 +112,4 @@ Use the templates in `docs/templates/` for repeatable handoffs:
 - [PR Review Result Comment](templates/pr-review-result-comment.md)
 - [Artifact Index](templates/artifact-index.md)
 
-For pull request review gates, see [PR Review Gate](pr-review-gate.md). For artifact lifecycle and retention, see [Artifact Retention](artifact-retention.md). For commit and pull request title policy, see [Repository Rules](repository-rules.md).
+For pull request review gates, see [PR Review Gate](pr-review-gate.md). For artifact lifecycle and retention, see [Artifact Retention](artifact-retention.md). For inbox reconciliation policy, see [Queue Inbox Reconciliation](queue-reconciliation.md). For commit and pull request title policy, see [Repository Rules](repository-rules.md).
