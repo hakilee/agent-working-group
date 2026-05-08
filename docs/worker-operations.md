@@ -7,6 +7,8 @@ This guide describes the optional bounded worker scripts in `scripts/`. They are
 - `scripts/awg-worker-loop.sh`: receive one message at a time with `recv --require-ack`, log it, and acknowledge it.
 - `scripts/awg-worker-tmux.sh`: start, inspect, stop, or recover a bounded worker loop inside tmux.
 - `scripts/awg-safe-poll.sh`: inspect status and optionally requeue stale processing messages without consuming the inbox.
+- `scripts/awg-codex-worker-loop.sh`: run the executor bridge with the Codex adapter under manual bounded limits.
+- `scripts/awg-codex-worker-tmux.sh`: start, inspect, stop, or recover a bounded Codex worker loop inside tmux.
 
 All scripts use `AWG_ROOT` and `awg --root`. If `AWG_ROOT` is unset, they use `.agent-working-group` under the current directory.
 
@@ -62,7 +64,7 @@ Important bounds:
 
 ## Instruction Auto-ack Risk
 
-The worker loop is a queue runner, not an AI executor. It acknowledges every supported message kind after logging it, including `instruction`.
+The generic worker loop is a queue runner, not an AI executor. It acknowledges every supported message kind after logging it, including `instruction`. The Codex worker is different: it uses the executor bridge and acknowledges only after structured success from the Codex adapter.
 
 While a bounded worker is active, send operational `note`, `status`, or `question` messages to it. Do not send new `instruction` messages unless you intentionally want the queue runner to acknowledge them without doing the work. Stop the worker and handle instructions directly when real task execution is required.
 
