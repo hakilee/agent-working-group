@@ -21,7 +21,7 @@ State what changed and whether the task is complete.
 
 ## Commit And Pull Request Titles
 
-- Rule source: repository rule path, or `none found; Conventional Commits fallback`
+- Rule source: repository rule path, helper output, or `none found; Conventional Commits fallback`
 - Final commit message:
 - Final pull request title:
 - Final squash merge title:

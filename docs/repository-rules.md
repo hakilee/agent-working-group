@@ -43,6 +43,18 @@ Before choosing a commit message or pull request title, check for repository-spe
 
 Record which rule source was used in review and close reports.
 
+## Detection Helper
+
+Use `scripts/awg-detect-repository-rules.sh` when you want a quick advisory scan before writing a commit message, pull request title, or squash title.
+
+```bash
+scripts/awg-detect-repository-rules.sh [repository-dir]
+```
+
+The helper is read-only and local-only. It reports candidate rule sources with repository-relative paths, does not call network services, does not modify files, and does not enforce a policy. If it finds no explicit source, it prints `no explicit repository rule found; use Conventional Commits fallback`.
+
+Treat the output as evidence for review and close reports, not as an authority that replaces human reading. If a detected source is ambiguous, inspect the listed file and record the actual rule source you used.
+
 ## Conventional Commits Fallback
 
 Use clear, lower-case types such as:
