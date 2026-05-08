@@ -1550,6 +1550,23 @@ class MessageQueueTests(unittest.TestCase):
         self.assertEqual(queue.processing("codex-worker", limit=1)[0]["id"], message_id)
         self.assertEqual(queue.peek("lead")[0]["kind"], "question")
 
+
+    def test_codex_executor_dirty_git_repo_blocks_before_codex(self):
+        _, root = self.with_queue()
+        repo = root / "repo"
+        repo.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "init"], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (repo / "dirty.txt").write_text("dirty\n", encoding="utf-8")
+        queue, message_id, result, argv_path = self.run_codex_executor_bridge(root, repo=repo)
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertFalse(argv_path.exists())
+        self.assertEqual(queue.status("codex-worker")["processing"], 1)
+        self.assertEqual(queue.processing("codex-worker", limit=1)[0]["id"], message_id)
+        lead_message = queue.peek("lead")[0]
+        self.assertEqual(lead_message["kind"], "blocker")
+        self.assertIn("uncommitted changes", lead_message["body"])
+
     def test_codex_worker_docs_and_scripts_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [
@@ -1571,6 +1588,7 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("acknowledges only after structured success", content)
         self.assertIn("AWG_CODEX_BIN", content)
         self.assertIn("AWG_CODEX_REPO", content)
+        self.assertIn("AWG_CODEX_ALLOW_DIRTY", content)
         self.assertIn("MAX_TASKS", content)
         self.assertIn("MAX_IDLE_SECONDS", content)
         self.assertIn("test_codex_executor_success_acks_after_codex_exit_zero", content)

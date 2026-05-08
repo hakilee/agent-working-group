@@ -125,3 +125,7 @@ Rules:
 ## Cleanup
 
 The worker writes generated logs under `<AWG_ROOT>/log/worker-sessions/` and lock directories under `<AWG_ROOT>/tmp/locks/`. Use `awg cleanup-artifacts --dry-run` before deleting generated worker clutter. Cleanup must not delete queue JSON directly.
+
+## Codex Worker Repository Preflight
+
+Codex worker jobs should target a clean Git worktree. `scripts/awg-codex-executor.sh` checks `git status --porcelain` when the target is inside Git and returns a blocker before `codex exec` if uncommitted changes are present. Operators can set `AWG_CODEX_ALLOW_DIRTY=1` for an explicitly supervised exception.
