@@ -15,6 +15,7 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 | Artifact cleanup preserves queue JSON in `inbox/`, `processing/`, `processed/`, and `dead/`. | `tests/test_queue.py::MessageQueueTests.test_cleanup_artifacts_preserves_queue_json_in_dry_run` |
 | Inbox reconciliation is evidence-first, observation-only until an explicit future mutation policy exists, and must not use unsafe `recv`, direct queue JSON mutation, deletion, or bulk consume behavior. | `tests/test_queue.py::MessageQueueTests.test_queue_reconciliation_policy_docs_are_safe`, `tests/test_queue.py::MessageQueueTests.test_queue_reconciliation_report_helper_is_read_only`, `tests/test_queue.py::MessageQueueTests.test_helper_environment_contract_is_documented_and_safe` |
 | The queue reconciliation report helper is read-only, scoped to one role, reports queue state only, and does not classify messages as superseded. | `tests/test_queue.py::MessageQueueTests.test_queue_reconciliation_report_helper_is_read_only`, `tests/test_queue.py::MessageQueueTests.test_helper_environment_contract_is_documented_and_safe` |
+| Future queue reconciliation mutation actions are policy-gated to explicit item-by-item `ack` or `retry` only, require evidence before action, require an audit trail, and prohibit `recv`, deletion, bulk consume, direct queue JSON mutation, and automatic superseded classification. | `tests/test_queue.py::MessageQueueTests.test_queue_reconciliation_action_policy_docs_are_safe` |
 
 ## Worker And Scheduling Safety
 

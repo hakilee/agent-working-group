@@ -648,6 +648,73 @@ class MessageQueueTests(unittest.TestCase):
         self.assertNotRegex(content.lower(), platform_pattern)
         self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
 
+    def test_queue_reconciliation_action_policy_docs_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        policy_path = project_root / "docs" / "queue-reconciliation.md"
+        template_path = project_root / "docs" / "templates" / "queue-reconciliation-action-audit.md"
+        spec_matrix = project_root / "docs" / "spec-matrix.md"
+        content = "\n".join(
+            path.read_text(encoding="utf-8") for path in [policy_path, template_path, spec_matrix]
+        )
+        policy = policy_path.read_text(encoding="utf-8")
+        template = template_path.read_text(encoding="utf-8")
+
+        self.assertIn("Future Action Policy", policy)
+        self.assertIn("Allowed future action categories are limited to", policy)
+        self.assertIn("`ack`", policy)
+        self.assertIn("`retry`", policy)
+        self.assertIn("Do not use `nack`, `requeue-stale`, `prune`, deletion, or archive movement", policy)
+        self.assertIn("queue-state report reference", policy)
+        self.assertIn("completed or archived operational artifact path", policy)
+        self.assertIn("merged pull request URL", policy)
+        self.assertIn("per-item operator decision", policy)
+        self.assertIn("target role and message id", policy)
+        self.assertIn("Evidence must exist before action", policy)
+        self.assertIn("item-by-item and role-scoped", policy)
+        self.assertIn("Bulk actions are prohibited", policy)
+        self.assertIn("Direct queue JSON reads, edits, moves, or deletion are prohibited", policy)
+        self.assertIn("`recv` must not be used for reconciliation mutation", policy)
+        self.assertIn("must not automatically classify messages as `superseded`", policy)
+        self.assertIn("audit trail", policy)
+        self.assertIn("Queue Reconciliation Action Audit", policy)
+        self.assertIn("test_queue_reconciliation_action_policy_docs_are_safe", content)
+
+        self.assertIn("Command category: `ack` or `retry`", template)
+        self.assertIn("Queue-state report reference", template)
+        self.assertIn("Completed or archived artifact, close report, or merged pull request", template)
+        self.assertIn("Per-item operator decision", template)
+        self.assertIn("Evidence exists before action", template)
+        self.assertIn("Target role and message id", template)
+        self.assertIn("Action is item-by-item, not bulk", template)
+        self.assertIn("Action uses AWG CLI queue-aware command", template)
+        self.assertIn("No direct queue JSON mutation", template)
+        self.assertIn("No deletion of queue state", template)
+        self.assertIn("No `recv` used for reconciliation", template)
+        self.assertIn("No automatic superseded classification by tooling", template)
+        self.assertIn("remaining risk", content.lower())
+
+        self.assertNotRegex(policy, r"\b(nack|requeue-stale|prune)\b.*\ballowed\b")
+        self.assertNotRegex(policy.lower(), r"bulk (ack|acknowledge|consume).*(allowed|safe|permitted)")
+        self.assertIn("Age alone is not enough", policy)
+        self.assertIn("treat old age as completion evidence", policy)
+        self.assertNotRegex(template, r"\b(eval|bash\s+-c|sh\s+-c)\b")
+        self.assertNotRegex(template, r"[|;&><].*AWG")
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+            "cl" + "aws",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
+
     def test_queue_reconciliation_report_helper_is_read_only(self):
         project_root = Path(__file__).resolve().parents[1]
         script = project_root / "scripts" / "awg-queue-reconciliation-report.sh"
