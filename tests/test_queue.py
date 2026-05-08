@@ -599,6 +599,54 @@ class MessageQueueTests(unittest.TestCase):
             self.assertFalse(source.exists())
             self.assertTrue((completed / "artifact.md").exists())
 
+    def test_queue_reconciliation_policy_docs_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "queue-reconciliation.md",
+            project_root / "docs" / "queue-first-workflow.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        policy = (project_root / "docs" / "queue-reconciliation.md").read_text(encoding="utf-8")
+
+        self.assertIn("Queue Inbox Reconciliation", policy)
+        self.assertIn("Observe first, classify second, mutate only after an explicit operator decision", policy)
+        self.assertIn("completed or archived operational artifact", policy)
+        self.assertIn("merged pull request", policy)
+        self.assertIn("close report", policy)
+        self.assertIn("active", policy)
+        self.assertIn("superseded", policy)
+        self.assertIn("unknown", policy)
+        self.assertIn("`recv` is unsafe", policy)
+        self.assertIn("bulk acknowledge or bulk consume", policy)
+        self.assertIn("move, edit, or delete queue JSON files directly", policy)
+        self.assertIn("Queue state must move only through queue-aware commands", policy)
+        self.assertIn("future mutation policy needs its own scope", policy)
+        self.assertIn("lead", policy)
+        self.assertIn("worker", policy)
+        self.assertIn("reviewer", policy)
+        self.assertIn("observer", policy)
+        self.assertIn("Queue Inbox Reconciliation", content)
+        self.assertIn("test_queue_reconciliation_policy_docs_are_safe", content)
+        self.assertIn("evidence-first", content)
+        self.assertIn("observation-only", content)
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+            "cl" + "aws",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+        self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
+
     def test_safe_poll_script_does_not_consume_worker_inbox(self):
         project_root = Path(__file__).resolve().parents[1]
         script = project_root / "scripts" / "awg-safe-poll.sh"

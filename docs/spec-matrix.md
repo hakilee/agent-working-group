@@ -13,6 +13,7 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 | `replyTo` references let questions and answers remain traceable without changing delivery order. | `tests/test_queue.py::MessageQueueTests.test_peek_reply_to_log_and_nack` |
 | Pruning archives processed queue files and log lines instead of deleting active coordination state directly. | `tests/test_queue.py::MessageQueueTests.test_prune_archives_processed_and_log_lines`, `tests/test_queue.py::MessageQueueTests.test_prune_can_include_processing` |
 | Artifact cleanup preserves queue JSON in `inbox/`, `processing/`, `processed/`, and `dead/`. | `tests/test_queue.py::MessageQueueTests.test_cleanup_artifacts_preserves_queue_json_in_dry_run` |
+| Inbox reconciliation is evidence-first, observation-only until an explicit future mutation policy exists, and must not use unsafe `recv`, direct queue JSON mutation, deletion, or bulk consume behavior. | `tests/test_queue.py::MessageQueueTests.test_queue_reconciliation_policy_docs_are_safe` |
 
 ## Worker And Scheduling Safety
 
@@ -54,14 +55,14 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 
 | Guarantee | Test coverage |
 | --- | --- |
-| `refs.correlationId` and `refs.parentId` are optional conventions for grouping related messages, not required schema fields. | `tests/test_queue.py::MessageQueueTests.test_spec_matrix_and_correlation_docs_are_safe` |
-| Correlation metadata is backward-compatible and does not change queue delivery, priority, acknowledgement, retry, or pruning behavior. | `tests/test_queue.py::MessageQueueTests.test_spec_matrix_and_correlation_docs_are_safe` |
+| `refs.correlationId` and `refs.parentId` are optional conventions for grouping related messages, not required schema fields. | `tests/test_queue.py::MessageQueueTests.test_spec_matrix_and_correlation_docs_are_safe`, `tests/test_queue.py::MessageQueueTests.test_queue_reconciliation_policy_docs_are_safe` |
+| Correlation metadata is backward-compatible and does not change queue delivery, priority, acknowledgement, retry, or pruning behavior. | `tests/test_queue.py::MessageQueueTests.test_spec_matrix_and_correlation_docs_are_safe`, `tests/test_queue.py::MessageQueueTests.test_queue_reconciliation_policy_docs_are_safe` |
 
 ## Public Safety
 
 | Guarantee | Test coverage |
 | --- | --- |
-| Public docs and helper scripts avoid private names, private local paths, platform-specific chat references, credentials, and non-English private workspace content. | `tests/test_queue.py::MessageQueueTests.test_worker_scripts_are_generic_and_portable`, `tests/test_queue.py::MessageQueueTests.test_pr_review_gate_docs_and_helper_are_safe`, `tests/test_queue.py::MessageQueueTests.test_artifact_retention_docs_and_helper_are_safe`, `tests/test_queue.py::MessageQueueTests.test_executor_bridge_docs_and_scripts_are_safe`, `tests/test_queue.py::MessageQueueTests.test_repository_rules_docs_and_templates_are_safe`, `tests/test_queue.py::MessageQueueTests.test_spec_matrix_and_correlation_docs_are_safe` |
+| Public docs and helper scripts avoid private names, private local paths, platform-specific chat references, credentials, and non-English private workspace content. | `tests/test_queue.py::MessageQueueTests.test_worker_scripts_are_generic_and_portable`, `tests/test_queue.py::MessageQueueTests.test_pr_review_gate_docs_and_helper_are_safe`, `tests/test_queue.py::MessageQueueTests.test_artifact_retention_docs_and_helper_are_safe`, `tests/test_queue.py::MessageQueueTests.test_executor_bridge_docs_and_scripts_are_safe`, `tests/test_queue.py::MessageQueueTests.test_repository_rules_docs_and_templates_are_safe`, `tests/test_queue.py::MessageQueueTests.test_spec_matrix_and_correlation_docs_are_safe`, `tests/test_queue.py::MessageQueueTests.test_queue_reconciliation_policy_docs_are_safe` |
 
 ## Maintenance Rule
 
