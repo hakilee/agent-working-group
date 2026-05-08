@@ -178,6 +178,8 @@ For queue-first planning, handoff, review, and closure patterns, see [Queue-Firs
 
 For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message traceability, see the `refs.correlationId` and `refs.parentId` convention in [Working-Group Queue Protocol](docs/protocol.md).
 
+For filesystem containment rules used by helper code, see [Path Safety](docs/path-safety.md). Path helpers should resolve canonical paths, fail closed, and reject symlink or traversal escapes.
+
 Reusable templates live in [docs/templates](docs/templates/): [Task Spec](docs/templates/task-spec.md), [QA Checklist Request](docs/templates/qa-checklist-request.md), [Review Result](docs/templates/review-result.md), [Close Report](docs/templates/close-report.md), [PR Review Request](docs/templates/pr-review-request.md), and [PR Review Result Comment](docs/templates/pr-review-result-comment.md).
 
 For queue-first pull request review gates and public-safe PR comments, see [PR Review Gate](docs/pr-review-gate.md). Review results can be summarized back to the pull request, but the workflow must never auto-merge or auto-approve.

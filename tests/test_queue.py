@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from agent_working_group import MessageQueue
+from agent_working_group.path_safety import PathSafetyError, canonical_path, is_contained_path, require_contained_path
 
 
 class MessageQueueTests(unittest.TestCase):
@@ -278,6 +279,69 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("mktemp \"${LOG_DIR}/${WORKER}.msg.XXXXXX\"", content)
         self.assertIn("MAX_RECV_ERRORS=0", content)
         self.assertIn("acknowledge them without doing the work", content)
+
+    def test_path_safety_helper_rejects_escapes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            base = root / "workspace"
+            base.mkdir()
+            contained = base / "artifact.md"
+            contained.write_text("ok", encoding="utf-8")
+            outside = root / "outside"
+            outside.mkdir()
+            outside_file = outside / "secret.md"
+            outside_file.write_text("no", encoding="utf-8")
+
+            self.assertEqual(require_contained_path(base, contained), canonical_path(contained))
+            self.assertTrue(is_contained_path(base, contained))
+            self.assertFalse(is_contained_path(base, base / ".." / "outside" / "secret.md"))
+
+            symlink = base / "escape-link"
+            symlink.symlink_to(outside_file)
+            self.assertFalse(is_contained_path(base, symlink))
+            with self.assertRaises(PathSafetyError):
+                require_contained_path(base, symlink)
+
+            sibling = root / "workspace-other" / "file.md"
+            sibling.parent.mkdir()
+            sibling.write_text("trap", encoding="utf-8")
+            self.assertFalse(is_contained_path(base, sibling))
+
+            for bad in (None, "", object()):
+                with self.subTest(bad=repr(bad)):
+                    self.assertFalse(is_contained_path(base, bad))
+                    with self.assertRaises(PathSafetyError):
+                        canonical_path(bad)
+
+    def test_path_safety_docs_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "path-safety.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+
+        self.assertIn("Path Safety", content)
+        self.assertIn("fail closed", content)
+        self.assertIn("symlink", content)
+        self.assertIn("traversal", content)
+        self.assertIn("sibling-prefix", content)
+        self.assertIn("Queue JSON files are live coordination state", content)
+        self.assertIn("test_path_safety_helper_rejects_escapes", content)
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
 
     def test_safe_poll_script_does_not_consume_worker_inbox(self):
         project_root = Path(__file__).resolve().parents[1]
