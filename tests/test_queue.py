@@ -877,6 +877,127 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
+
+    def run_repository_rule_helper(self, repo_root):
+        project_root = Path(__file__).resolve().parents[1]
+        script = project_root / "scripts" / "awg-detect-repository-rules.sh"
+        return subprocess.run(
+            [str(script), str(repo_root)],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def snapshot_files(self, repo_root):
+        snapshot = {}
+        for path in sorted(Path(repo_root).rglob("*")):
+            if path.is_file():
+                snapshot[str(path.relative_to(repo_root))] = path.read_bytes()
+        return snapshot
+
+    def test_repository_rule_detection_helper_finds_sources_and_fallback(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            contributing = root / "CONTRIBUTING.md"
+            contributing.write_text("Commit message policy: use Conventional Commits.\n", encoding="utf-8")
+            result = self.run_repository_rule_helper(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("CONTRIBUTING.md", result.stdout)
+            self.assertIn("contribution, maintainer, or workflow documentation", result.stdout)
+            self.assertNotIn(str(root), result.stdout)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            template = root / ".github" / "PULL_REQUEST_TEMPLATE.md"
+            template.parent.mkdir()
+            template.write_text("PR title must follow the documented release policy.\n", encoding="utf-8")
+            result = self.run_repository_rule_helper(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(".github/PULL_REQUEST_TEMPLATE.md", result.stdout)
+            self.assertIn("pull request or issue template", result.stdout)
+            self.assertNotIn(str(root), result.stdout)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = root / ".commitlintrc"
+            config.write_text('{"extends":["@commitlint/config-conventional"]}\n', encoding="utf-8")
+            result = self.run_repository_rule_helper(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(".commitlintrc", result.stdout)
+            self.assertIn("commit lint, release, or changelog configuration", result.stdout)
+            self.assertNotIn(str(root), result.stdout)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            package = root / "package.json"
+            package.write_text('{"commitlint":{"extends":["@commitlint/config-conventional"]}}\n', encoding="utf-8")
+            result = self.run_repository_rule_helper(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("package.json", result.stdout)
+            self.assertIn("package or tool configuration with commit/title hints", result.stdout)
+            self.assertNotIn(str(root), result.stdout)
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "README.md").write_text("No rule here.\n", encoding="utf-8")
+            before = self.snapshot_files(root)
+            result = self.run_repository_rule_helper(root)
+            after = self.snapshot_files(root)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(before, after)
+            self.assertIn("no explicit repository rule found; use Conventional Commits fallback", result.stdout)
+            self.assertNotIn(str(root), result.stdout)
+
+    def test_repository_rule_detection_helper_is_safe_and_documented(self):
+        project_root = Path(__file__).resolve().parents[1]
+        script_path = project_root / "scripts" / "awg-detect-repository-rules.sh"
+        checked_paths = [
+            script_path,
+            project_root / "docs" / "repository-rules.md",
+            project_root / "docs" / "templates" / "pr-review-request.md",
+            project_root / "docs" / "templates" / "close-report.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        script = script_path.read_text(encoding="utf-8")
+
+        self.assertTrue(script_path.exists())
+        self.assertTrue(os.access(script_path, os.X_OK))
+        self.assertIn("#!/usr/bin/env bash", script)
+        self.assertIn("set -euo pipefail", script)
+        self.assertIn("--help", script)
+        self.assertIn("Discovery order follows docs/repository-rules.md", script)
+        self.assertIn("CONTRIBUTING.md", script)
+        self.assertIn(".github/PULL_REQUEST_TEMPLATE.md", script)
+        self.assertIn(".commitlintrc", script)
+        self.assertIn("package.json", script)
+        self.assertIn("docs/merge-policy.md", script)
+        self.assertIn("no explicit repository rule found; use Conventional Commits fallback", script)
+        self.assertIn("read-only and local-only", content)
+        self.assertIn("repository-relative paths", content)
+        self.assertIn("test_repository_rule_detection_helper_finds_sources_and_fallback", content)
+        self.assertIn("test_repository_rule_detection_helper_is_safe_and_documented", content)
+
+        self.assertNotRegex(script, r"\beval\b|bash\s+-c|sh\s+-c")
+        self.assertNotRegex(script, r"\bcurl\b|\bwget\b|https?://")
+        self.assertNotRegex(script, r"jq\s|sed\s+-i|queues/.+json")
+        self.assertNotRegex(script, r"stat\s+-c|readlink\s+-f|xargs\s+-r")
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+            "cl" + "aws",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
     def test_repository_rules_docs_and_templates_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [
