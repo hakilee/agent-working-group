@@ -259,6 +259,49 @@ class MessageQueue:
             shutil.move(str(path), str(paths.processed / path.name))
         return message_id
 
+    def ack_pending(
+        self,
+        agent: str,
+        message_id: str,
+        expect_kind: str | None = None,
+        expect_from: str | None = None,
+        expect_to: str | None = None,
+        expect_created_at: str | None = None,
+    ) -> str:
+        paths = self.paths(agent)
+        with self.lock(agent):
+            path = find_message_file(paths.inbox, message_id)
+            if not path:
+                raise FileNotFoundError(f"message not in inbox: {message_id}")
+            matches = find_message_files(paths.inbox, message_id)
+            if len(matches) > 1:
+                raise ValueError(f"multiple inbox files match id {message_id}")
+
+            message = read_json(path)
+            if message.get("id") != message_id:
+                raise FileNotFoundError(f"message not in inbox: {message_id}")
+
+            expected = {
+                "kind": expect_kind,
+                "from": expect_from,
+                "to": expect_to,
+                "createdAt": expect_created_at,
+            }
+            for field, value in expected.items():
+                if value is None:
+                    continue
+                actual = message.get(field)
+                if actual != value:
+                    option = field.replace("createdAt", "created-at")
+                    raise ValueError(
+                        f"expect-{option} mismatch: expected={value} actual={actual} for message {message_id}"
+                    )
+
+            message.setdefault("refs", {})["ackedAt"] = utc_iso(now_ms())
+            write_json(path, message)
+            shutil.move(str(path), str(paths.processed / path.name))
+        return message_id
+
     def retry(self, agent: str, message_id: str) -> str:
         paths = self.paths(agent)
         with self.lock(agent):
@@ -442,13 +485,19 @@ def enrich_times(messages: list, tz: str) -> None:
 
 
 def find_message_file(directory: Path, message_id: str) -> Path | None:
-    matches = [path for path in directory.glob("*.json") if message_id in path.name]
-    if matches:
-        return matches[0]
+    matches = find_message_files(directory, message_id)
+    return matches[0] if matches else None
+
+
+def find_message_files(directory: Path, message_id: str) -> list[Path]:
+    matches: list[Path] = []
     for path in directory.glob("*.json"):
+        if message_id in path.name:
+            matches.append(path)
+            continue
         try:
             if read_json(path).get("id") == message_id:
-                return path
+                matches.append(path)
         except json.JSONDecodeError:
             continue
-    return None
+    return matches

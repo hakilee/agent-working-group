@@ -68,6 +68,7 @@ Primary methods:
 - `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None) -> str`: send a message and return its id.
 - `receive(agent, timeout=None, require_ack=False) -> dict | None`: receive one message, or `None` on timeout.
 - `ack(agent, message_id)`: move a `processing/` message to `processed/`.
+- `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None)`: explicitly acknowledge one reviewed inbox message by id.
 - `retry(agent, message_id)`: requeue a message from `processing/` or `processed/`.
 - `requeue_stale(agent, older_than_sec=300, max_retries=None)`: requeue stale unacked messages or move them to `dead/`.
 - `status(agent, tz="UTC")`, `peek(agent)`, `processing(agent)`, `processed(agent)`, `dead(agent)`: inspect queue state.
@@ -81,6 +82,7 @@ awg init --agent leader --agent worker
 awg send --from=leader --to=worker --kind=instruction --body="Do one clear task."
 awg recv --as=worker --timeout=120 --require-ack
 awg ack --as=worker --id=<message-id>
+awg ack-pending --as=worker --id=<message-id> --expect-kind=instruction
 awg retry --as=worker --id=<message-id>
 awg nack --as=worker --id=<message-id>
 awg requeue-stale --as=worker --older-than-sec=300 --max-retries=3

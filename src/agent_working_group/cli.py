@@ -58,6 +58,14 @@ def build_parser() -> argparse.ArgumentParser:
         cmd.add_argument("--as", required=True, dest="agent")
         cmd.add_argument("--id", required=True)
 
+    ack_pending = sub.add_parser("ack-pending")
+    ack_pending.add_argument("--as", required=True, dest="agent")
+    ack_pending.add_argument("--id", required=True)
+    ack_pending.add_argument("--expect-kind")
+    ack_pending.add_argument("--expect-from")
+    ack_pending.add_argument("--expect-to")
+    ack_pending.add_argument("--expect-created-at")
+
     stale = sub.add_parser("requeue-stale")
     stale.add_argument("--as", required=True, dest="agent")
     stale.add_argument("--older-than-sec", type=float, default=300)
@@ -132,6 +140,16 @@ def main(argv=None) -> int:
             return 0
         if args.command == "ack":
             print(queue.ack(args.agent, args.id))
+            return 0
+        if args.command == "ack-pending":
+            print(queue.ack_pending(
+                args.agent,
+                args.id,
+                expect_kind=args.expect_kind,
+                expect_from=args.expect_from,
+                expect_to=args.expect_to,
+                expect_created_at=args.expect_created_at,
+            ))
             return 0
         if args.command in {"retry", "nack"}:
             print(queue.retry(args.agent, args.id))

@@ -103,6 +103,18 @@ Future actions must be item-by-item and role-scoped. Bulk actions are prohibited
 
 All future actions must use AWG CLI queue-aware commands. Direct queue JSON reads, edits, moves, or deletion are prohibited. `recv` must not be used for reconciliation mutation because it is a consuming processing command, not an audit action.
 
+For an inbox item that has completed evidence review and explicit operator approval, use `ack-pending` instead of `recv`:
+
+```bash
+awg ack-pending --as <role> --id <message-id> \
+  --expect-kind <kind> \
+  --expect-from <sender> \
+  --expect-to <role> \
+  --expect-created-at <createdAt>
+```
+
+`ack-pending` is not for normal worker processing. It is an explicit reconciliation primitive for one reviewed inbox message at a time. The `--as` and `--id` flags are required. The `--expect-kind`, `--expect-from`, `--expect-to`, and `--expect-created-at` flags are optional drift checks; when provided, any mismatch fails closed without moving the message. The command only searches the target role inbox, stamps `refs.ackedAt`, and moves the matched message to `processed/`. It does not call `recv`, does not consume by priority order, does not support bulk mode, and does not execute or interpret the message body.
+
 Tools must not automatically classify messages as `superseded` or safe to mutate. Classification remains an operator decision based on evidence.
 
 Record an audit trail for every future mutation action. The audit record should include evidence reference, operator decision, command category, role, message id, result, and remaining risk. Use the [Queue Reconciliation Action Audit](templates/queue-reconciliation-action-audit.md) template when a future scoped action is approved.
