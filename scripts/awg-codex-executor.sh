@@ -8,6 +8,7 @@ CODEX_BIN=${AWG_CODEX_BIN:-codex}
 CODEX_SANDBOX=${AWG_CODEX_SANDBOX:-workspace-write}
 CODEX_TIMEOUT_SECONDS=${AWG_CODEX_TIMEOUT_SECONDS:-900}
 CODEX_EPHEMERAL=${AWG_CODEX_EPHEMERAL:-1}
+ALLOW_DIRTY=${AWG_CODEX_ALLOW_DIRTY:-0}
 DEFAULT_REPO=${AWG_CODEX_REPO:-}
 OUTPUT_DIR=${AWG_CODEX_OUTPUT_DIR:-}
 
@@ -38,14 +39,14 @@ if [[ -z "$MESSAGE_FILE" || ! -f "$MESSAGE_FILE" ]]; then
   exit 0
 fi
 
-python3 - "$MESSAGE_FILE" "$CODEX_BIN" "$CODEX_SANDBOX" "$CODEX_TIMEOUT_SECONDS" "$CODEX_EPHEMERAL" "$DEFAULT_REPO" "$OUTPUT_DIR" <<'PY'
+python3 - "$MESSAGE_FILE" "$CODEX_BIN" "$CODEX_SANDBOX" "$CODEX_TIMEOUT_SECONDS" "$CODEX_EPHEMERAL" "$ALLOW_DIRTY" "$DEFAULT_REPO" "$OUTPUT_DIR" <<'PY'
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 
-message_file, codex_bin, sandbox, timeout_raw, ephemeral_raw, default_repo, output_dir = sys.argv[1:]
+message_file, codex_bin, sandbox, timeout_raw, ephemeral_raw, allow_dirty, default_repo, output_dir = sys.argv[1:]
 
 def emit(status, summary, verification=""):
     result = {"status": status, "summary": summary}
@@ -78,6 +79,36 @@ repo_path = Path(repo).expanduser()
 if not repo_path.is_dir():
     emit("blocker", f"repository path does not exist: {repo}")
     raise SystemExit(0)
+
+try:
+    inside_git = subprocess.run(
+        ["git", "rev-parse", "--is-inside-work-tree"],
+        cwd=str(repo_path),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=10,
+        check=False,
+    ).returncode == 0
+except (FileNotFoundError, subprocess.TimeoutExpired):
+    inside_git = False
+
+if inside_git and allow_dirty != "1":
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=str(repo_path),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=10,
+        check=False,
+    )
+    if dirty.returncode != 0:
+        emit("blocker", "could not inspect repository dirty state")
+        raise SystemExit(0)
+    if dirty.stdout.strip():
+        emit("blocker", "repository has uncommitted changes; set AWG_CODEX_ALLOW_DIRTY=1 to override")
+        raise SystemExit(0)
 
 try:
     timeout = int(float(timeout_raw))

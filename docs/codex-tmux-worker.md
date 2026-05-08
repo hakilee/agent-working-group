@@ -85,9 +85,14 @@ scripts/awg-codex-worker-tmux.sh kill
 - `AWG_CODEX_TIMEOUT_SECONDS`: maximum Codex run duration, default `900`.
 - `AWG_CODEX_EPHEMERAL`: set `1` to add `--ephemeral`, default `1`.
 - `AWG_CODEX_OUTPUT_DIR`: directory for Codex last-message files.
+- `AWG_CODEX_ALLOW_DIRTY`: set `1` to allow execution in a dirty Git worktree; default is fail-closed when dirty.
 
 These values are data values. Do not use shell command strings, pipes, or
 redirections in executable variables.
+
+## Repository Cleanliness
+
+When the target path is a Git worktree, the adapter checks `git status --porcelain` before invoking Codex. The default is fail-closed on uncommitted changes so a worker cannot silently mix unrelated operator edits into an automated run. Use a clean branch or a dedicated worktree for worker jobs. Set `AWG_CODEX_ALLOW_DIRTY=1` only for an explicitly supervised run where mixing changes is intentional.
 
 ## Failure Handling
 
