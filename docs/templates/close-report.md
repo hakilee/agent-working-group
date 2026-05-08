@@ -26,6 +26,16 @@ State what changed and whether the task is complete.
 - Final pull request title:
 - Final squash merge title:
 
+## Independent Analysis
+
+Use when the task required independent lead analysis. Otherwise write `not applicable`.
+
+- Lead analysis completed: yes/no/not applicable
+- Worker or reviewer analysis completed: yes/no/not applicable
+- Comparison result:
+- Disagreements found:
+- Resolution before closure:
+
 ## Decisions
 
 - Decision:

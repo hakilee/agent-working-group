@@ -31,6 +31,20 @@ Every substantive `instruction` should include:
 
 Prefer one bounded task per queue item. If a task has multiple phases, define the current phase and the next decision point.
 
+### Independent Lead Analysis
+
+For large, high-risk, or strategically important analysis and design work, the lead should perform an independent worker-level analysis in addition to delegating review or investigation. The goal is to reduce planner-only blind spots before closure.
+
+This rule is selective. Do not require it for trivial one-step work, urgent reversible checks, or routine tasks where the extra ceremony would not improve safety or confidence. When applying it, keep the analysis short enough to be useful: record only the conclusion, evidence, disagreement, and closure decision that another agent needs.
+
+Use this lightweight comparison flow:
+
+1. Lead records an independent analysis and evidence before relying on the worker or reviewer conclusion.
+2. Worker or reviewer records their analysis, QA result, or findings.
+3. Lead compares the conclusions before publishing or closing.
+4. If conclusions disagree, record the disagreement, the resolution path, and whether follow-up work, retest, or explicit acceptance is required.
+5. Close only after agreement is reached, the disagreement is resolved, or the remaining risk is explicitly accepted.
+
 ## Worker Responsibilities
 
 Workers should receive durable tasks with `recv --require-ack`. The message should remain in `processing` until the task is complete, intentionally superseded, or moved by the retry/dead-letter policy.

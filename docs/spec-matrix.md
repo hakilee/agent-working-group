@@ -42,6 +42,7 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 | Pull request review requests are queue-first and never auto-merge or auto-approve. | `tests/test_queue.py::MessageQueueTests.test_pr_review_gate_docs_and_helper_are_safe` |
 | Operational Markdown artifacts use active/completed/archive retention, and helpers do not delete queue JSON. | `tests/test_queue.py::MessageQueueTests.test_artifact_retention_docs_and_helper_are_safe` |
 | Repository-specific commit, pull request title, and squash title rules take precedence over fallback conventions. | `tests/test_queue.py::MessageQueueTests.test_repository_rules_docs_and_templates_are_safe` |
+| Important analysis/design work records independent lead analysis, worker or reviewer analysis, comparison, disagreement handling, and closure decision without forcing ceremony on trivial work. | `tests/test_queue.py::MessageQueueTests.test_independent_lead_analysis_docs_and_templates_are_safe` |
 
 ## Correlation Metadata Convention
 
