@@ -42,4 +42,4 @@ The sample must not:
 - edit queue JSON directly
 - mark notifier state by default
 
-Use [Queue Notifier](queue-notifier.md) for the read-only notifier, [Queue Notifier Adapters](queue-notifier-adapters.md) for provider-neutral payloads, and [Safe Scheduling](safe-scheduling.md) for observer rules.
+Use [Queue Notifier](queue-notifier.md) for the read-only notifier, [Queue Notifier Adapters](queue-notifier-adapters.md) for provider-neutral payloads, [Runtime-Neutral Notifier Contract](runtime-neutral-notifier-contract.md) for event identity and shadow-mode boundaries, and [Safe Scheduling](safe-scheduling.md) for observer rules.

@@ -144,6 +144,8 @@ for note in notifications:
         {
             "destination": destination,
             "label": label,
+            "eventType": "awg.notifier.pending.v1",
+            "idempotencyKey": f"{role}:{note.get('id')}",
             "role": role,
             "messageId": note.get("id"),
             "workId": work_id,

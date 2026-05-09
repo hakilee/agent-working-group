@@ -38,7 +38,7 @@ scripts/awg-queue-notifier.sh --role reviewer --format json
 ```
 
 
-For provider-neutral dispatch payloads and role maps, see [Queue Notifier Adapters](queue-notifier-adapters.md).
+For provider-neutral dispatch payloads and role maps, see [Queue Notifier Adapters](queue-notifier-adapters.md). For portable event identity, idempotency, shadow-mode, and runtime cutover boundaries, see [Runtime-Neutral Notifier Contract](runtime-neutral-notifier-contract.md).
 
 Dry inspection without updating notification state:
 
@@ -57,7 +57,7 @@ The notifier must remain read-only with respect to queue state:
 - allowed: `peek`, local notification state writes
 - forbidden: `recv`, `ack`, `ack-pending`, `retry`, `nack`, `prune`, `requeue-stale`, direct queue JSON edits, deletion, or worker execution
 
-The local notification state is not queue authority. It only suppresses duplicate alerts. If a downstream delivery fails after the notifier records an item, remove the affected id from the notifier state or run with a separate state file to retry notification.
+The local notification state is not queue authority. It only suppresses duplicate alerts. If a downstream delivery fails after the notifier records an item, remove the affected id from the notifier state or run with a separate state file to retry notification. Runtime-specific notifier deployments should live in local operations storage; repository examples should stay provider-neutral and free of private paths, credentials, ids, or installed scheduler state.
 
 ## Scheduler Options
 
