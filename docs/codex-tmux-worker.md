@@ -115,7 +115,7 @@ When the target path is a Git worktree, the adapter checks `git status --porcela
 
 The bounded loop writes a small JSON run summary under `LOG_DIR/run-summaries` when it exits. The summary records worker name, lead name, start and stop timestamps, duration, stop reason, task count, and log location. Operators can use it as the first artifact for post-run inspection without reading queue internals.
 
-Status also reports `latest_summary=PATH` when a summary exists, or `latest_summary=none` before the first summary. This is an inspection pointer only; the wrapper does not parse summary contents or use them for control flow.
+Status also reports `latest_summary=PATH` when a summary exists, or `latest_summary=none` before the first summary. This is an inspection pointer only; the wrapper does not parse summary contents or use them for control flow. Run summaries, logs, and status pointers are not queue authority: they cannot authorize `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, `prune`, deletion, routing, or direct queue JSON edits by themselves.
 
 ## Stale Processing Recovery
 

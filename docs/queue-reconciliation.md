@@ -99,7 +99,9 @@ Every future action must satisfy all evidence gates before the command is run:
 - per-item operator decision recorded before action
 - target role and message id
 
-Evidence must exist before action. Do not run a command first and create evidence afterward. The evidence gate applies even when the case appears obvious.
+Evidence must exist before action. Do not run a command first and create evidence afterward. The evidence gate applies even when the case appears obvious. Summary files, logs, and status pointers can be evidence references, but they are not queue authority by themselves and do not authorize `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, `prune`, deletion, or direct queue JSON edits.
+
+Immediately before any reviewed-item mutation, re-read the live queue item and compare expected metadata, including kind, from, to, and createdAt when available. Drift or mismatch must fail closed without moving the message. Do not rely on a previously copied message id, stale report, summary, or log after the queue may have changed.
 
 Future actions must be item-by-item and role-scoped. Bulk actions are prohibited. Grouping more than one message requires an explicit operator decision that names each message id and explains why the group shares the same evidence.
 

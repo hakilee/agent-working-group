@@ -174,7 +174,7 @@ Codex worker jobs should target a clean Git worktree. `scripts/awg-codex-executo
 
 The Codex worker loop writes one JSON summary per run under `LOG_DIR/run-summaries`. The file includes worker, lead, start and stop timestamps, duration, stop reason, task count, and log location. This is an inspection artifact only; it does not change queue acknowledgement or retry behavior.
 
-Status reports `latest_summary=PATH` when a summary exists, or `latest_summary=none` before the first summary. Use this as a pointer from session status to run evidence; do not treat summary contents as worker control state.
+Status reports `latest_summary=PATH` when a summary exists, or `latest_summary=none` before the first summary. Use this as a pointer from session status to run evidence; do not treat summary contents as worker control state. Summary files, logs, and status pointers are not authority for `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, `prune`, deletion, routing, or direct queue JSON edits. Before any reviewed-item mutation, re-read live queue state, compare expected metadata such as kind, sender, recipient, and createdAt, and fail closed on drift without moving the message.
 
 ## Codex Worker Branch and Worktree Prep
 
