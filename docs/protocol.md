@@ -80,19 +80,20 @@ Exact file path, command output, or other completion criteria.
 `refs` may carry optional metadata for multi-message work and cross-surface traceability. These are conventions, not required schema fields, and older messages remain valid without them.
 
 - `refs.correlationId`: stable id shared by messages that belong to the same task, review, incident, or handoff.
+- `refs.workId`: operator-defined durable work item id for grouping messages across a task, branch, artifact set, or review.
 - `refs.parentId`: id of the message that directly caused this message when `replyTo` is not enough to describe the relationship.
 - `refs.sourceChannel`: operator-defined source surface, intake path, or channel label for the request.
 - `refs.reportTarget`: operator-defined destination where progress or final reports should be summarized.
 - `refs.repo`: repository or project slug associated with the work.
 - `refs.workspace`: workspace, checkout, or workstream label associated with the work.
 
-Use this metadata for traceability only. It does not change delivery order, priority, acknowledgement, retry, pruning, cleanup, dead-letter behavior, queue selection, or access control. Do not depend on it for permission checks or automatic routing.
+Use this metadata for traceability only. It does not change delivery order, priority, acknowledgement, retry, pruning, cleanup, dead-letter behavior, queue selection, or access control. Do not depend on it for permission checks or automatic routing. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
 
 The CLI can set these optional refs when sending a message:
 
 ```bash
-awg send --from=lead --to=worker --kind=instruction --body="Review the change" --correlation-id=task-123 --source-channel=work-intake --report-target=work-updates --repo=example/repo --workspace=repo-main
-awg send --from=worker --to=lead --kind=status --body="done" --reply-to=<instruction-id> --correlation-id=task-123 --parent-id=<instruction-id>
+awg send --from=lead --to=worker --kind=instruction --body="Review the change" --correlation-id=task-123 --work-id=work-456 --source-channel=work-intake --report-target=work-updates --repo=example/repo --workspace=repo-main
+awg send --from=worker --to=lead --kind=status --body="done" --reply-to=<instruction-id> --correlation-id=task-123 --work-id=work-456 --parent-id=<instruction-id>
 ```
 
 Omit these flags when no source or correlation metadata is needed. Messages without these refs remain valid and backward-compatible.
@@ -103,7 +104,8 @@ Example multi-message task flow:
 {
   "kind": "instruction",
   "refs": {
-    "correlationId": "task-20260508-spec-matrix"
+    "correlationId": "task-20260508-spec-matrix",
+    "workId": "work-spec-matrix"
   }
 }
 ```
@@ -113,6 +115,7 @@ Example multi-message task flow:
   "kind": "status",
   "refs": {
     "correlationId": "task-20260508-spec-matrix",
+    "workId": "work-spec-matrix",
     "parentId": "<instruction-message-id>",
     "replyTo": "<instruction-message-id>"
   }
@@ -124,6 +127,7 @@ Example multi-message task flow:
   "kind": "question",
   "refs": {
     "correlationId": "task-20260508-spec-matrix",
+    "workId": "work-spec-matrix",
     "parentId": "<status-message-id>"
   }
 }

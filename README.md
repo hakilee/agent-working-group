@@ -113,6 +113,8 @@ Each message is a JSON object:
   "body": "Do one clear task.",
   "refs": {
     "replyTo": "optional-message-id",
+    "correlationId": "optional-task-or-thread-id",
+    "workId": "optional-work-item-id",
     "receivedAt": "2026-05-07T15:30:48Z",
     "receivedAtMs": 1778167848812,
     "ackedAt": "2026-05-07T15:31:10Z",
@@ -184,7 +186,7 @@ For a clean-clone operator setup, see [Operator Runbook](docs/operator-runbook.m
 
 For queue-first planning, handoff, review, and closure patterns, see [Queue-First Workflow](docs/queue-first-workflow.md). Substantive specs should go through AWG queue messages; external chat or issue trackers should only announce that a queue item was added.
 
-For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message and cross-surface traceability, see the `refs.correlationId`, `refs.parentId`, `refs.sourceChannel`, `refs.reportTarget`, `refs.repo`, and `refs.workspace` conventions in [Working-Group Queue Protocol](docs/protocol.md). `awg send` can set them with optional `--correlation-id`, `--parent-id`, `--source-channel`, `--report-target`, `--repo`, and `--workspace` flags.
+For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message, work-item, and cross-surface traceability, see the `refs.correlationId`, `refs.workId`, `refs.parentId`, `refs.sourceChannel`, `refs.reportTarget`, `refs.repo`, and `refs.workspace` conventions in [Working-Group Queue Protocol](docs/protocol.md). `awg send` can set them with optional `--correlation-id`, `--work-id`, `--parent-id`, `--source-channel`, `--report-target`, `--repo`, and `--workspace` flags. These refs are optional conventions only: message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
 
 For filesystem containment rules used by helper code, see [Path Safety](docs/path-safety.md). Path helpers should resolve canonical paths, fail closed, and reject symlink or traversal escapes.
 

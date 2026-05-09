@@ -145,6 +145,7 @@ class MessageQueue:
         reply_to: object = None,
         *,
         correlation_id: object = None,
+        work_id: object = None,
         parent_id: object = None,
         source_channel: object = None,
         report_target: object = None,
@@ -162,6 +163,8 @@ class MessageQueue:
             refs["replyTo"] = reply_to
         if correlation_id:
             refs["correlationId"] = correlation_id
+        if work_id:
+            refs["workId"] = work_id
         if parent_id:
             refs["parentId"] = parent_id
         if source_channel:

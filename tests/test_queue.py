@@ -278,6 +278,7 @@ class MessageQueueTests(unittest.TestCase):
             "instruction",
             "do work",
             correlation_id="task-123",
+            work_id="work-456",
             source_channel="work-intake",
             report_target="work-updates",
             repo="example/repo",
@@ -286,11 +287,13 @@ class MessageQueueTests(unittest.TestCase):
         message = next(message for message in queue.peek("worker") if message["id"] == message_id)
         self.assertEqual(message["refs"], {
             "correlationId": "task-123",
+            "workId": "work-456",
             "sourceChannel": "work-intake",
             "reportTarget": "work-updates",
             "repo": "example/repo",
             "workspace": "repo-main",
         })
+        self.assertNotIn("workId", message)
         self.assertNotIn("sourceChannel", message)
         self.assertNotIn("reportTarget", message)
         self.assertNotIn("repo", message)
@@ -318,6 +321,8 @@ class MessageQueueTests(unittest.TestCase):
                 "question-1",
                 "--correlation-id",
                 "task-123",
+                "--work-id",
+                "work-456",
                 "--parent-id",
                 "question-1",
                 "--source-channel",
@@ -341,6 +346,7 @@ class MessageQueueTests(unittest.TestCase):
         self.assertEqual(message["refs"], {
             "replyTo": "question-1",
             "correlationId": "task-123",
+            "workId": "work-456",
             "parentId": "question-1",
             "sourceChannel": "work-intake",
             "reportTarget": "work-updates",
@@ -349,6 +355,7 @@ class MessageQueueTests(unittest.TestCase):
         })
         self.assertNotIn("correlationId", message)
         self.assertNotIn("parentId", message)
+        self.assertNotIn("workId", message)
         self.assertNotIn("sourceChannel", message)
         self.assertNotIn("reportTarget", message)
         self.assertNotIn("repo", message)
@@ -1910,16 +1917,20 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("test_artifact_retention_docs_and_helper_are_safe", content)
         self.assertIn("test_repository_rules_docs_and_templates_are_safe", content)
         self.assertIn("correlationId", content)
+        self.assertIn("workId", content)
         self.assertIn("parentId", content)
         self.assertIn("sourceChannel", content)
         self.assertIn("reportTarget", content)
         self.assertIn("workspace", content)
         self.assertIn("--correlation-id", content)
+        self.assertIn("--work-id", content)
         self.assertIn("--parent-id", content)
         self.assertIn("--source-channel", content)
         self.assertIn("--report-target", content)
         self.assertIn("optional conventions", content)
         self.assertIn("not required schema fields", content)
+        self.assertIn("message.id remains the canonical message identity", content)
+        self.assertIn("processing/ remains the only durable active claim-like queue state", content)
         self.assertIn("does not change delivery order", content)
         self.assertIn("does not change queue delivery", content)
         self.assertIn("queue selection", content)

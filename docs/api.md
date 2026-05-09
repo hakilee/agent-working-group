@@ -19,7 +19,7 @@ MessageQueue(root=None)
 ### Core Methods
 
 - `initialize(agents=())`: create queue directories and `log/messages.jsonl`.
-- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: send a JSON message and return its UUID.
+- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, work_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: send a JSON message and return its UUID.
 - `receive(agent, timeout=None, require_ack=False) -> dict | None`: receive one message. Returns `None` on timeout.
 - `ack(agent, message_id) -> str`: acknowledge a message from `processing/`.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None) -> str`: acknowledge one reviewed inbox message by id without using `recv`.
@@ -32,13 +32,14 @@ MessageQueue(root=None)
 `send(...)` stores optional relationship and source metadata under `message["refs"]` only:
 
 - `correlation_id` -> `refs.correlationId`: stable id shared by related messages.
+- `work_id` -> `refs.workId`: operator-defined durable work item id for grouping messages across a task, branch, artifact set, or review.
 - `parent_id` -> `refs.parentId`: direct parent message id when `replyTo` is not enough.
 - `source_channel` -> `refs.sourceChannel`: operator-defined source surface or intake path.
 - `report_target` -> `refs.reportTarget`: operator-defined place where progress or final summaries should be reported.
 - `repo` -> `refs.repo`: repository or project slug.
 - `workspace` -> `refs.workspace`: checkout, workspace, or workstream label.
 
-These fields are optional traceability conventions. They do not change delivery order, priority, acknowledgement, retry, pruning, cleanup, dead-letter behavior, queue selection, routing, or access control.
+These fields are optional traceability conventions. They do not change delivery order, priority, acknowledgement, retry, pruning, cleanup, dead-letter behavior, queue selection, routing, or access control. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
 
 ### Inspection Methods
 
