@@ -1971,6 +1971,50 @@ class MessageQueueTests(unittest.TestCase):
         for forbidden in forbidden_names:
             self.assertNotIn(forbidden, docs.lower())
 
+
+    def test_run_summary_and_log_non_authority_docs_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "codex-tmux-worker.md",
+            project_root / "docs" / "worker-operations.md",
+            project_root / "docs" / "queue-reconciliation.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+
+        self.assertIn("latest_summary=PATH", content)
+        self.assertIn("Run summaries, logs, and status pointers are not queue authority", content)
+        self.assertIn("Summary files, logs, and status pointers can be evidence references", content)
+        self.assertIn("not queue authority", content)
+        self.assertIn("not authority for `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, `prune`, deletion, routing, or direct queue JSON edits", content)
+        self.assertIn("Before any reviewed-item mutation, re-read live queue state", content)
+        self.assertIn("Immediately before any reviewed-item mutation, re-read the live queue item", content)
+        self.assertIn("compare expected metadata", content)
+        self.assertIn("kind, from, to, and createdAt", content)
+        self.assertIn("fail closed on drift without moving the message", content)
+        self.assertIn("Drift or mismatch must fail closed without moving the message", content)
+        self.assertIn("test_run_summary_and_log_non_authority_docs_are_safe", content)
+        self.assertIn("test_ack_pending_expect_flag_mismatches_fail_closed", content)
+        self.assertIn("message.id remains the canonical message identity", content)
+        self.assertIn("processing/ remains the only durable active claim-like queue state", content)
+        self.assertNotIn("retry_attempts", content)
+        self.assertNotRegex(content, r"\bclaimed\b")
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+            "cl" + "aws",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+        self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
+
     def test_codex_worker_docs_and_scripts_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [
@@ -1999,6 +2043,7 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("test_codex_worker_tmux_status_reports_latest_summary_path", content)
         self.assertIn("test_codex_worker_operator_flow_docs_are_safe", content)
         self.assertIn("test_codex_worker_stale_recovery_docs_are_safe", content)
+        self.assertIn("test_run_summary_and_log_non_authority_docs_are_safe", content)
         self.assertIn("test_codex_prepare_worktree_reports_clean_state_without_mutation", content)
         self.assertIn("MAX_TASKS", content)
         self.assertIn("MAX_IDLE_SECONDS", content)
