@@ -1317,6 +1317,113 @@ class MessageQueueTests(unittest.TestCase):
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
 
+    def test_artifact_index_helper_outputs_markdown_and_json(self):
+        project_root = Path(__file__).resolve().parents[1]
+        script = project_root / "scripts" / "awg-artifact-index.sh"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "awg-ops"
+            active = root / "active"
+            completed = root / "completed"
+            archive = root / "archive"
+            active.mkdir(parents=True)
+            completed.mkdir()
+            archive.mkdir()
+            active_file = active / "202605091200-example-scope.md"
+            completed_file = completed / "202605091205-example-close-report.md"
+            archive_file = archive / "untimestamped-note.md"
+            active_file.write_text("# Example Scope\n\nBody\n", encoding="utf-8")
+            completed_file.write_text("# Example Close Report\n", encoding="utf-8")
+            archive_file.write_text("# Archived Note\n", encoding="utf-8")
+
+            markdown = subprocess.run(
+                [str(script), "--root", str(root), "--limit", "2"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(markdown.returncode, 0, markdown.stderr)
+            self.assertIn("# AWG Artifact Index", markdown.stdout)
+            self.assertIn("`completed/202605091205-example-close-report.md`", markdown.stdout)
+            self.assertIn("`active/202605091200-example-scope.md`", markdown.stdout)
+            self.assertNotIn("untimestamped-note.md", markdown.stdout)
+
+            json_run = subprocess.run(
+                [str(script), "--root", str(root), "--format", "json"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(json_run.returncode, 0, json_run.stderr)
+            payload = json.loads(json_run.stdout)
+            self.assertEqual(payload["count"], 3)
+            by_path = {item["relativePath"]: item for item in payload["items"]}
+            self.assertEqual(by_path["active/202605091200-example-scope.md"]["status"], "active")
+            self.assertEqual(by_path["completed/202605091205-example-close-report.md"]["created"], "2026-05-09 12:05")
+            self.assertEqual(by_path["archive/untimestamped-note.md"]["title"], "Archived Note")
+
+    def test_artifact_index_helper_rejects_queue_roots_and_preserves_files(self):
+        project_root = Path(__file__).resolve().parents[1]
+        script = project_root / "scripts" / "awg-artifact-index.sh"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "awg-ops"
+            completed = root / "completed"
+            completed.mkdir(parents=True)
+            artifact = completed / "202605091210-keep-me.md"
+            original = "# Keep Me\n\nDo not mutate.\n"
+            artifact.write_text(original, encoding="utf-8")
+
+            ok = subprocess.run(
+                [str(script), "--root", str(root), "--format", "json"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(ok.returncode, 0, ok.stderr)
+            self.assertEqual(artifact.read_text(encoding="utf-8"), original)
+            self.assertTrue(artifact.exists())
+
+            queue_root = Path(temp) / ".agent-working-group" / "queues" / "worker"
+            queue_root.mkdir(parents=True)
+            rejected = subprocess.run(
+                [str(script), "--root", str(queue_root), "--format", "json"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("refusing to index queue/runtime state", rejected.stderr)
+
+    def test_artifact_index_docs_and_script_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "artifact-index.md",
+            project_root / "docs" / "artifact-retention.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        script = (project_root / "scripts" / "awg-artifact-index.sh").read_text(encoding="utf-8")
+
+        self.assertIn("read-only", content)
+        self.assertIn("Artifact index generation is read-only", content)
+        self.assertIn("stdout", content)
+        self.assertIn("refuses queue/runtime roots", content)
+        self.assertIn("Output goes to", script)
+        self.assertNotRegex(script, r"\b(mv|rm|unlink|rmdir|cp)\b")
+        self.assertNotRegex(script, r"\b(recv|ack|ack-pending|retry|nack|prune|requeue-stale)\b")
+        self.assertNotRegex(script, r"curl|wget|http://|https://")
+        self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+
     def test_queue_notifier_dispatch_builds_payloads_without_recording(self):
         project_root = Path(__file__).resolve().parents[1]
         dispatch = project_root / "scripts" / "awg-queue-notifier-dispatch.sh"

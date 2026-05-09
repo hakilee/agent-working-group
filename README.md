@@ -194,7 +194,7 @@ Reusable templates live in [docs/templates](docs/templates/): [Task Spec](docs/t
 
 For the general output boundary model, see [Output And Publish Gate](docs/output-publish-gate.md). AWG does not require pull requests, Codex, tmux, or coding-specific ceremony for every workflow; choose the lightest gate that records final output, evidence, review, and remaining risk. For queue-first pull request review gates and public-safe PR comments, see [PR Review Gate](docs/pr-review-gate.md). Review results can be summarized back to the pull request, but the workflow must never auto-merge or auto-approve. Non-trivial PRs should record `PR review gate: fulfilled` with a public evidence comment URL, or `skipped` with an explicit reason.
 
-For operational Markdown artifact lifecycle, timestamped filenames, and active/completed/archive retention, see [Artifact Retention](docs/artifact-retention.md).
+For operational Markdown artifact lifecycle, timestamped filenames, and active/completed/archive retention, see [Artifact Retention](docs/artifact-retention.md). For read-only discovery across an ops workspace, see [Artifact Index](docs/artifact-index.md).
 
 For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-executor-bridge.md). The bridge acknowledges only successful instruction execution and never executes message bodies as shell. `scripts/awg-real-executor-template.sh` provides a provider-neutral adapter template for private real executor wrappers. For code-related queue execution through Codex in a bounded tmux session, see [Codex Tmux Worker](docs/codex-tmux-worker.md). Codex and tmux are optional worker paths, not requirements for office, local artifact, or non-coding workflows.
 
