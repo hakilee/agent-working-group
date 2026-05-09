@@ -1581,6 +1581,119 @@ class MessageQueueTests(unittest.TestCase):
         self.assertNotRegex(content, local_path_pattern)
         self.assertNotRegex(content, r"[\uac00-\ud7af]")
 
+    def test_operator_baseline_doctor_reports_git_queue_and_artifacts(self):
+        project_root = Path(__file__).resolve().parents[1]
+        doctor = project_root / "scripts" / "awg-operator-baseline-doctor.sh"
+        with tempfile.TemporaryDirectory() as temp:
+            temp_root = Path(temp)
+            repo = temp_root / "repo"
+            repo.mkdir()
+            subprocess.run(["git", "init"], cwd=repo, text=True, capture_output=True, check=True)
+            subprocess.run(["git", "config", "user.email", "operator@example.invalid"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Operator"], cwd=repo, check=True)
+            (repo / "README.md").write_text("# Example\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, text=True, capture_output=True, check=True)
+
+            queue_root = temp_root / "queues"
+            queue = MessageQueue(queue_root)
+            message_id = queue.send("lead", "reviewer", "instruction", "Review baseline.", work_id="baseline-1")
+            artifact_root = temp_root / "ops"
+            (artifact_root / "active").mkdir(parents=True)
+            (artifact_root / "active" / "202605091200-example.md").write_text("# Example\n", encoding="utf-8")
+
+            cli_wrapper = temp_root / "awg-cli"
+            cli_wrapper.write_text(
+                f"#! /usr/bin/env bash\nPYTHONPATH={project_root / 'src'} {sys.executable} -m agent_working_group.cli \"$@\"\n",
+                encoding="utf-8",
+            )
+            cli_wrapper.chmod(0o755)
+            env = {**os.environ, "AWG_CLI": str(cli_wrapper)}
+
+            run = subprocess.run(
+                [
+                    str(doctor),
+                    "--repo",
+                    str(repo),
+                    "--queue-root",
+                    str(queue_root),
+                    "--role",
+                    "reviewer",
+                    "--artifact-root",
+                    str(artifact_root),
+                    "--github-repo",
+                    "owner/project",
+                    "--format",
+                    "json",
+                ],
+                text=True,
+                capture_output=True,
+                env=env,
+                check=False,
+            )
+            self.assertEqual(run.returncode, 0, run.stderr)
+            payload = json.loads(run.stdout)
+            self.assertEqual(payload["git"]["dirtyCount"], 0)
+            self.assertTrue(payload["git"]["clean"])
+            self.assertEqual(payload["queues"][0]["role"], "reviewer")
+            self.assertEqual(payload["queues"][0]["pending"], 1)
+            self.assertTrue(payload["queues"][0]["next"].endswith(".json"))
+            self.assertEqual(payload["artifacts"]["activeCount"], 1)
+            self.assertIn(payload["github"].get("available"), [True, False])
+            self.assertEqual(len(queue.peek("reviewer")), 1)
+            self.assertEqual(queue.peek("reviewer")[0]["id"], message_id)
+            self.assertEqual(queue.processed("reviewer"), [])
+
+            text_run = subprocess.run(
+                [str(doctor), "--repo", str(repo), "--queue-root", str(queue_root), "--role", "reviewer", "--artifact-root", str(artifact_root)],
+                text=True,
+                capture_output=True,
+                env=env,
+                check=False,
+            )
+            self.assertEqual(text_run.returncode, 0, text_run.stderr)
+            self.assertIn("AWG operator baseline doctor", text_run.stdout)
+            self.assertIn("queue: role=reviewer pending=1", text_run.stdout)
+            self.assertIn("artifacts:", text_run.stdout)
+
+    def test_operator_baseline_doctor_docs_and_script_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "operator-baseline-doctor.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        script = (project_root / "scripts" / "awg-operator-baseline-doctor.sh").read_text(encoding="utf-8")
+
+        self.assertIn("read-only helper", content)
+        self.assertIn("operator baseline doctor", content.lower())
+        self.assertIn("optional read-only GitHub", content)
+        self.assertIn("Missing optional configuration", content)
+        self.assertIn("not queue authority", content)
+        self.assertIn("Operator Baseline Doctor", content)
+        self.assertIn("--github-repo", script)
+        self.assertIn("gh-not-found", script)
+        self.assertNotRegex(script, r"\b(recv|ack|ack-pending|retry|nack|prune|requeue-stale)\b")
+        self.assertNotRegex(script, r"git\s+(add|commit|push|merge|branch|switch|checkout|tag)")
+        self.assertNotRegex(script, r"gh\s+pr\s+(create|merge|comment|review|close)")
+        self.assertNotRegex(script, r"gh\s+issue\s+(create|close|comment)")
+        self.assertNotRegex(script, r"curl|wget|http://|https://")
+        self.assertNotRegex(script, r"crontab|systemctl|launchctl|tmux")
+        self.assertNotRegex(script, r"rm\s+|unlink|shutil\.rmtree|os\.remove|Path\.unlink|Path\.rename")
+        self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+
     def test_queue_notifier_adapter_docs_and_script_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [

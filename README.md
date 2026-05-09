@@ -204,6 +204,8 @@ For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduli
 
 For read-only pending queue notifications, see [Queue Notifier](docs/queue-notifier.md), [Queue Notifier Adapters](docs/queue-notifier-adapters.md), and [Queue Notifier Scheduler Sample](docs/queue-notifier-scheduler-sample.md). Notifiers are channel-agnostic wake-up bridges; adapter helpers emit provider-neutral payloads and do not consume, execute, or send work.
 
+For a read-only pre-work or close-readiness snapshot, use [Operator Baseline Doctor](docs/operator-baseline-doctor.md). It reports local Git status, optional GitHub counts, role queue status, and active artifact counts without mutating queues, repositories, artifacts, schedulers, or providers.
+
 For bounded tmux worker scripts, safe-poll coexistence, read-only worker state reporting, and instruction auto-ack warnings, see [Worker Operations](docs/worker-operations.md). The worker scripts are queue runners, not AI executors; do not send `instruction` messages to an active queue runner unless acknowledging without execution is intentional.
 
 For cleanup of worker temp files and stale worker lock directories, see [Cleanup Artifacts](docs/cleanup-artifacts.md). Cleanup jobs must not delete queue JSON directly.
