@@ -46,6 +46,10 @@ Dry inspection without updating notification state:
 scripts/awg-queue-notifier.sh --role reviewer --no-record
 ```
 
+## No-Install Scheduler Sample
+
+Use `scripts/awg-queue-notifier-sample-run.sh` for a one-shot, no-install scheduler sample. It calls the provider-neutral dispatch helper, keeps no-record behavior by default, and can append output to a local operator log when explicitly requested. It does not install timers, start workers, send externally, or consume queue work. See [Queue Notifier Scheduler Sample](queue-notifier-scheduler-sample.md).
+
 ## Safety Rules
 
 The notifier must remain read-only with respect to queue state:

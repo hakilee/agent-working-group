@@ -1491,6 +1491,96 @@ class MessageQueueTests(unittest.TestCase):
             self.assertIn(f"messageId={first}", text_run.stdout)
             self.assertIn("destination=reviewer", text_run.stdout)
 
+    def test_queue_notifier_sample_run_outputs_without_recording_and_can_log(self):
+        project_root = Path(__file__).resolve().parents[1]
+        sample = project_root / "scripts" / "awg-queue-notifier-sample-run.sh"
+        dispatch = project_root / "scripts" / "awg-queue-notifier-dispatch.sh"
+        notifier = project_root / "scripts" / "awg-queue-notifier.sh"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "awg"
+            queue = MessageQueue(root)
+            message_id = queue.send("lead", "reviewer", "instruction", "Review the scheduler sample.", work_id="sample-1")
+            state = Path(temp) / "notifier-state.json"
+            log_file = Path(temp) / "logs" / "notifier-sample.log"
+            cli_wrapper = Path(temp) / "awg-cli"
+            cli_wrapper.write_text(
+                f"#! /usr/bin/env bash\nPYTHONPATH={project_root / 'src'} {sys.executable} -m agent_working_group.cli \"$@\"\n",
+                encoding="utf-8",
+            )
+            cli_wrapper.chmod(0o755)
+            env = {
+                **os.environ,
+                "AWG_CLI": str(cli_wrapper),
+                "AWG_ROOT": str(root),
+                "NOTIFIER": str(notifier),
+            }
+
+            run = subprocess.run(
+                [
+                    str(sample),
+                    "--role",
+                    "reviewer",
+                    "--state-file",
+                    str(state),
+                    "--dispatch",
+                    str(dispatch),
+                    "--log-file",
+                    str(log_file),
+                ],
+                text=True,
+                capture_output=True,
+                env=env,
+                check=False,
+            )
+            self.assertEqual(run.returncode, 0, run.stderr)
+            payload = json.loads(run.stdout)
+            self.assertEqual(payload["deliveries"][0]["messageId"], message_id)
+            self.assertEqual(payload["deliveries"][0]["workId"], "sample-1")
+            self.assertFalse(state.exists())
+            self.assertEqual(len(queue.peek("reviewer")), 1)
+            self.assertEqual(queue.processed("reviewer"), [])
+            self.assertTrue(log_file.exists())
+            log_content = log_file.read_text(encoding="utf-8")
+            self.assertIn("awg queue notifier sample run", log_content)
+            self.assertIn(message_id, log_content)
+
+    def test_queue_notifier_scheduler_sample_docs_and_script_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "queue-notifier-scheduler-sample.md",
+            project_root / "docs" / "queue-notifier.md",
+            project_root / "docs" / "safe-scheduling.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        script = (project_root / "scripts" / "awg-queue-notifier-sample-run.sh").read_text(encoding="utf-8")
+
+        self.assertIn("no-install", content)
+        self.assertIn("one-shot", content)
+        self.assertIn("no-record behavior", content)
+        self.assertIn("local operator log", content)
+        self.assertIn("approval", content.lower())
+        self.assertIn("no-install notifier scheduler sample", content)
+        self.assertIn("--log-file", script)
+        self.assertNotIn("--record", script)
+        self.assertNotRegex(script, r"\b(recv|ack|ack-pending|retry|nack|prune|requeue-stale)\b")
+        self.assertNotRegex(script, r"curl|wget|http://|https://")
+        self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")
+        self.assertNotRegex(script, r"crontab|systemctl|launchctl|tmux")
+        self.assertNotRegex(script, r"rm\s+.*queue|unlink|mv\s+.*queues")
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+
     def test_queue_notifier_adapter_docs_and_script_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [
