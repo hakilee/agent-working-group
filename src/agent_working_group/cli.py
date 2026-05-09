@@ -27,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--kind", required=True)
     send.add_argument("--reply-to")
     send.add_argument("--correlation-id")
+    send.add_argument("--work-id")
     send.add_argument("--parent-id")
     send.add_argument("--source-channel")
     send.add_argument("--report-target")
@@ -112,6 +113,7 @@ def main(argv=None) -> int:
                 args.body,
                 args.reply_to,
                 correlation_id=args.correlation_id,
+                work_id=args.work_id,
                 parent_id=args.parent_id,
                 source_channel=args.source_channel,
                 report_target=args.report_target,
