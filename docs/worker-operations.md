@@ -9,6 +9,7 @@ This guide describes the optional bounded worker scripts in `scripts/`. They are
 - `scripts/awg-safe-poll.sh`: inspect status and optionally requeue stale processing messages without consuming the inbox.
 - `scripts/awg-codex-worker-loop.sh`: run the executor bridge with the Codex adapter under manual bounded limits.
 - `scripts/awg-codex-worker-tmux.sh`: start, inspect, stop, or recover a bounded Codex worker loop inside tmux.
+- `scripts/awg-worker-state-report.sh`: print a read-only worker state and claim-readiness snapshot for one role.
 
 All scripts use `AWG_ROOT` and `awg --root`. If `AWG_ROOT` is unset, they use `.agent-working-group` under the current directory.
 
@@ -35,6 +36,7 @@ Current helper behavior:
 - `scripts/awg-worker-loop.sh`: defaults `AWG_ROOT` to `.agent-working-group` under the current directory.
 - `scripts/awg-worker-tmux.sh`: defaults `AWG_ROOT` to `.agent-working-group` under the current directory.
 - `scripts/awg-queue-reconciliation-report.sh`: supports unset `AWG_ROOT` and lets the AWG CLI use its default root.
+- `scripts/awg-worker-state-report.sh`: supports unset `AWG_ROOT` and lets the AWG CLI use its default root.
 
 All current helpers quote `"$AWG_CLI"`. Keep that pattern for future helpers.
 
@@ -121,6 +123,19 @@ Rules:
 - `requeue-stale` is safe only with a conservative threshold higher than expected worker ack latency, such as `STALE_SECONDS=600`.
 - reminders go to `LEAD` as `note` messages and do not consume worker messages.
 - never use a scheduler that calls `recv` unless it is the real processor for those messages.
+
+## Worker State Report
+
+Use `scripts/awg-worker-state-report.sh --role <role>` when an operator needs a read-only claim-readiness snapshot before starting or assigning work. The helper observes one role with non-consuming commands (`status`, `peek`, `processing`, and `dead`) and prints counts, message summaries, and one advisory category.
+
+Advisory categories:
+
+- `idle`: no pending, processing, or dead messages are observed.
+- `ready-to-claim`: pending messages exist and no processing or dead messages are observed.
+- `active-processing`: processing messages exist, so a worker may already own work.
+- `dead-letter-review`: dead-letter messages exist and need operator review.
+
+The category is not queue authority. It must not be used to decide completion, supersession, acknowledgement, retry, cleanup, routing, or access control. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
 
 ## Cleanup
 

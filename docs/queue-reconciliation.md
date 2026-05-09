@@ -79,6 +79,8 @@ The helper is read-only. It reports `inbox`, `processing`, and `dead` messages w
 
 The helper must not call `recv`, `ack`, `retry`, `nack`, `requeue-stale`, or `prune`. It must not move, edit, or delete queue JSON files.
 
+For pre-work role readiness, use `scripts/awg-worker-state-report.sh --role <role>`. It is also read-only, but it reports advisory categories such as `idle`, `ready-to-claim`, `active-processing`, and `dead-letter-review` instead of reconciliation evidence. Those categories are operator prompts only; they do not classify individual messages as completed or superseded.
+
 ## Future Action Policy
 
 A future reconciliation mutation action may be considered only after observation and evidence review are complete. This section defines a policy boundary for future work; it does not implement mutation tooling and does not authorize historical inbox cleanup by itself.
