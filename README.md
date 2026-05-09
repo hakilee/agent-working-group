@@ -202,7 +202,7 @@ For repository-first commit message and pull request title rules with Convention
 
 For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached. For old inbox messages that may be superseded, see [Queue Inbox Reconciliation](docs/queue-reconciliation.md) and the read-only reconciliation report helper.
 
-For read-only pending queue notifications, see [Queue Notifier](docs/queue-notifier.md), [Queue Notifier Adapters](docs/queue-notifier-adapters.md), and [Queue Notifier Scheduler Sample](docs/queue-notifier-scheduler-sample.md). Notifiers are channel-agnostic wake-up bridges; adapter helpers emit provider-neutral payloads and do not consume, execute, or send work.
+For read-only pending queue notifications, see [Queue Notifier](docs/queue-notifier.md), [Queue Notifier Adapters](docs/queue-notifier-adapters.md), [Runtime-Neutral Notifier Contract](docs/runtime-neutral-notifier-contract.md), and [Queue Notifier Scheduler Sample](docs/queue-notifier-scheduler-sample.md). Notifiers are channel-agnostic wake-up bridges; adapter helpers emit `awg.notifier.pending.v1` provider-neutral payloads and do not consume, execute, or send work.
 
 For a read-only pre-work or close-readiness snapshot, use [Operator Baseline Doctor](docs/operator-baseline-doctor.md). It reports local Git status, optional GitHub counts, role queue status, and active artifact counts without mutating queues, repositories, artifacts, schedulers, or providers.
 

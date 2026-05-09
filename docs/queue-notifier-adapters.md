@@ -11,7 +11,7 @@ The core rule is: **detect first, deliver outside the queue, record only after t
 - A site-local adapter may send those payloads to a configured delivery surface.
 - The AWG queue remains the source of truth for task identity and lifecycle.
 
-The dispatch helper does not send messages, call webhooks, or talk to provider APIs. It only prints JSON or text payloads that another approved tool can consume.
+The dispatch helper does not send messages, call webhooks, or talk to provider APIs. It only prints JSON or text payloads that another approved tool can consume. JSON deliveries use the `awg.notifier.pending.v1` event identity from [Runtime-Neutral Notifier Contract](runtime-neutral-notifier-contract.md).
 
 ## Role Map Contract
 
@@ -47,7 +47,7 @@ scripts/awg-queue-notifier-dispatch.sh \
   --format json
 ```
 
-The default is no-record mode. This avoids marking an item as notified when the downstream delivery adapter has not actually delivered anything.
+The default is no-record mode. This avoids marking an item as notified when the downstream delivery adapter has not actually delivered anything. Each emitted JSON delivery includes an `idempotencyKey` in the `<role>:<messageId>` form so adapters can suppress duplicate sends without treating notifier state as queue state.
 
 Text output is useful for logs:
 
@@ -79,7 +79,7 @@ Before enabling a scheduler:
 4. Connect a site-local delivery adapter.
 5. Document the scheduler interval, role map path, notifier state path, logs, and failure behavior.
 
-Installing or enabling the actual scheduler is an operations decision, not a repository default.
+Installing or enabling the actual scheduler is an operations decision, not a repository default. Keep runtime-specific scheduler configuration, credentials, channel ids, user ids, and production delivery state in local operations storage rather than repository examples.
 
 ## Safety Rules
 

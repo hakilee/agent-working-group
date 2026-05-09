@@ -1473,6 +1473,8 @@ class MessageQueueTests(unittest.TestCase):
             self.assertEqual(len(payload["deliveries"]), 1)
             delivery = payload["deliveries"][0]
             self.assertEqual(delivery["messageId"], first)
+            self.assertEqual(delivery["eventType"], "awg.notifier.pending.v1")
+            self.assertEqual(delivery["idempotencyKey"], f"reviewer:{first}")
             self.assertEqual(delivery["destination"], "reviewer-alerts")
             self.assertEqual(delivery["workId"], "adapter-1")
             self.assertIn("AWG queue notification", delivery["text"])
@@ -1710,9 +1712,53 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("provider-neutral delivery payloads", content)
         self.assertIn("default is no-record mode", content)
         self.assertIn("destination", content)
+        self.assertIn("awg.notifier.pending.v1", content)
+        self.assertIn("idempotencyKey", content)
         self.assertIn("Queue notifier dispatch converts read-only notifier output", content)
         self.assertIn("--no-record", script)
         self.assertIn("NOTIFIER_ARGS", script)
+        self.assertNotRegex(script, r"\b(recv|ack|ack-pending|retry|nack|prune|requeue-stale)\b")
+        self.assertNotRegex(script, r"curl|wget|http://|https://")
+        self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")
+        self.assertNotRegex(script, r"rm\s+.*queue|unlink|mv\s+.*queues")
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
+    def test_runtime_neutral_notifier_contract_docs_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "runtime-neutral-notifier-contract.md",
+            project_root / "docs" / "queue-notifier-adapters.md",
+            project_root / "docs" / "safe-scheduling.md",
+            project_root / "docs" / "operator-runbook.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        script = (project_root / "scripts" / "awg-queue-notifier-dispatch.sh").read_text(encoding="utf-8")
+
+        self.assertIn("Runtime-Neutral Notifier Contract", content)
+        self.assertIn("awg.notifier.pending.v1", content)
+        self.assertIn("idempotencyKey", content)
+        self.assertIn("<role>:<messageId>", content)
+        self.assertIn("shadow mode", content)
+        self.assertIn("runtime-specific", content)
+        self.assertIn("local operations storage", content)
+        self.assertIn("no production send", content)
+        self.assertIn("explicit approval", content)
+        self.assertIn('"eventType": "awg.notifier.pending.v1"', script)
+        self.assertIn('"idempotencyKey": f"{role}:{note.get(\'id\')}"', script)
         self.assertNotRegex(script, r"\b(recv|ack|ack-pending|retry|nack|prune|requeue-stale)\b")
         self.assertNotRegex(script, r"curl|wget|http://|https://")
         self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")

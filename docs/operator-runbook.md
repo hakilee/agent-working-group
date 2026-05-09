@@ -15,6 +15,7 @@ This runbook describes the workflow that ships with Agent Working Group from a c
 - Agent role names that fit their team, such as `lead`, `reviewer`, and `worker`.
 - A queue root path suitable for their environment.
 - Any notification surface or issue tracker used to announce work.
+- Runtime-specific scheduler, webhook, or delivery adapter configuration.
 - Credentials for external systems, kept outside AWG messages and outside this repository.
 - Artifact storage conventions for task specs, QA results, close reports, and audits.
 
@@ -111,7 +112,7 @@ For code or documentation changes:
 7. Publish only after evidence is captured.
 8. Write a close report with merged change, tests, queue messages handled, and remaining risks.
 
-Keep public pull request comments generic and repository-relative. Do not include private local paths, credentials, or notification-surface details.
+Keep public pull request comments generic and repository-relative. Do not include private local paths, credentials, runtime deployment details, or notification-surface details.
 
 ## Artifacts
 
@@ -136,4 +137,6 @@ Use accurate timestamped Markdown filenames such as `YYYYMMDDHHMM-short-descript
 - [PR Review Gate](pr-review-gate.md)
 - [Artifact Retention](artifact-retention.md)
 - [Queue Inbox Reconciliation](queue-reconciliation.md)
+- [Queue Notifier](queue-notifier.md)
+- [Runtime-Neutral Notifier Contract](runtime-neutral-notifier-contract.md)
 - [Spec Matrix](spec-matrix.md)
