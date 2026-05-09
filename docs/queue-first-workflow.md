@@ -121,4 +121,4 @@ Use the templates in `docs/templates/` for repeatable handoffs:
 - [PR Review Result Comment](templates/pr-review-result-comment.md)
 - [Artifact Index](templates/artifact-index.md)
 
-For pull request review gates, see [PR Review Gate](pr-review-gate.md). For artifact lifecycle and retention, see [Artifact Retention](artifact-retention.md). For inbox reconciliation policy, see [Queue Inbox Reconciliation](queue-reconciliation.md). For commit and pull request title policy, see [Repository Rules](repository-rules.md).
+For pull request review gates, see [PR Review Gate](pr-review-gate.md); non-trivial PRs should record a fulfilled gate with a public evidence comment URL or an explicit skip reason. For artifact lifecycle and retention, see [Artifact Retention](artifact-retention.md). For inbox reconciliation policy, see [Queue Inbox Reconciliation](queue-reconciliation.md). For commit and pull request title policy, see [Repository Rules](repository-rules.md).

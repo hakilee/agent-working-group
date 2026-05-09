@@ -1234,25 +1234,35 @@ class MessageQueueTests(unittest.TestCase):
             project_root / "docs" / "pr-review-gate.md",
             project_root / "docs" / "templates" / "pr-review-request.md",
             project_root / "docs" / "templates" / "pr-review-result-comment.md",
+            project_root / "docs" / "templates" / "close-report.md",
             project_root / "scripts" / "awg-pr-review-request.sh",
+            project_root / "scripts" / "awg-pr-publish-gate-check.sh",
             project_root / "README.md",
             project_root / "docs" / "queue-first-workflow.md",
             project_root / "docs" / "protocol.md",
         ]
         content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
         script = (project_root / "scripts" / "awg-pr-review-request.sh").read_text(encoding="utf-8")
+        gate_script = (project_root / "scripts" / "awg-pr-publish-gate-check.sh").read_text(encoding="utf-8")
 
         self.assertIn("queue-first", content)
         self.assertIn("never auto-merge or auto-approve", content.lower())
         self.assertIn("PR Review Result Comment", content)
+        self.assertIn("PR review gate: fulfilled", content)
+        self.assertIn("Public PR evidence comment URL", content)
+        self.assertIn("skip reason", content.lower())
+        self.assertIn("Pre-PR implementation QA", content)
         self.assertIn(" pr view ", script)
         self.assertIn(" pr diff ", script)
         self.assertIn(" pr checks ", script)
         self.assertIn("send --from", script)
-        self.assertNotRegex(script, r"gh\s+pr\s+merge")
-        self.assertNotRegex(script, r"gh\s+pr\s+review[^\n]*(--approve|approve)")
-        self.assertNotRegex(script, r"git\s+checkout|git\s+switch")
-        self.assertNotRegex(script, r"\b(make|pytest|npm|python3?)\s+(test|install|run|-)" )
+        self.assertIn("pr_review_gate=fulfilled", gate_script)
+        self.assertIn("pr_review_gate=skipped", gate_script)
+        combined_scripts = script + "\n" + gate_script
+        self.assertNotRegex(combined_scripts, r"gh\s+pr\s+merge")
+        self.assertNotRegex(combined_scripts, r"gh\s+pr\s+review[^\n]*(--approve|approve)")
+        self.assertNotRegex(combined_scripts, r"git\s+checkout|git\s+switch")
+        self.assertNotRegex(combined_scripts, r"\b(make|pytest|npm|python3?)\s+(test|install|run|-)")
 
         forbidden_names = (
             "mat" + "dori",
@@ -1266,6 +1276,60 @@ class MessageQueueTests(unittest.TestCase):
         self.assertNotRegex(content, r"[\uac00-\ud7af]")
         platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
         self.assertNotRegex(content.lower(), platform_pattern)
+
+    def test_pr_publish_gate_check_requires_evidence_or_skip(self):
+        project_root = Path(__file__).resolve().parents[1]
+        script = project_root / "scripts" / "awg-pr-publish-gate-check.sh"
+        with tempfile.TemporaryDirectory() as temp:
+            temp_path = Path(temp)
+            fake_gh = temp_path / "gh"
+            fake_gh.write_text(
+                "#!/usr/bin/env bash\n"
+                "set -euo pipefail\n"
+                "if [ \"$1 $2\" = \"auth status\" ]; then exit 0; fi\n"
+                "if [ \"$1 $2\" = \"pr view\" ]; then printf '%s\\n' \"${FAKE_GH_COMMENTS:-}\"; exit 0; fi\n"
+                "echo unexpected gh invocation >&2\n"
+                "exit 64\n",
+                encoding="utf-8",
+            )
+            fake_gh.chmod(0o755)
+            env = {**os.environ, "GH_CLI": str(fake_gh)}
+
+            missing = subprocess.run(
+                [str(script), "--repo", "owner/repo", "--pr", "123"],
+                text=True,
+                capture_output=True,
+                env={**env, "FAKE_GH_COMMENTS": "looks good"},
+                check=False,
+            )
+            self.assertNotEqual(missing.returncode, 0)
+            self.assertIn("missing PR review gate evidence", missing.stderr)
+
+            fulfilled = subprocess.run(
+                [str(script), "--repo", "owner/repo", "--pr", "123"],
+                text=True,
+                capture_output=True,
+                env={**env, "FAKE_GH_COMMENTS": "## Review Verdict\nVerdict: PASS\n## Evidence Checked"},
+                check=False,
+            )
+            self.assertEqual(fulfilled.returncode, 0, fulfilled.stderr)
+            self.assertIn("pr_review_gate=fulfilled", fulfilled.stdout)
+
+            skipped = subprocess.run(
+                [str(script), "--repo", "owner/repo", "--pr", "123", "--skip-reason", "trivial docs typo"],
+                text=True,
+                capture_output=True,
+                env={**env, "FAKE_GH_COMMENTS": ""},
+                check=False,
+            )
+            self.assertEqual(skipped.returncode, 0, skipped.stderr)
+            self.assertIn("pr_review_gate=skipped", skipped.stdout)
+
+        script_content = script.read_text(encoding="utf-8")
+        self.assertNotRegex(script_content, r"gh\s+pr\s+merge")
+        self.assertNotRegex(script_content, r"gh\s+pr\s+review[^\n]*(--approve|approve)")
+        self.assertNotRegex(script_content, r"git\s+checkout|git\s+switch")
+        self.assertNotRegex(script_content, r"\b(recv|ack|retry|nack|prune|requeue-stale)\b")
 
     def test_artifact_retention_docs_and_helper_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]

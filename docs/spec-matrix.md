@@ -54,6 +54,7 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 | Guarantee | Test coverage |
 | --- | --- |
 | Pull request review requests are queue-first and never auto-merge or auto-approve. | `tests/test_queue.py::MessageQueueTests.test_pr_review_gate_docs_and_helper_are_safe` |
+| Non-trivial pull request publish/close flow records the PR review gate as fulfilled with a public evidence comment URL or skipped with an explicit reason, and the local gate check fails closed on silent skips. | `tests/test_queue.py::MessageQueueTests.test_pr_publish_gate_check_requires_evidence_or_skip`, `tests/test_queue.py::MessageQueueTests.test_pr_review_gate_docs_and_helper_are_safe` |
 | Operational Markdown artifacts use active/completed/archive retention, and helpers do not delete queue JSON. | `tests/test_queue.py::MessageQueueTests.test_artifact_retention_docs_and_helper_are_safe` |
 | Repository-specific commit, pull request title, and squash title rules take precedence over fallback conventions. | `tests/test_queue.py::MessageQueueTests.test_repository_rules_docs_and_templates_are_safe` |
 | The repository rule detection helper is advisory-only, read-only, local-only, reports repository-relative sources, and falls back explicitly when no rule is found. | `tests/test_queue.py::MessageQueueTests.test_repository_rule_detection_helper_finds_sources_and_fallback`, `tests/test_queue.py::MessageQueueTests.test_repository_rule_detection_helper_is_safe_and_documented` |

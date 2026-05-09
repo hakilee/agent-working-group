@@ -1,6 +1,6 @@
 # PR Review Result Comment Template
 
-Use this as a concise public-safe pull request comment after AWG review is complete.
+Use this as a concise public-safe pull request comment after PR-specific AWG review is complete. The published comment is the evidence URL for `PR review gate: fulfilled`.
 
 ## Review Verdict
 
