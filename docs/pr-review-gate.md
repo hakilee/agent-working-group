@@ -1,6 +1,8 @@
 # PR Review Gate
 
-Use this workflow when a pull request needs independent review before merge. The review request is queue-first: the lead creates an AWG `instruction` for the reviewer with the PR, scope, checks, and expected output. Chat should only announce that the queue item was added.
+Use this workflow for every non-trivial pull request before merge. The review request is queue-first: the lead creates an AWG `instruction` for the reviewer with the PR, scope, checks, and expected output. Chat should only announce that the queue item was added.
+
+Pre-PR implementation QA is useful evidence, but it is not a substitute for the PR-specific gate unless the close report records an explicit skip reason. The PR gate is about the opened pull request object: PR number, title, diff, checks, public-safe evidence comment, and merge readiness.
 
 ## Flow
 
@@ -9,13 +11,15 @@ Use this workflow when a pull request needs independent review before merge. The
 3. Reviewer receives the instruction with `recv --require-ack` and writes the full QA result to a file in a neutral ops workspace or AWG `status`.
 4. Lead verifies any required fixes or conditions.
 5. Lead posts a concise public-safe summary to the pull request using the [PR Review Result Comment Template](templates/pr-review-result-comment.md).
-6. Lead merges only after `PASS` or after an accepted conditional resolution has been fixed and rechecked.
+6. Lead records `PR review gate: fulfilled` with the PR evidence comment URL in the close report.
+7. Lead merges only after `PASS` or after an accepted conditional resolution has been fixed and rechecked.
 
 ## Lead Responsibilities
 
 - Put the full review request in the AWG queue, not a chat-only message.
 - Include repository, PR number or URL, branch, scope, checklist path, expected checks, requested output path, and the commit/title rule source.
 - Keep the PR comment concise and public-safe.
+- Record either `PR review gate: fulfilled` with a public PR evidence comment URL, or `PR review gate: skipped` with an explicit reason and approval context.
 - Do not merge while the review verdict is `FAIL` or unresolved `CONDITIONAL PASS`.
 - Record any accepted risk before merge.
 
@@ -48,11 +52,13 @@ Do not include private agent names, local paths, private chat references, creden
 - `CONDITIONAL PASS`: merge is blocked until listed conditions are fixed or explicitly accepted and documented.
 - `FAIL`: merge is blocked. Fix blockers and request review again.
 
-Never auto-merge or auto-approve from this workflow. Review comments are evidence, not an automatic approval mechanism.
+Never auto-merge or auto-approve from this workflow. Review comments are evidence, not an automatic approval mechanism. A missing evidence comment should fail closed unless the operator intentionally records a skip reason.
 
 ## Helper Script
 
 `scripts/awg-pr-review-request.sh` is an optional helper for creating a queue-first PR review request. It reads pull request metadata with `gh`, collects a file list and check summary when available, and sends one AWG `instruction` to the reviewer.
+
+`scripts/awg-pr-publish-gate-check.sh` is a read-only pre-merge check. It verifies that a pull request has a public evidence comment containing review evidence markers, or that the operator supplied an explicit skip reason. It must not comment, review, approve, merge, checkout, build, test, or mutate queue state.
 
 The helper is opt-in. It must not merge, approve, checkout, build, test, or execute pull request code. It only reads PR metadata and sends a queue message.
 

@@ -19,6 +19,17 @@ State what changed and whether the task is complete.
 - Manual checks:
 - Reviewer signoff:
 
+
+## Pull Request Review Gate
+
+Use for non-trivial pull requests. For non-PR work, write `not applicable`.
+
+- PR review gate: fulfilled/skipped/not applicable
+- Reviewer artifact or status reference:
+- Public PR evidence comment URL, when fulfilled:
+- Skip reason and approval context, when skipped:
+- Pre-merge helper result:
+
 ## Commit And Pull Request Titles
 
 - Rule source: repository rule path, helper output, or `none found; Conventional Commits fallback`
