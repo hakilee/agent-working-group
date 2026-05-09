@@ -90,6 +90,10 @@ Operational artifacts may later be copied into public documentation, pull reques
 - avoid local absolute paths
 - avoid credentials, secrets, and hidden workspace details
 
+## Artifact Index
+
+Use `scripts/awg-artifact-index.sh` to generate a read-only Markdown or JSON index of `active/`, `completed/`, and `archive/` artifacts. The index helper writes to stdout only and does not move, delete, or edit artifacts. It also refuses queue/runtime roots because queue JSON is live coordination state. See [Artifact Index](artifact-index.md).
+
 ## Helper Script
 
 `scripts/awg-archive-artifact.sh` is an optional helper for moving one artifact into `completed/` or `archive/`. It is dry-run by default and never deletes files.
