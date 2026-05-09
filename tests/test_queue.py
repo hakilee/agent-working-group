@@ -1228,6 +1228,136 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("send --from poller --to \"$LEAD\" --kind note", content)
         self.assertIn("requeue-stale --as \"$WORKER\"", content)
 
+    def test_queue_notifier_emits_unnotified_pending_without_consuming(self):
+        project_root = Path(__file__).resolve().parents[1]
+        script = project_root / "scripts" / "awg-queue-notifier.sh"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "awg"
+            queue = MessageQueue(root)
+            first = queue.send("lead", "reviewer", "instruction", "Review the artifact.\nDetails", work_id="review-1")
+            second = queue.send("lead", "reviewer", "note", "FYI only")
+            state = Path(temp) / "notifier-state.json"
+            cli_wrapper = Path(temp) / "awg-cli"
+            cli_wrapper.write_text(
+                f"#! /usr/bin/env bash\nPYTHONPATH={project_root / 'src'} {sys.executable} -m agent_working_group.cli \"$@\"\n",
+                encoding="utf-8",
+            )
+            cli_wrapper.chmod(0o755)
+            env = {**os.environ, "AWG_CLI": str(cli_wrapper), "AWG_ROOT": str(root)}
+
+            first_run = subprocess.run(
+                [str(script), "--role", "reviewer", "--state-file", str(state), "--format", "json"],
+                text=True,
+                capture_output=True,
+                env=env,
+                check=False,
+            )
+            self.assertEqual(first_run.returncode, 0, first_run.stderr)
+            payload = json.loads(first_run.stdout)
+            ids = {item["id"] for item in payload["notifications"]}
+            self.assertEqual(ids, {first, second})
+            self.assertEqual(len(queue.peek("reviewer")), 2)
+            self.assertEqual(queue.processed("reviewer"), [])
+
+            second_run = subprocess.run(
+                [str(script), "--role", "reviewer", "--state-file", str(state), "--format", "json"],
+                text=True,
+                capture_output=True,
+                env=env,
+                check=False,
+            )
+            self.assertEqual(second_run.returncode, 0, second_run.stderr)
+            self.assertEqual(json.loads(second_run.stdout)["notifications"], [])
+
+            no_record = subprocess.run(
+                [str(script), "--role", "reviewer", "--state-file", str(Path(temp) / "other-state.json"), "--no-record"],
+                text=True,
+                capture_output=True,
+                env=env,
+                check=False,
+            )
+            self.assertEqual(no_record.returncode, 0, no_record.stderr)
+            self.assertIn(f"id={first}", no_record.stdout)
+            self.assertIn("workId=review-1", no_record.stdout)
+
+    def test_queue_notifier_docs_and_script_are_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "queue-notifier.md",
+            project_root / "docs" / "queue-first-workflow.md",
+            project_root / "docs" / "safe-scheduling.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+        script = (project_root / "scripts" / "awg-queue-notifier.sh").read_text(encoding="utf-8")
+
+        self.assertIn("durable inboxes, not wake-up channels", content)
+        self.assertIn("Channel-Agnostic Delivery", content)
+        self.assertIn("provider-neutral", content)
+        self.assertIn("duplicate suppression", content)
+        self.assertIn("Queue notification is a read-only wake-up bridge", content)
+        self.assertIn("peek --as", script)
+        self.assertIn("queue-notifier-state.json", script)
+        self.assertNotRegex(script, r'"\$AWG_CLI"[^\n]*(recv|ack|ack-pending|retry|nack|prune|requeue-stale)')
+        self.assertNotRegex(script, r"rm\s+.*queue|unlink|mv\s+.*queues")
+        self.assertNotRegex(script, r"curl|wget|http://|https://")
+        self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
+    def test_output_publish_gate_docs_are_general_and_safe(self):
+        project_root = Path(__file__).resolve().parents[1]
+        checked_paths = [
+            project_root / "docs" / "output-publish-gate.md",
+            project_root / "docs" / "queue-first-workflow.md",
+            project_root / "docs" / "templates" / "task-spec.md",
+            project_root / "docs" / "templates" / "close-report.md",
+            project_root / "docs" / "codex-tmux-worker.md",
+            project_root / "docs" / "worker-operations.md",
+            project_root / "docs" / "spec-matrix.md",
+            project_root / "README.md",
+        ]
+        content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
+
+        self.assertIn("output or publish boundary", content)
+        self.assertIn("Output Or Publish Gate", content)
+        self.assertIn("Output/publish gate: fulfilled/skipped/not applicable", content)
+        self.assertIn("local artifact", content)
+        self.assertIn("office/admin output", content)
+        self.assertIn("external send", content)
+        self.assertIn("queue mutation", content)
+        self.assertIn("worker execution", content)
+        self.assertIn("AWG does not require pull requests, Codex, tmux, or coding-specific ceremony", content)
+        self.assertIn("Codex and tmux workers are optional execution paths", content)
+        self.assertIn("clean-worktree rules are scoped to Codex/Git execution", content)
+        self.assertIn("non-trivial PR", content)
+        self.assertIn("PR review gate: fulfilled", content)
+
+        forbidden_names = (
+            "mat" + "dori",
+            "mat" + "gukno",
+            "happy" + "-" + "haki",
+        )
+        for forbidden in forbidden_names:
+            self.assertNotIn(forbidden, content.lower())
+        local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+        self.assertNotRegex(content, local_path_pattern)
+        self.assertNotRegex(content, r"[\uac00-\ud7af]")
+        platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
+        self.assertNotRegex(content.lower(), platform_pattern)
+
     def test_pr_review_gate_docs_and_helper_are_safe(self):
         project_root = Path(__file__).resolve().parents[1]
         checked_paths = [

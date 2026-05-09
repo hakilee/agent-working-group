@@ -2,6 +2,8 @@
 
 This guide describes the optional bounded worker scripts in `scripts/`. They are generic queue runners for Agent Working Group. They do not run an AI model and they do not execute message bodies as commands.
 
+Worker helpers are optional execution paths. AWG users doing non-coding local, office, or artifact-only work can use lighter output/publish gates without Codex, tmux, branch, or clean-worktree ceremony.
+
 ## Scripts
 
 - `scripts/awg-worker-loop.sh`: receive one message at a time with `recv --require-ack`, log it, and acknowledge it.
@@ -143,7 +145,7 @@ The worker writes generated logs under `<AWG_ROOT>/log/worker-sessions/` and loc
 
 ## Codex Worker End-to-End Operator Flow
 
-For code work, keep the Codex worker path explicit and bounded:
+For code work, keep the Codex worker path explicit and bounded. Do not apply this code-worker checklist to non-coding AWG tasks unless the task explicitly uses Codex against a Git worktree:
 
 1. Run `scripts/awg-codex-prepare-worktree.sh --repo DIR` and confirm the target is ready. Dirty Git worktrees fail closed in the Codex adapter unless `AWG_CODEX_ALLOW_DIRTY=1` is set for an explicitly supervised exception.
 2. Send an `instruction` with explicit `--repo DIR` and `--workspace DIR` refs so the adapter does not infer the target.

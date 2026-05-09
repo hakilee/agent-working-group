@@ -42,7 +42,7 @@ blocker > question > answer > instruction > status > note
 
 ## Recommended Instruction Shape
 
-Substantive instructions should be queue-first: put the full task spec, constraints, exit criteria, and requested output in the AWG queue message. Chat should only announce that a queue item exists. See [Queue-First Workflow](queue-first-workflow.md), [Task Spec Template](templates/task-spec.md), and [PR Review Gate](pr-review-gate.md).
+Substantive instructions should be queue-first: put the full task spec, constraints, exit criteria, and requested output in the AWG queue message. Chat should only announce that a queue item exists. See [Queue-First Workflow](queue-first-workflow.md), [Task Spec Template](templates/task-spec.md), [Output And Publish Gate](output-publish-gate.md), and [PR Review Gate](pr-review-gate.md).
 
 ```text
 [ROLE]

@@ -16,7 +16,7 @@ Split queues by repository or workstream when tasks are substantial, concurrent,
 
 Use an `instruction` message for any work that has scope, constraints, exit criteria, or expected artifacts. This includes implementation tasks, review requests, QA checklist requests, release checks, and closure reports.
 
-Use chat only to say that an AWG queue item was added, with a short message id and one-line summary. Do not rely on chat-only long specs for work that another planner, worker, or reviewer must execute.
+Use chat or another delivery surface only to say that an AWG queue item was added, with a short message id and one-line summary. Do not rely on chat-only long specs for work that another planner, worker, or reviewer must execute. If missed wake-ups are likely, use the read-only [Queue Notifier](queue-notifier.md) instead of relying on memory.
 
 ## Roles
 
@@ -37,6 +37,7 @@ Every substantive `instruction` should include:
 - verification commands or evidence expected
 - reply path for status, questions, blockers, and final report
 - source metadata when the work crosses surfaces, repositories, or workstreams
+- notification path when the recipient may not actively monitor the queue
 
 Prefer one bounded task per queue item. If a task has multiple phases, define the current phase and the next decision point.
 
@@ -89,6 +90,13 @@ A useful review result includes:
 - residual risks
 - final verdict: `PASS`, `CONDITIONAL PASS`, or `FAIL`
 
+
+## Output And Publish Gates
+
+AWG's general gate is the output or publish boundary, not a pull request. Before closing substantive work, record the final output, appropriate evidence, review or owner signoff, the closure or delivery decision, and remaining risk. Use the lightest gate that fits the work: PR gate for GitHub PRs, artifact gate for local files, office/admin gate for reports or handoffs, external-send gate for outbound messages, queue-mutation gate for reconciliation, and worker-execution gate for tmux or Codex runs.
+
+Do not impose PR, branch, clean-worktree, Codex, or tmux rules on non-coding local work unless the task scope actually needs them. Conversely, when work is published through a non-trivial PR, the PR-specific gate remains required.
+
 ## Close Reports
 
 Close reports should include completed artifacts, verification evidence, queue messages handled, and remaining risks. Store shared operational artifacts in a neutral workspace and prefer timestamped filenames such as `YYYYMMDDHHMM-short-description.md`. When work closes, move related artifacts from `active/` to `completed/` instead of deleting them. See [Artifact Retention](artifact-retention.md).
@@ -121,4 +129,4 @@ Use the templates in `docs/templates/` for repeatable handoffs:
 - [PR Review Result Comment](templates/pr-review-result-comment.md)
 - [Artifact Index](templates/artifact-index.md)
 
-For pull request review gates, see [PR Review Gate](pr-review-gate.md); non-trivial PRs should record a fulfilled gate with a public evidence comment URL or an explicit skip reason. For artifact lifecycle and retention, see [Artifact Retention](artifact-retention.md). For inbox reconciliation policy, see [Queue Inbox Reconciliation](queue-reconciliation.md). For commit and pull request title policy, see [Repository Rules](repository-rules.md).
+For read-only queue wake-up notifications, see [Queue Notifier](queue-notifier.md). For general output and publish boundaries, see [Output And Publish Gate](output-publish-gate.md). For pull request review gates, see [PR Review Gate](pr-review-gate.md); non-trivial PRs should record a fulfilled gate with a public evidence comment URL or an explicit skip reason. For artifact lifecycle and retention, see [Artifact Retention](artifact-retention.md). For inbox reconciliation policy, see [Queue Inbox Reconciliation](queue-reconciliation.md). For commit and pull request title policy, see [Repository Rules](repository-rules.md).

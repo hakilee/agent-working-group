@@ -2,7 +2,9 @@
 
 The Codex tmux worker is an opt-in path for code-related AWG instructions. It
 combines the existing executor bridge with a Codex adapter and a bounded tmux
-runtime.
+runtime. AWG does not require Codex or tmux for non-coding workflows; local
+reports, office/admin outputs, and other artifact-only tasks can use lighter
+output gates without code-worker preflight rules.
 
 ```text
 AWG queue -> executor bridge -> Codex adapter -> codex exec -> structured result
@@ -67,7 +69,7 @@ scripts/awg-codex-worker-tmux.sh kill
 
 ## Operator Flow
 
-Use this sequence for a manual bounded Codex worker run:
+Use this sequence for a manual bounded Codex worker run. This is code-worker guidance, not a requirement for every AWG task:
 
 1. Prepare the target repository with `scripts/awg-codex-prepare-worktree.sh --repo DIR`. The helper is read-only by default and should report a clean worktree before dispatch. If a branch is needed, use `--branch NAME --create-branch` explicitly.
 2. Send one instruction with explicit `--repo DIR` and `--workspace DIR` refs. The message body is prompt data only, not shell.
@@ -109,7 +111,7 @@ Use `scripts/awg-codex-prepare-worktree.sh --repo DIR` before dispatch when you 
 
 ## Repository Cleanliness
 
-When the target path is a Git worktree, the adapter checks `git status --porcelain` before invoking Codex. The default is fail-closed on uncommitted changes so a worker cannot silently mix unrelated operator edits into an automated run. Use a clean branch or a dedicated worktree for worker jobs. Set `AWG_CODEX_ALLOW_DIRTY=1` only for an explicitly supervised run where mixing changes is intentional.
+When the target path is a Git worktree, the adapter checks `git status --porcelain` before invoking Codex. The default is fail-closed on uncommitted changes so a worker cannot silently mix unrelated operator edits into an automated run. Use a clean branch or a dedicated worktree for code-worker jobs. Set `AWG_CODEX_ALLOW_DIRTY=1` only for an explicitly supervised run where mixing changes is intentional. These clean-worktree rules are scoped to Codex/Git execution, not to non-coding AWG tasks that simply produce local artifacts.
 
 ## Run Summaries
 
