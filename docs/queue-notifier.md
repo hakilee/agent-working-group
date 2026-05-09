@@ -37,6 +37,9 @@ JSON output for an external adapter:
 scripts/awg-queue-notifier.sh --role reviewer --format json
 ```
 
+
+For provider-neutral dispatch payloads and role maps, see [Queue Notifier Adapters](queue-notifier-adapters.md).
+
 Dry inspection without updating notification state:
 
 ```bash
