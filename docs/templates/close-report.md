@@ -20,6 +20,17 @@ State what changed and whether the task is complete.
 - Reviewer signoff:
 
 
+## Output Or Publish Gate
+
+Use for every substantive closure. Choose the lightest gate that matches the work: pull request, local artifact, office/admin output, external send, queue mutation, worker execution, or not applicable.
+
+- Output/publish gate: fulfilled/skipped/not applicable
+- Gate type:
+- Final output, destination, or artifact path:
+- Evidence checked:
+- Reviewer, owner, or approval reference:
+- Skip reason and approval context, when skipped:
+
 ## Pull Request Review Gate
 
 Use for non-trivial pull requests. For non-PR work, write `not applicable`.

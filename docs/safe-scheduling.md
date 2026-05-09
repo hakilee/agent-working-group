@@ -85,3 +85,8 @@ grep -c 'recv' ./safe-observe.sh
 Expected result: `0`.
 
 If a scheduled job must call `recv`, document the attached processor, its log path, its stop condition, and how it calls `ack`, `retry`, or `nack`.
+
+
+## Queue Notification Scheduling
+
+Use a periodic read-only notifier when queue recipients may miss send-time notifications. The notifier should inspect pending inbox items, emit provider-neutral notification data, and record only local duplicate-suppression state. It must not receive, acknowledge, retry, prune, recover, execute, or edit queue JSON. See [Queue Notifier](queue-notifier.md).

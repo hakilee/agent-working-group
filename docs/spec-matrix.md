@@ -24,6 +24,7 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 | Guarantee | Test coverage |
 | --- | --- |
 | Scheduled observers must not consume the worker inbox with `recv`. | `tests/test_queue.py::MessageQueueTests.test_safe_poll_script_does_not_consume_worker_inbox`, `tests/test_queue.py::MessageQueueTests.test_recv_is_not_safe_for_scheduling` |
+| Queue notification is a read-only wake-up bridge: it can inspect pending inbox items and write local duplicate-suppression state, but it must not consume, acknowledge, retry, recover, execute, delete, or edit queue JSON. | `tests/test_queue.py::MessageQueueTests.test_queue_notifier_emits_unnotified_pending_without_consuming`, `tests/test_queue.py::MessageQueueTests.test_queue_notifier_docs_and_script_are_safe` |
 | The bounded worker loop is a queue runner, not an AI executor, and warns when it acknowledges an `instruction` without doing the work. | `tests/test_queue.py::MessageQueueTests.test_worker_loop_auto_acks_instruction_without_execution`, `tests/test_queue.py::MessageQueueTests.test_worker_scripts_are_generic_and_portable` |
 | `MAX_IDLE_SECONDS` is idle time since the last received message, not process max runtime. | `tests/test_queue.py::MessageQueueTests.test_worker_idle_timeout_resets_after_message` |
 | Worker helper scripts and public worker docs stay generic and portable. | `tests/test_queue.py::MessageQueueTests.test_worker_scripts_are_generic_and_portable` |
@@ -53,6 +54,7 @@ This matrix maps Agent Working Group safety and behavior guarantees to the tests
 
 | Guarantee | Test coverage |
 | --- | --- |
+| AWG closure uses a general output/publish gate that is not pull-request-specific; Codex, tmux, branch, and clean-worktree ceremony remain optional and scoped to code-worker workflows. | `tests/test_queue.py::MessageQueueTests.test_output_publish_gate_docs_are_general_and_safe` |
 | Pull request review requests are queue-first and never auto-merge or auto-approve. | `tests/test_queue.py::MessageQueueTests.test_pr_review_gate_docs_and_helper_are_safe` |
 | Non-trivial pull request publish/close flow records the PR review gate as fulfilled with a public evidence comment URL or skipped with an explicit reason, and the local gate check fails closed on silent skips. | `tests/test_queue.py::MessageQueueTests.test_pr_publish_gate_check_requires_evidence_or_skip`, `tests/test_queue.py::MessageQueueTests.test_pr_review_gate_docs_and_helper_are_safe` |
 | Operational Markdown artifacts use active/completed/archive retention, and helpers do not delete queue JSON. | `tests/test_queue.py::MessageQueueTests.test_artifact_retention_docs_and_helper_are_safe` |

@@ -43,6 +43,16 @@ Describe the repository, package, or artifact area. Use portable paths such as r
 - Status report format:
 - Evidence to include:
 
+## Output Or Publish Gate
+
+Choose the lightest gate that matches the work. Examples: pull request, local artifact, office/admin output, external send, queue mutation, worker execution, or not applicable.
+
+- Gate type:
+- Final output or destination:
+- Required evidence:
+- Required approval or reviewer signoff:
+- Skip reason if not applicable or intentionally skipped:
+
 ## Reply Path
 
 - Send `status` when starting.

@@ -1,6 +1,6 @@
 # Agent Working Group
 
-Agent Working Group is a tiny file-backed coordination layer for small teams of coding agents. It gives a lead agent and one or more worker agents a shared mailbox protocol: send instructions, receive prioritized messages, acknowledge work, retry stale messages, and inspect the queue without running a server.
+Agent Working Group is a tiny file-backed coordination layer for small teams of agents and local operators. It gives a lead agent and one or more worker agents a shared mailbox protocol: send instructions, receive prioritized messages, acknowledge work, retry stale messages, and inspect the queue without running a server.
 
 The package is designed around a practical working pattern: a lead decomposes work, workers validate or implement bounded tasks, messages preserve accountability, and queue state makes collaboration inspectable.
 
@@ -180,7 +180,7 @@ This keeps implementation, documentation, and tests aligned.
 
 ## Current Scope
 
-This is intentionally simple and local-first. It does not require a broker, database, network service, or daemon. It is best suited for local agent orchestration, coding-agent experiments, and small workflow projects.
+This is intentionally simple and local-first. It does not require a broker, database, network service, or daemon. It is best suited for local agent orchestration, coding-agent experiments, office workflows, and small workflow projects.
 
 For a clean-clone operator setup, see [Operator Runbook](docs/operator-runbook.md). It distinguishes the workflow that ships with this repository from environment-specific choices such as agent identities, notification surfaces, credentials, and private artifact locations. For a runnable queue lifecycle demo, see [Examples](examples/README.md).
 
@@ -192,15 +192,17 @@ For filesystem containment rules used by helper code, see [Path Safety](docs/pat
 
 Reusable templates live in [docs/templates](docs/templates/): [Task Spec](docs/templates/task-spec.md), [QA Checklist Request](docs/templates/qa-checklist-request.md), [Review Result](docs/templates/review-result.md), [Close Report](docs/templates/close-report.md), [PR Review Request](docs/templates/pr-review-request.md), and [PR Review Result Comment](docs/templates/pr-review-result-comment.md). `scripts/awg-independent-analysis-template.sh` prints stdout-only independent-analysis section scaffolds aligned with the task spec, review result, and close report templates.
 
-For queue-first pull request review gates and public-safe PR comments, see [PR Review Gate](docs/pr-review-gate.md). Review results can be summarized back to the pull request, but the workflow must never auto-merge or auto-approve. Non-trivial PRs should record `PR review gate: fulfilled` with a public evidence comment URL, or `skipped` with an explicit reason.
+For the general output boundary model, see [Output And Publish Gate](docs/output-publish-gate.md). AWG does not require pull requests, Codex, tmux, or coding-specific ceremony for every workflow; choose the lightest gate that records final output, evidence, review, and remaining risk. For queue-first pull request review gates and public-safe PR comments, see [PR Review Gate](docs/pr-review-gate.md). Review results can be summarized back to the pull request, but the workflow must never auto-merge or auto-approve. Non-trivial PRs should record `PR review gate: fulfilled` with a public evidence comment URL, or `skipped` with an explicit reason.
 
 For operational Markdown artifact lifecycle, timestamped filenames, and active/completed/archive retention, see [Artifact Retention](docs/artifact-retention.md).
 
-For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-executor-bridge.md). The bridge acknowledges only successful instruction execution and never executes message bodies as shell. `scripts/awg-real-executor-template.sh` provides a provider-neutral adapter template for private real executor wrappers. For code-related queue execution through Codex in a bounded tmux session, see [Codex Tmux Worker](docs/codex-tmux-worker.md).
+For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-executor-bridge.md). The bridge acknowledges only successful instruction execution and never executes message bodies as shell. `scripts/awg-real-executor-template.sh` provides a provider-neutral adapter template for private real executor wrappers. For code-related queue execution through Codex in a bounded tmux session, see [Codex Tmux Worker](docs/codex-tmux-worker.md). Codex and tmux are optional worker paths, not requirements for office, local artifact, or non-coding workflows.
 
 For repository-first commit message and pull request title rules with Conventional Commits fallback, see [Repository Rules](docs/repository-rules.md). `scripts/awg-detect-repository-rules.sh` provides a read-only advisory scan for candidate rule sources.
 
 For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached. For old inbox messages that may be superseded, see [Queue Inbox Reconciliation](docs/queue-reconciliation.md) and the read-only reconciliation report helper.
+
+For read-only pending queue notifications, see [Queue Notifier](docs/queue-notifier.md). Notifiers are channel-agnostic wake-up bridges; they do not consume or execute work.
 
 For bounded tmux worker scripts, safe-poll coexistence, read-only worker state reporting, and instruction auto-ack warnings, see [Worker Operations](docs/worker-operations.md). The worker scripts are queue runners, not AI executors; do not send `instruction` messages to an active queue runner unless acknowledging without execution is intentional.
 
