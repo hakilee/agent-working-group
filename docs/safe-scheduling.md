@@ -84,7 +84,7 @@ grep -c 'recv' ./safe-observe.sh
 
 Expected result: `0`.
 
-If a scheduled job must call `recv`, document the attached processor, its log path, its stop condition, and how it calls `ack`, `retry`, or `nack`.
+If a scheduled job must call `recv`, document the attached processor, its log path, its stop condition, and how it calls `ack`, `retry`, or `nack`. Treat that scheduler as a worker decision, not as an observer. See [Worker Operations](worker-operations.md#operating-decision) before enabling it.
 
 
 ## Queue Notification Scheduling

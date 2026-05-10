@@ -42,9 +42,19 @@ Current helper behavior:
 
 All current helpers quote `"$AWG_CLI"`. Keep that pattern for future helpers.
 
+## Operating Decision
+
+Choose the worker mode before starting automation:
+
+- **Manual or no worker:** default for planning, review, artifact-only, and office workflows. Use queue notifications and human or agent sessions to claim work explicitly.
+- **Bounded worker:** default when a queue runner should process routine messages. Use explicit stop conditions, duplicate-worker protection, status reporting, and stale recovery review.
+- **Always-on worker:** production operation only. Require a separate operating decision that names the owner, queue, restart policy, monitoring, recovery procedure, and shutdown path.
+
+Do not let a notification bridge become an implicit worker. A notifier may wake a recipient, but a worker owns queue consumption and acknowledgement.
+
 ## Bounded Default
 
-Bounded operation is the default. Do not run an always-on worker without an explicit operating decision.
+Bounded operation is the default when an operator chooses a worker. Do not run an always-on worker without an explicit operating decision.
 
 Recommended defaults:
 
