@@ -384,14 +384,7 @@ class QueueCoreTests(QueueTestCase):
             self.assertIn("evidence-first", content)
             self.assertIn("observation-only", content)
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-                "cl" + "aws",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -427,14 +420,7 @@ class QueueCoreTests(QueueTestCase):
             self.assertIn("ack_pending", readme)
 
             combined = "\n".join([queue_source, cli_source, docs, matrix, readme])
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "cl" + "aws",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, combined.lower())
+            self.assert_public_safe_content(combined)
             local_path_pattern = "/" + "Users/" + r"[^\s`]+"
             self.assertNotRegex(combined, local_path_pattern)
             korean_pattern = "[" + "\\uac00" + "-" + "\\ud7af" + "]"
@@ -497,14 +483,7 @@ class QueueCoreTests(QueueTestCase):
             self.assertNotRegex(template, r"\b(eval|bash\s+-c|sh\s+-c)\b")
             self.assertNotRegex(template, r"[|;&><].*AWG")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-                "cl" + "aws",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
@@ -615,14 +594,7 @@ class QueueCoreTests(QueueTestCase):
             self.assertNotRegex(script_content, r"\beval\b|bash\s+-c|sh\s+-c")
             self.assertNotRegex(script_content, r"jq\s|sed\s+.*queues/.+json")
             self.assertNotRegex(script_content, r"\bcurl\b|wget|http://|https://")
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-                "cl" + "aws",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")

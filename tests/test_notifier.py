@@ -78,13 +78,7 @@ class QueueNotifierTests(QueueTestCase):
             self.assertNotRegex(script, r"curl|wget|http://|https://")
             self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -239,13 +233,7 @@ class QueueNotifierTests(QueueTestCase):
             self.assertNotRegex(script, r"crontab|systemctl|launchctl|tmux")
             self.assertNotRegex(script, r"rm\s+.*queue|unlink|mv\s+.*queues")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -288,13 +276,7 @@ class QueueNotifierTests(QueueTestCase):
             self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")
             self.assertNotRegex(script, r"rm\s+.*queue|unlink|mv\s+.*queues")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -330,13 +312,7 @@ class QueueNotifierTests(QueueTestCase):
             self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")
             self.assertNotRegex(script, r"rm\s+.*queue|unlink|mv\s+.*queues")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")

@@ -104,13 +104,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertNotRegex(script, r"rm\s+|unlink|shutil\.rmtree|os\.remove|Path\.unlink|Path\.rename")
             self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -143,13 +137,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("non-trivial PR", content)
             self.assertIn("PR review gate: fulfilled", content)
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -192,13 +180,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertNotRegex(combined_scripts, r"git\s+checkout|git\s+switch")
             self.assertNotRegex(combined_scripts, r"\b(make|pytest|npm|python3?)\s+(test|install|run|-)")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -287,14 +269,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("processing/ remains the only durable active claim-like queue state", content)
             self.assertNotIn("retry_attempts", content)
             self.assertNotRegex(content, r"\bclaimed\b")
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-                "cl" + "aws",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -338,13 +313,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("automatic routing", content)
             self.assertIn("backward-compatible", content)
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -376,14 +345,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("/tmp/agent-working-group-demo", content)
             self.assertIn("test_two_agent_example_workflow_is_runnable_and_safe", content)
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-                "cl" + "aws",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -484,13 +446,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("source_channel: object = None", queue_text)
             self.assertIn("report_target: object = None", queue_text)
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -581,14 +537,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertNotRegex(script, r"\bcurl\b|\bwget\b|https?://")
             self.assertNotRegex(script, r"jq\s|sed\s+-i|queues/.+json")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-                "cl" + "aws",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -636,13 +585,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("test_independent_lead_analysis_docs_and_templates_are_safe", content)
             self.assertIn("without forcing ceremony on trivial work", content)
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -738,14 +681,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertNotRegex(script, r"jq\s|sed\s+-i|queues/.+json")
             self.assertNotRegex(script, r"stat\s+-c|readlink\s+-f|xargs\s+-r")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-                "cl" + "aws",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -790,13 +726,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("including pull request title and intended squash title policy", pr_review_gate)
             self.assertIn("Repository Rules", content)
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
