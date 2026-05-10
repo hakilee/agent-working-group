@@ -874,8 +874,10 @@ class MessageQueueTests(unittest.TestCase):
         policy_path = project_root / "docs" / "queue-reconciliation.md"
         template_path = project_root / "docs" / "templates" / "queue-reconciliation-action-audit.md"
         spec_matrix = project_root / "docs" / "spec-matrix.md"
+        readme = project_root / "README.md"
+        workflow = project_root / "docs" / "queue-first-workflow.md"
         content = "\n".join(
-            path.read_text(encoding="utf-8") for path in [policy_path, template_path, spec_matrix]
+            path.read_text(encoding="utf-8") for path in [policy_path, template_path, spec_matrix, readme, workflow]
         )
         policy = policy_path.read_text(encoding="utf-8")
         template = template_path.read_text(encoding="utf-8")
@@ -912,6 +914,9 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("No deletion of queue state", template)
         self.assertIn("No `recv` used for reconciliation", template)
         self.assertIn("No automatic superseded classification by tooling", template)
+        self.assertIn("Queue Reconciliation Action Audit", content)
+        self.assertIn("docs/templates/queue-reconciliation-action-audit.md", content)
+        self.assertIn("templates/queue-reconciliation-action-audit.md", content)
         self.assertIn("remaining risk", content.lower())
 
         self.assertNotRegex(policy, r"\b(nack|requeue-stale|prune)\b.*\ballowed\b")
