@@ -9,6 +9,7 @@ SESSION=${SESSION:-"awg-worker-${WORKER}"}
 LOG_DIR=${LOG_DIR:-"${AWG_ROOT}/log/worker-sessions"}
 LOG_FILE=${LOG_FILE:-"${LOG_DIR}/${SESSION}.log"}
 RECV_TIMEOUT=${RECV_TIMEOUT:-5}
+AWG_REPORT_TARGET=${AWG_REPORT_TARGET:-}
 MAX_TASKS=${MAX_TASKS:-25}
 MAX_IDLE_SECONDS=${MAX_IDLE_SECONDS:-1800}
 MAX_RECV_ERRORS=${MAX_RECV_ERRORS:-3}
@@ -22,7 +23,7 @@ usage() {
 Usage: awg-worker-tmux.sh <start|status|stop|kill|log|requeue-stale>
 
 Environment: AWG_ROOT, AWG_CLI, WORKER, LEAD, SESSION, MAX_TASKS, MAX_IDLE_SECONDS,
-RECV_TIMEOUT, MAX_RECV_ERRORS, REPORT_STATUS, LOG_FILE.
+RECV_TIMEOUT, AWG_REPORT_TARGET, MAX_RECV_ERRORS, REPORT_STATUS, LOG_FILE.
 USAGE
 }
 
@@ -40,9 +41,13 @@ case "$cmd" in
     fi
     {
       printf '[%s] pre-start status worker=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$WORKER"
-      "$AWG_CLI" --root "$AWG_ROOT" status --as "$WORKER"
+      status_args=(--root "$AWG_ROOT" status --as "$WORKER")
+      if [[ -n "$AWG_REPORT_TARGET" ]]; then
+        status_args+=(--report-target "$AWG_REPORT_TARGET")
+      fi
+      "$AWG_CLI" "${status_args[@]}"
     } >>"$LOG_FILE" 2>&1
-    tmux new-session -d -s "$SESSION" "exec > >(tee -a $(printf %q "$LOG_FILE")) 2>&1; export AWG_CLI=$(printf %q "$AWG_CLI") AWG_ROOT=$(printf %q "$AWG_ROOT") WORKER=$(printf %q "$WORKER") LEAD=$(printf %q "$LEAD") LOG_DIR=$(printf %q "$LOG_DIR") RECV_TIMEOUT=$(printf %q "$RECV_TIMEOUT") MAX_TASKS=$(printf %q "$MAX_TASKS") MAX_IDLE_SECONDS=$(printf %q "$MAX_IDLE_SECONDS") MAX_RECV_ERRORS=$(printf %q "$MAX_RECV_ERRORS") REPORT_STATUS=$(printf %q "$REPORT_STATUS"); exec bash $(printf %q "$WORKER_SCRIPT")"
+    tmux new-session -d -s "$SESSION" "exec > >(tee -a $(printf %q "$LOG_FILE")) 2>&1; export AWG_CLI=$(printf %q "$AWG_CLI") AWG_ROOT=$(printf %q "$AWG_ROOT") WORKER=$(printf %q "$WORKER") LEAD=$(printf %q "$LEAD") LOG_DIR=$(printf %q "$LOG_DIR") RECV_TIMEOUT=$(printf %q "$RECV_TIMEOUT") AWG_REPORT_TARGET=$(printf %q "$AWG_REPORT_TARGET") MAX_TASKS=$(printf %q "$MAX_TASKS") MAX_IDLE_SECONDS=$(printf %q "$MAX_IDLE_SECONDS") MAX_RECV_ERRORS=$(printf %q "$MAX_RECV_ERRORS") REPORT_STATUS=$(printf %q "$REPORT_STATUS"); exec bash $(printf %q "$WORKER_SCRIPT")"
     echo "started session=$SESSION worker=$WORKER log=$LOG_FILE"
     ;;
   status)
@@ -51,7 +56,11 @@ case "$cmd" in
     else
       echo "session=$SESSION stopped"
     fi
-    "$AWG_CLI" --root "$AWG_ROOT" status --as "$WORKER"
+    status_args=(--root "$AWG_ROOT" status --as "$WORKER")
+    if [[ -n "$AWG_REPORT_TARGET" ]]; then
+      status_args+=(--report-target "$AWG_REPORT_TARGET")
+    fi
+    "$AWG_CLI" "${status_args[@]}"
     ;;
   stop)
     tmux send-keys -t "$SESSION" C-c 2>/dev/null || true

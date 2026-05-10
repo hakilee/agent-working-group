@@ -7,6 +7,7 @@ WORKER=${WORKER:-worker}
 LEAD=${LEAD:-lead}
 LOG_DIR=${LOG_DIR:-"${AWG_ROOT}/log/worker-sessions"}
 RECV_TIMEOUT=${RECV_TIMEOUT:-5}
+AWG_REPORT_TARGET=${AWG_REPORT_TARGET:-}
 MAX_TASKS=${MAX_TASKS:-25}
 MAX_IDLE_SECONDS=${MAX_IDLE_SECONDS:-1800}
 MAX_RECV_ERRORS=${MAX_RECV_ERRORS:-3}
@@ -46,8 +47,8 @@ trap cleanup EXIT
 trap on_signal INT TERM
 
 IDLE_START_SECONDS=$(date +%s)
-printf '[%s] worker loop starting worker=%s lead=%s max_tasks=%s max_idle_seconds=%s recv_timeout=%s max_recv_errors=%s\n' \
-  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$WORKER" "$LEAD" "$MAX_TASKS" "$MAX_IDLE_SECONDS" "$RECV_TIMEOUT" "$MAX_RECV_ERRORS"
+printf '[%s] worker loop starting worker=%s lead=%s max_tasks=%s max_idle_seconds=%s recv_timeout=%s max_recv_errors=%s report_target=%s\n' \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$WORKER" "$LEAD" "$MAX_TASKS" "$MAX_IDLE_SECONDS" "$RECV_TIMEOUT" "$MAX_RECV_ERRORS" "${AWG_REPORT_TARGET:-none}"
 send_status "worker started: worker=${WORKER} max_tasks=${MAX_TASKS} max_idle_seconds=${MAX_IDLE_SECONDS}"
 
 while true; do
@@ -61,7 +62,12 @@ while true; do
   tmp_msg="${tmp_base}.json"
   mv "$tmp_base" "$tmp_msg"
 
-  if "$AWG_CLI" --root "$AWG_ROOT" recv --as "$WORKER" --require-ack --timeout "$RECV_TIMEOUT" >"$tmp_msg" 2>"${tmp_msg}.err"; then
+  recv_args=(--root "$AWG_ROOT" recv --as "$WORKER" --require-ack --timeout "$RECV_TIMEOUT")
+  if [[ -n "$AWG_REPORT_TARGET" ]]; then
+    recv_args+=(--report-target "$AWG_REPORT_TARGET")
+  fi
+
+  if "$AWG_CLI" "${recv_args[@]}" >"$tmp_msg" 2>"${tmp_msg}.err"; then
     RECV_ERRORS=0
     IDLE_START_SECONDS=$(date +%s)
     id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["id"])' "$tmp_msg")

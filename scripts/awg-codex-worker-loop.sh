@@ -9,6 +9,7 @@ LOG_DIR=${LOG_DIR:-"${AWG_ROOT}/log/codex-worker"}
 SUMMARY_DIR=${SUMMARY_DIR:-"${LOG_DIR}/run-summaries"}
 RUN_LOG_FILE=${RUN_LOG_FILE:-}
 RECV_TIMEOUT=${RECV_TIMEOUT:-5}
+AWG_REPORT_TARGET=${AWG_REPORT_TARGET:-}
 MAX_TASKS=${MAX_TASKS:-1}
 MAX_IDLE_SECONDS=${MAX_IDLE_SECONDS:-900}
 MAX_RECV_ERRORS=${MAX_RECV_ERRORS:-3}
@@ -87,8 +88,8 @@ trap on_signal INT TERM
 RUN_STARTED_SECONDS=$(date +%s)
 RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 IDLE_START_SECONDS=$RUN_STARTED_SECONDS
-printf '[%s] codex worker starting worker=%s lead=%s max_tasks=%s max_idle_seconds=%s recv_timeout=%s max_recv_errors=%s\n' \
-  "$RUN_STARTED_AT" "$WORKER" "$LEAD" "$MAX_TASKS" "$MAX_IDLE_SECONDS" "$RECV_TIMEOUT" "$MAX_RECV_ERRORS"
+printf '[%s] codex worker starting worker=%s lead=%s max_tasks=%s max_idle_seconds=%s recv_timeout=%s max_recv_errors=%s report_target=%s\n' \
+  "$RUN_STARTED_AT" "$WORKER" "$LEAD" "$MAX_TASKS" "$MAX_IDLE_SECONDS" "$RECV_TIMEOUT" "$MAX_RECV_ERRORS" "${AWG_REPORT_TARGET:-none}"
 send_status "codex worker started: worker=${WORKER} max_tasks=${MAX_TASKS} max_idle_seconds=${MAX_IDLE_SECONDS}"
 
 while true; do

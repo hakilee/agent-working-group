@@ -74,6 +74,7 @@ Important bounds:
 - `MAX_IDLE_SECONDS` stops the loop after no messages are received for that many seconds. The timer resets after each received message.
 - `REPORT_STATUS=1` sends start/stop status messages to `LEAD`; set `0` for quiet operation.
 - `MAX_RECV_ERRORS=3` stops after repeated real `recv` failures. Timeouts with no messages are not counted.
+- `AWG_REPORT_TARGET=<target>` scopes `recv`, `status`, and bounded helper startup checks to queue messages whose `refs.reportTarget` matches that target. Non-matching messages stay pending for another worker/session.
 - `MAX_RECV_ERRORS=0` disables recv-error shutdown. Use it only intentionally because a broken `awg` command can loop on errors until another bound, such as `MAX_IDLE_SECONDS`, stops the worker.
 
 ## Instruction Auto-ack Risk

@@ -6,6 +6,7 @@ AWG_ROOT=${AWG_ROOT:-"${PWD}/.agent-working-group"}
 WORKER=${WORKER:-worker}
 LEAD=${LEAD:-lead}
 RECV_TIMEOUT=${RECV_TIMEOUT:-5}
+AWG_REPORT_TARGET=${AWG_REPORT_TARGET:-}
 LOG_DIR=${LOG_DIR:-"${AWG_ROOT}/log/executor-bridge"}
 
 usage() {
@@ -77,7 +78,12 @@ else:
 PY
 }
 
-if ! "$AWG_CLI" --root "$AWG_ROOT" recv --as "$WORKER" --require-ack --timeout "$RECV_TIMEOUT" >"$MSG_FILE" 2>"$ERR_FILE"; then
+RECV_ARGS=(--root "$AWG_ROOT" recv --as "$WORKER" --require-ack --timeout "$RECV_TIMEOUT")
+if [[ -n "$AWG_REPORT_TARGET" ]]; then
+  RECV_ARGS+=(--report-target "$AWG_REPORT_TARGET")
+fi
+
+if ! "$AWG_CLI" "${RECV_ARGS[@]}" >"$MSG_FILE" 2>"$ERR_FILE"; then
   if grep -qi 'timeout: no messages' "$ERR_FILE"; then
     rm -f "$MSG_FILE" "$ERR_FILE"
     exit 0

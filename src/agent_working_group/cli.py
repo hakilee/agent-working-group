@@ -39,12 +39,15 @@ def build_parser() -> argparse.ArgumentParser:
     recv.add_argument("--as", required=True, dest="agent")
     recv.add_argument("--timeout", type=float)
     recv.add_argument("--require-ack", action="store_true")
+    recv.add_argument("--report-target", help="Only receive messages whose refs.reportTarget matches this target; unmatched messages stay pending.")
 
     for name in ("peek", "processing", "processed", "dead"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--as", required=True, dest="agent")
         if name != "peek":
             cmd.add_argument("--limit", type=int)
+        else:
+            cmd.add_argument("--report-target", help="Only show pending messages matching this report target.")
         if name == "processed":
             cmd.add_argument("--local", action="store_true")
             cmd.add_argument("--tz", default="UTC")
@@ -52,11 +55,13 @@ def build_parser() -> argparse.ArgumentParser:
     pending = sub.add_parser("pending")
     pending.add_argument("--as", required=True, dest="agent")
     pending.add_argument("--json", action="store_true")
+    pending.add_argument("--report-target", help="Only count pending messages matching this report target.")
 
     status = sub.add_parser("status")
     status.add_argument("--as", required=True, dest="agent")
     status.add_argument("--local", action="store_true")
     status.add_argument("--tz", default="UTC")
+    status.add_argument("--report-target", help="Only count/point at pending messages matching this report target.")
 
     for name in ("ack", "retry", "nack"):
         cmd = sub.add_parser(name)
@@ -122,17 +127,17 @@ def main(argv=None) -> int:
             ))
             return 0
         if args.command == "recv":
-            message = queue.receive(args.agent, args.timeout, args.require_ack)
+            message = queue.receive(args.agent, args.timeout, args.require_ack, args.report_target)
             if message is None:
                 print(f"timeout: no messages for {args.agent}", file=sys.stderr)
                 return 1
             print(json.dumps(message, ensure_ascii=False, separators=(",", ":")))
             return 0
         if args.command == "peek":
-            print_json(queue.peek(args.agent))
+            print_json(queue.peek(args.agent, args.report_target))
             return 0
         if args.command == "pending":
-            count = len(queue.peek(args.agent))
+            count = len(queue.peek(args.agent, args.report_target))
             print_json({"agent": args.agent, "pending": count}) if args.json else print(count)
             return 0
         if args.command == "processing":
@@ -146,7 +151,7 @@ def main(argv=None) -> int:
             print_json(queue.dead(args.agent, args.limit))
             return 0
         if args.command == "status":
-            print_json(queue.status(args.agent, "local" if args.local else args.tz))
+            print_json(queue.status(args.agent, "local" if args.local else args.tz, args.report_target))
             return 0
         if args.command == "ack":
             print(queue.ack(args.agent, args.id))

@@ -81,6 +81,28 @@ def sorted_by_time(directory: Path) -> list:
     return sorted(files, key=lambda path: (parse_filename(path)[1], path.name))
 
 
+def normalize_target(value: object) -> str | None:
+    if value is None:
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    for prefix in ("discord:channel:", "discord:", "channel:"):
+        if raw.startswith(prefix):
+            suffix = raw[len(prefix):]
+            return f"channel:{suffix}" if suffix else raw
+    return raw
+
+
+def message_matches_report_target(message: dict, report_target: object = None) -> bool:
+    target = normalize_target(report_target)
+    if target is None:
+        return True
+    refs = message.get("refs") or {}
+    message_target = normalize_target(refs.get("reportTarget"))
+    # Legacy messages without a report target remain visible everywhere.
+    return message_target is None or message_target == target
+
 def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -198,15 +220,22 @@ class MessageQueue:
             handle.write("\n")
         return message_id
 
-    def receive(self, agent: str, timeout: object = None, require_ack: bool = False) -> dict | None:
+    def receive(
+        self,
+        agent: str,
+        timeout: object = None,
+        require_ack: bool = False,
+        report_target: object = None,
+    ) -> dict | None:
         paths = self.paths(agent)
         start = time.monotonic()
         while True:
             with self.lock(agent):
                 files = sorted_for_delivery(paths.inbox)
-                if files:
-                    path = files[0]
+                for path in files:
                     message = read_json(path)
+                    if not message_matches_report_target(message, report_target):
+                        continue
                     target_dir = paths.processing if require_ack else paths.processed
                     if require_ack:
                         received_ms = now_ms()
@@ -220,8 +249,9 @@ class MessageQueue:
                 return None
             time.sleep(0.5)
 
-    def peek(self, agent: str) -> list:
-        return load_messages(sorted_for_delivery(self.paths(agent).inbox))
+    def peek(self, agent: str, report_target: object = None) -> list:
+        messages = load_messages(sorted_for_delivery(self.paths(agent).inbox))
+        return [message for message in messages if message_matches_report_target(message, report_target)]
 
     def processing(self, agent: str, limit: object = None) -> list:
         return self._load_limited(self.paths(agent).processing, limit)
@@ -241,9 +271,11 @@ class MessageQueue:
             files = files[-limit:]
         return load_messages(files)
 
-    def status(self, agent: str, tz: str = "UTC") -> dict:
+    def status(self, agent: str, tz: str = "UTC", report_target: object = None) -> dict:
         paths = self.paths(agent)
         pending_files = sorted_for_delivery(paths.inbox)
+        if report_target is not None:
+            pending_files = [path for path in pending_files if message_matches_report_target(read_json(path), report_target)]
         processing_files = sorted_by_time(paths.processing)
         processed_files = sorted_by_time(paths.processed)
         next_ms = parse_filename(pending_files[0])[1] if pending_files else None
