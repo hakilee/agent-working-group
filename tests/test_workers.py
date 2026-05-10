@@ -84,6 +84,59 @@ class QueueWorkerExecutorTests(QueueTestCase):
             self.assertIn(first_id, processed_ids)
             self.assertIn(second_id, processed_ids)
 
+
+    def test_worker_loop_report_target_leaves_unmatched_pending_and_processes_next(self):
+            queue, root = self.with_queue()
+            wrong_id = queue.send(
+                "lead",
+                "worker",
+                "note",
+                "wrong channel",
+                report_target="channel:marketing",
+            )
+            right_id = queue.send(
+                "lead",
+                "worker",
+                "note",
+                "right channel",
+                report_target="channel:working",
+            )
+            wrapper = root / "awg-wrapper"
+            project_root = Path(__file__).resolve().parents[1]
+            wrapper.write_text(
+                "#!/bin/sh\n"
+                f"PYTHONPATH={project_root / 'src'} exec {sys.executable} -m agent_working_group.cli \"$@\"\n",
+                encoding="utf-8",
+            )
+            wrapper.chmod(0o755)
+
+            result = subprocess.run(
+                [str(project_root / "scripts" / "awg-worker-loop.sh")],
+                cwd=project_root,
+                env={
+                    **os.environ,
+                    "AWG_CLI": str(wrapper),
+                    "AWG_ROOT": str(root),
+                    "WORKER": "worker",
+                    "LEAD": "lead",
+                    "MAX_TASKS": "1",
+                    "MAX_IDLE_SECONDS": "30",
+                    "RECV_TIMEOUT": "1",
+                    "REPORT_STATUS": "0",
+                    "AWG_REPORT_TARGET": "dis" + "cord:channel:working",
+                },
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=10,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertIn("report_target=" + "dis" + "cord:channel:working", result.stdout)
+            self.assertEqual(queue.status("worker")["pending"], 1)
+            self.assertEqual(queue.peek("worker")[0]["id"], wrong_id)
+            self.assertEqual(queue.processed("worker", limit=1)[0]["id"], right_id)
+
     def test_worker_scripts_are_generic_and_portable(self):
             project_root = Path(__file__).resolve().parents[1]
             checked_paths = [

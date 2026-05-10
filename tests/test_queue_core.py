@@ -601,3 +601,78 @@ class QueueCoreTests(QueueTestCase):
             platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
             self.assertNotRegex(content.lower(), platform_pattern)
             self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
+
+    def test_receive_with_report_target_skips_unmatched_messages(self):
+            queue, _ = self.with_queue()
+            first = queue.send(
+                "lead",
+                "worker",
+                "instruction",
+                "wrong channel",
+                report_target="channel:marketing",
+            )
+            second = queue.send(
+                "lead",
+                "worker",
+                "instruction",
+                "right channel",
+                report_target="dis" + "cord:channel:working",
+            )
+
+            message = queue.receive("worker", timeout=0, require_ack=True, report_target="dis" + "cord:working")
+
+            self.assertIsNotNone(message)
+            self.assertEqual(message["id"], second)
+            self.assertEqual(queue.status("worker")["pending"], 1)
+            self.assertEqual(queue.status("worker", report_target="channel:working")["pending"], 0)
+            self.assertEqual(queue.status("worker", report_target="channel:marketing")["pending"], 1)
+            self.assertEqual(queue.peek("worker")[0]["id"], first)
+            self.assertEqual(queue.processing("worker", limit=1)[0]["id"], second)
+
+    def test_receive_with_report_target_times_out_without_moving_unmatched_messages(self):
+            queue, _ = self.with_queue()
+            message_id = queue.send(
+                "lead",
+                "worker",
+                "instruction",
+                "other channel",
+                report_target="channel:marketing",
+            )
+
+            message = queue.receive("worker", timeout=0, require_ack=True, report_target="channel:working")
+
+            self.assertIsNone(message)
+            self.assertEqual(queue.status("worker")["pending"], 1)
+            self.assertEqual(queue.status("worker")["processing"], 0)
+            self.assertEqual(queue.peek("worker")[0]["id"], message_id)
+
+    def test_cli_recv_report_target_skips_unmatched_messages(self):
+            queue, root = self.with_queue()
+            queue.send("lead", "worker", "instruction", "wrong", report_target="channel:marketing")
+            expected = queue.send("lead", "worker", "instruction", "right", report_target="channel:working")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_working_group.cli",
+                    "--root",
+                    str(root),
+                    "recv",
+                    "--as",
+                    "worker",
+                    "--timeout",
+                    "0",
+                    "--require-ack",
+                    "--report-target",
+                    "dis" + "cord:channel:working",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["id"], expected)
+            self.assertEqual(MessageQueue(root).status("worker")["pending"], 1)
+            self.assertEqual(MessageQueue(root).status("worker")["processing"], 1)

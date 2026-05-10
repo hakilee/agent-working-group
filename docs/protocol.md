@@ -87,12 +87,13 @@ Exact file path, command output, or other completion criteria.
 - `refs.repo`: repository or project slug associated with the work.
 - `refs.workspace`: workspace, checkout, or workstream label associated with the work.
 
-Use this metadata for traceability only. It does not change delivery order, priority, acknowledgement, retry, pruning, cleanup, dead-letter behavior, queue selection, or access control. Do not depend on it for permission checks or automatic routing. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
+Use this metadata primarily for traceability. `refs.reportTarget` can also be used as an opt-in receive filter: `awg recv --report-target <target>` skips non-matching pending messages without moving them to `processing/` or `processed/`, then advances to the next matching message. Messages without `refs.reportTarget` remain eligible for backward compatibility. This filter is routing/selection metadata, not a permission system. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
 
 The CLI can set these optional refs when sending a message:
 
 ```bash
 awg send --from=lead --to=worker --kind=instruction --body="Review the change" --correlation-id=task-123 --work-id=work-456 --source-channel=work-intake --report-target=work-updates --repo=example/repo --workspace=repo-main
+awg recv --as=worker --require-ack --report-target=work-updates
 awg send --from=worker --to=lead --kind=status --body="done" --reply-to=<instruction-id> --correlation-id=task-123 --work-id=work-456 --parent-id=<instruction-id>
 ```
 
