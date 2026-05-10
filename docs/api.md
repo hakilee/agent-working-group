@@ -20,7 +20,7 @@ MessageQueue(root=None)
 
 - `initialize(agents=())`: create queue directories and `log/messages.jsonl`.
 - `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, work_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: send a JSON message and return its UUID.
-- `receive(agent, timeout=None, require_ack=False) -> dict | None`: receive one message. Returns `None` on timeout.
+- `receive(agent, timeout=None, require_ack=False, report_target=None) -> dict | None`: receive one matching message. Returns `None` on timeout.
 - `ack(agent, message_id) -> str`: acknowledge a message from `processing/`.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None) -> str`: acknowledge one reviewed inbox message by id without using `recv`.
 - `retry(agent, message_id) -> str`: requeue a message from `processing/` or `processed/`.
@@ -39,16 +39,16 @@ MessageQueue(root=None)
 - `repo` -> `refs.repo`: repository or project slug.
 - `workspace` -> `refs.workspace`: checkout, workspace, or workstream label.
 
-These fields are optional traceability conventions. They do not change delivery order, priority, acknowledgement, retry, pruning, cleanup, dead-letter behavior, queue selection, routing, or access control. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
+These fields are optional conventions. They do not change delivery order, priority, acknowledgement, retry, pruning, cleanup, dead-letter behavior, or access control by default. When a caller opts into `report_target`, `receive`, `peek`, and `status` use `refs.reportTarget` as a queue selection filter and leave non-matching pending messages untouched. This is not automatic routing or access control. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
 
 ### Inspection Methods
 
-- `peek(agent) -> list[dict]`: inspect pending inbox messages without moving them.
+- `peek(agent, report_target=None) -> list[dict]`: inspect matching pending inbox messages without moving them.
 - `pending(agent, limit=None) -> list[dict]`: inspect pending inbox messages with optional limit.
 - `processing(agent, limit=None) -> list[dict]`: inspect unacknowledged messages.
 - `processed(agent, limit=None, tz="UTC") -> list[dict]`: inspect processed messages.
 - `dead(agent, limit=None) -> list[dict]`: inspect dead-letter messages.
-- `status(agent, tz="UTC") -> dict`: summarize queue counts and timestamps.
+- `status(agent, tz="UTC", report_target=None) -> dict`: summarize queue counts and timestamps.
 - `log_lines(tz="UTC") -> list[str]`: read JSONL log lines.
 
 ### Maintenance
