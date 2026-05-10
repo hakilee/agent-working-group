@@ -83,6 +83,16 @@ Before using a send-time adapter for production delivery:
 
 Send-time delivery reduces missed wake-ups for new work, but it does not discover already-pending inbox items. Use a periodic read-only notifier when recipients may miss work created outside the approved send-time wrapper.
 
+### Reliability Checklist
+
+A production send-time adapter should document one reliability policy before use:
+
+- **Confirmed delivery:** treat the handoff as notified only after the provider returns a successful delivery result. If delivery fails after enqueue, leave the queue item untouched and fall back to manual notification or a periodic read-only notifier.
+- **Duplicate suppression:** use the same idempotency key for every retry of the same queue message. Duplicate alerts are acceptable; duplicate queue sends are not.
+- **Retry boundary:** retry delivery outside the queue. Do not call queue `retry`, `ack`, `ack-pending`, `nack`, `prune`, or `requeue-stale` to repair a notification failure.
+- **Rollback path:** keep a documented switch back to manual notification or shadow-mode dispatch, and verify queue counts before and after rollback.
+- **Evidence:** record the queue message id, idempotency key, delivery result, and fallback action in site-local operations logs.
+
 ## Scheduler Pattern
 
 A periodic scheduler can safely run the dispatch helper because it does not call consuming queue commands.
