@@ -513,6 +513,7 @@ class MessageQueueTests(unittest.TestCase):
             project_root / "scripts" / "awg-worker-tmux.sh",
             project_root / "scripts" / "awg-safe-poll.sh",
             project_root / "docs" / "worker-operations.md",
+            project_root / "docs" / "safe-scheduling.md",
             project_root / "README.md",
         ]
         content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
@@ -533,6 +534,10 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("mktemp \"${LOG_DIR}/${WORKER}.msg.XXXXXX\"", content)
         self.assertIn("MAX_RECV_ERRORS=0", content)
         self.assertIn("acknowledge them without doing the work", content)
+        self.assertIn("Manual or no worker", content)
+        self.assertIn("Always-on worker", content)
+        self.assertIn("Do not let a notification bridge become an implicit worker", content)
+        self.assertIn("worker decision, not as an observer", content)
 
     def test_path_safety_helper_rejects_escapes(self):
         with tempfile.TemporaryDirectory() as temp:
