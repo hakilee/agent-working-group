@@ -82,7 +82,7 @@ A new runtime adapter should start in shadow mode:
 2. Compare emitted events with queue state.
 3. Verify duplicate suppression with a temporary or isolated state file.
 4. Prove queue counts do not change.
-5. Document failure behavior, retry behavior, and where secrets live.
+5. Document failure behavior, retry behavior, rollback to manual or shadow-mode notification, and where secrets live.
 6. Enable production delivery only after explicit approval.
 
 Shadow-mode success does not imply approval for production delivery, webhook POSTs, queue execution, or replacing an existing notifier.

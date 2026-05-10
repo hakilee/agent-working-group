@@ -1711,6 +1711,7 @@ class MessageQueueTests(unittest.TestCase):
         checked_paths = [
             project_root / "docs" / "queue-notifier-adapters.md",
             project_root / "docs" / "queue-notifier.md",
+            project_root / "docs" / "runtime-neutral-notifier-contract.md",
             project_root / "docs" / "safe-scheduling.md",
             project_root / "docs" / "spec-matrix.md",
             project_root / "README.md",
@@ -1730,6 +1731,12 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("Site-local send-time wrappers may enqueue first and then deliver externally", content)
         self.assertIn("Queue Notifier Adapters](queue-notifier-adapters.md#send-time-adapter-pattern)", content)
         self.assertIn("Queue notifier dispatch converts read-only notifier output", content)
+        self.assertIn("Reliability Checklist", content)
+        self.assertIn("If delivery fails after enqueue, leave the queue item untouched", content)
+        self.assertIn("Duplicate alerts are acceptable; duplicate queue sends are not", content)
+        self.assertIn("retry delivery outside the queue", content)
+        self.assertIn("rollback to manual or shadow-mode notification", content)
+        self.assertIn("delivery result", content)
         self.assertIn("--no-record", script)
         self.assertIn("NOTIFIER_ARGS", script)
         self.assertNotRegex(script, r"\b(recv|ack|ack-pending|retry|nack|prune|requeue-stale)\b")
