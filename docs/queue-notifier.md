@@ -64,6 +64,7 @@ The local notification state is not queue authority. It only suppresses duplicat
 Choose the lightest scheduler for the environment:
 
 - **Send-time discipline:** after `send --to ROLE`, also notify the recipient on the chosen surface with message id and work id.
+- **Send-time adapter:** use a site-local wrapper that enqueues first, builds a notification from the returned message id, verifies delivery, and keeps credentials outside the repository. See [Queue Notifier Adapters](queue-notifier-adapters.md#send-time-adapter-pattern).
 - **Periodic notifier:** run the read-only notifier every few minutes and route new notifications through a provider adapter.
 - **Bounded worker:** only when the role should actually execute or review work automatically; keep `MAX_TASKS` and idle limits.
 
