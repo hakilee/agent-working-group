@@ -1722,6 +1722,8 @@ class MessageQueueTests(unittest.TestCase):
         self.assertIn("Send-Time Adapter Pattern", content)
         self.assertIn("Enqueue first, then build the notification from the returned queue message id", content)
         self.assertIn("credentials site-local", content)
+        self.assertIn("Site-local send-time wrappers may enqueue first and then deliver externally", content)
+        self.assertIn("Queue Notifier Adapters](queue-notifier-adapters.md#send-time-adapter-pattern)", content)
         self.assertIn("Queue notifier dispatch converts read-only notifier output", content)
         self.assertIn("--no-record", script)
         self.assertIn("NOTIFIER_ARGS", script)
