@@ -629,4 +629,3 @@ class QueueCoreTests(QueueTestCase):
             platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
             self.assertNotRegex(content.lower(), platform_pattern)
             self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
-

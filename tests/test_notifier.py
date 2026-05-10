@@ -342,4 +342,3 @@ class QueueNotifierTests(QueueTestCase):
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
             platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
             self.assertNotRegex(content.lower(), platform_pattern)
-
