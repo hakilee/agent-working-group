@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -189,6 +190,28 @@ class QueueTestCase(unittest.TestCase):
                 capture_output=True,
                 check=False,
             )
+
+
+    def assert_public_safe_content(self, content, *, check_platform_refs=False):
+            """Assert public docs/scripts avoid environment-specific leakage."""
+            lower_content = content.lower()
+            local_path_pattern = r"/Users/|/home/|~/|\$HOME"
+            credential_assignment_pattern = r"(?i)(api[_-]?key|token|password|secret)\s*[:=]"
+            self.assertNotRegex(content, local_path_pattern)
+            self.assertNotRegex(content, r"[\uac00-\ud7af]")
+            self.assertNotRegex(content, credential_assignment_pattern)
+
+            extra_terms = [
+                term.strip().lower()
+                for term in os.environ.get("AWG_PUBLIC_SAFETY_FORBIDDEN_TERMS", "").split(",")
+                if term.strip()
+            ]
+            for term in extra_terms:
+                self.assertNotIn(term, lower_content)
+
+            if check_platform_refs:
+                platform_pattern = r"\b(discord|slack|telegram)\b"
+                self.assertNotRegex(lower_content, platform_pattern)
 
     def snapshot_files(self, repo_root):
             snapshot = {}

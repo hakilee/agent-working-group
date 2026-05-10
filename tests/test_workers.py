@@ -96,13 +96,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
             ]
             content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -214,14 +208,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
             self.assertNotRegex(script_content, r"\beval\b|bash\s+-c|sh\s+-c")
             self.assertNotRegex(script_content, r"jq\s|sed\s+.*queues/.+json")
             self.assertNotRegex(script_content, r"\bcurl\b|wget|http://|https://")
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-                "cl" + "aws",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -265,14 +252,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
                 self.assertNotRegex(content, r"(?<!\")\$AWG_CLI(?!\")", script.name)
                 self.assertNotRegex(content, r"\beval\b|bash\s+-c|sh\s+-c", script.name)
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-                "cl" + "aws",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, docs_content.lower())
+            self.assert_public_safe_content(docs_content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(docs_content, local_path_pattern)
             platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
@@ -467,13 +447,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
             self.assertIn("ack --as \"$WORKER\" --id \"$ID\"", bridge)
             self.assertLess(bridge.index("case \"$STATUS\""), bridge.index("ack --as \"$WORKER\" --id \"$ID\""))
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -780,9 +754,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
             self.assertNotRegex(docs, r"[\uac00-\ud7af]")
             self.assertNotRegex(docs, "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME")
             self.assertNotRegex(docs.lower(), "dis" + "cord|sl" + "ack|tele" + "gram")
-            forbidden_names = ("mat" + "dori", "mat" + "gukno", "happy" + "-" + "haki")
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, docs.lower())
+            self.assert_public_safe_content(docs)
 
     def test_codex_worker_operator_flow_docs_are_safe(self):
             project_root = Path(__file__).resolve().parents[1]
@@ -812,9 +784,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
             self.assertNotRegex(docs, r"[\uac00-\ud7af]")
             self.assertNotRegex(docs, "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME")
             self.assertNotRegex(docs.lower(), "dis" + "cord|sl" + "ack|tele" + "gram")
-            forbidden_names = ("mat" + "dori", "mat" + "gukno", "happy" + "-" + "haki")
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, docs.lower())
+            self.assert_public_safe_content(docs)
 
     def test_codex_worker_docs_and_scripts_are_safe(self):
             project_root = Path(__file__).resolve().parents[1]
@@ -852,9 +822,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
             self.assertNotRegex(scripts, r"\beval\b|bash\s+-c|sh\s+-c")
             self.assertNotRegex(scripts, r"jq\s|sed\s+-i|python3[^\n]+queues/.+json")
             self.assertNotRegex(scripts, r"curl\b|wget|http://|https://")
-            forbidden_names = ("mat" + "dori", "mat" + "gukno", "happy" + "-" + "haki")
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")

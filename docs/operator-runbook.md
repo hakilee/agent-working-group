@@ -22,7 +22,7 @@ This runbook describes the workflow that ships with Agent Working Group from a c
 ## Clean Clone Setup
 
 ```bash
-git clone https://github.com/hakilee/agent-working-group
+git clone https://github.com/OWNER/agent-working-group
 cd agent-working-group
 python3 -m pip install -e .
 awg --help

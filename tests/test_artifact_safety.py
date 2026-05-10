@@ -111,13 +111,7 @@ class QueueArtifactSafetyTests(QueueTestCase):
             self.assertIn("fail closed before writing or moving anything", content)
             self.assertIn("does not add an enforcement gate", content)
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -149,13 +143,7 @@ class QueueArtifactSafetyTests(QueueTestCase):
             self.assertNotRegex(script_content, r"jq\s|sed\s+-i")
             self.assertNotRegex(script_content, r"\bcurl\b|wget|http://|https://")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -387,13 +375,7 @@ class QueueArtifactSafetyTests(QueueTestCase):
             self.assertNotRegex(script, r"\b(recv|ack|ack-pending|retry|nack|prune|requeue-stale)\b")
             self.assertNotRegex(script, r"curl|wget|http://|https://")
             self.assertNotRegex(script, r"eval|bash\s+-c|sh\s+-c")
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
@@ -430,13 +412,7 @@ class QueueArtifactSafetyTests(QueueTestCase):
             self.assertNotRegex(script, r"\brm\b|unlink")
             self.assertRegex(script, r"queues/.+json")
 
-            forbidden_names = (
-                "mat" + "dori",
-                "mat" + "gukno",
-                "happy" + "-" + "haki",
-            )
-            for forbidden in forbidden_names:
-                self.assertNotIn(forbidden, content.lower())
+            self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
             self.assertNotRegex(content, local_path_pattern)
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
