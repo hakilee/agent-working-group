@@ -67,6 +67,22 @@ Recommended operating choices:
 
 The notifier state is not queue authority. Losing or deleting it may duplicate alerts, but it must not change whether work exists, is claimed, or is complete.
 
+## Send-Time Adapter Pattern
+
+A send-time adapter can notify a destination immediately after an approved queue `send` succeeds. Use this when the sender already owns the handoff and wants faster wake-up than a periodic scan.
+
+Before using a send-time adapter for production delivery:
+
+1. Enqueue first, then build the notification from the returned queue message id.
+2. Use a stable idempotency key such as `<role>:<messageId>` so downstream retries do not create duplicate alerts.
+3. Keep endpoint URLs, tokens, destination ids, and mention targets in site-local secret storage.
+4. Validate the provider payload in dry-run mode before making a real delivery call.
+5. Verify delivery success before claiming the handoff was notified.
+6. Confirm queue counts changed only by the intentional `send`; the adapter must not consume, acknowledge, retry, recover, execute, delete, or edit queue JSON.
+7. Document rollback to manual notification or a periodic read-only notifier if send-time delivery fails.
+
+Send-time delivery reduces missed wake-ups for new work, but it does not discover already-pending inbox items. Use a periodic read-only notifier when recipients may miss work created outside the approved send-time wrapper.
+
 ## Scheduler Pattern
 
 A periodic scheduler can safely run the dispatch helper because it does not call consuming queue commands.
