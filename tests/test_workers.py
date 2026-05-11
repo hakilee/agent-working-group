@@ -932,7 +932,6 @@ class QueueWorkerExecutorTests(QueueTestCase):
 
             for content in [loop_content, tmux_content]:
                 self.assert_public_safe_content(content)
-
     def test_agent_executor_falls_back_to_secondary_on_429(self):
             project_root = Path(__file__).resolve().parents[1]
             agent_executor_src = project_root / "scripts" / "awg-agent-executor.sh"
