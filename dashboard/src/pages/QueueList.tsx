@@ -1,13 +1,41 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type QueueSummary } from '../api/client';
-import StatusBadge from '../components/StatusBadge';
+import StatusPill from '../components/StatusPill';
 import { useQueueStream } from '../hooks/useQueueStream';
 
 const FILTERS = ['all', 'pending', 'processing', 'processed', 'dead'] as const;
 type Filter = (typeof FILTERS)[number];
 
+function FilterTab({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="t-button"
+      style={{
+        padding: '8px 0',
+        marginRight: 'var(--space-lg)',
+        color: active ? 'var(--color-ink)' : 'var(--color-muted)',
+        borderBottom: `2px solid ${active ? 'var(--color-primary)' : 'transparent'}`,
+        transition: 'color 0.15s, border-color 0.15s',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function QueueList() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>('all');
   const [items, setItems] = useState<QueueSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,26 +44,21 @@ export default function QueueList() {
 
   useEffect(() => {
     let cancelled = false;
-    const load = () => {
-      api
-        .listQueue({ state: filter === 'all' ? undefined : filter, limit: 500 })
-        .then((data) => {
-          if (cancelled) return;
-          setItems(data.items);
-          setError(null);
-        })
-        .catch((err) => !cancelled && setError(String(err)))
-        .finally(() => !cancelled && setLoading(false));
-    };
     setLoading(true);
-    load();
+    api
+      .listQueue({ state: filter === 'all' ? undefined : filter, limit: 500 })
+      .then((data) => {
+        if (cancelled) return;
+        setItems(data.items);
+        setError(null);
+      })
+      .catch((err) => !cancelled && setError(String(err)))
+      .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
   }, [filter]);
 
-  // Re-fetch when the WebSocket signals a change. The stream itself only
-  // carries per-agent counts, so we still need the REST list for the table.
   useEffect(() => {
     if (!stream) return;
     api
@@ -47,84 +70,170 @@ export default function QueueList() {
       .catch((err) => setError(String(err)));
   }, [stream, filter]);
 
-  const grouped = useMemo(() => items, [items]);
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Queue</h1>
-        <div className="flex gap-1">
-          {FILTERS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setFilter(value)}
-              className={`rounded px-2.5 py-1 text-xs uppercase tracking-wide transition-colors ${
-                filter === value
-                  ? 'bg-slate-800 text-slate-100'
-                  : 'text-slate-500 hover:bg-slate-800/60 hover:text-slate-300'
-              }`}
-            >
-              {value}
-            </button>
-          ))}
-        </div>
+    <>
+      <header style={{ marginBottom: 'var(--space-xl)' }}>
+        <h1 className="t-display-lg" style={{ color: 'var(--color-ink)' }}>
+          Queue
+        </h1>
+      </header>
+
+      <div
+        style={{
+          borderBottom: '1px solid var(--color-hairline)',
+          marginBottom: 'var(--space-lg)',
+          display: 'flex',
+          flexWrap: 'wrap',
+        }}
+      >
+        {FILTERS.map((value) => (
+          <FilterTab
+            key={value}
+            label={value}
+            active={filter === value}
+            onClick={() => setFilter(value)}
+          />
+        ))}
       </div>
 
-      {error && (
-        <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
-          {error}
-        </div>
+      {error && <ErrorBlock message={error} />}
+
+      {loading && (
+        <p className="t-body-md" style={{ color: 'var(--color-muted)' }}>
+          loading…
+        </p>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-slate-800">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-900/60 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-3 py-2 font-medium">state</th>
-              <th className="px-3 py-2 font-medium">kind</th>
-              <th className="px-3 py-2 font-medium">agent</th>
-              <th className="px-3 py-2 font-medium">from → to</th>
-              <th className="px-3 py-2 font-medium">body</th>
-              <th className="px-3 py-2 font-medium">created</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800 bg-slate-950">
-            {loading && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
-                  loading…
-                </td>
-              </tr>
-            )}
-            {!loading && grouped.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
-                  no items
-                </td>
-              </tr>
-            )}
-            {grouped.map((item) => (
-              <tr key={`${item.agent}/${item.filename}`} className="hover:bg-slate-900/60">
-                <td className="px-3 py-2">
-                  <StatusBadge status={item.state} />
-                </td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-300">{item.kind}</td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-300">{item.agent}</td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-400">
-                  {item.from ?? '?'} → {item.to ?? '?'}
-                </td>
-                <td className="px-3 py-2 text-slate-300">
-                  <Link to={`/queue/${item.id}`} className="hover:text-emerald-300">
-                    {item.body.split('\n')[0].slice(0, 96) || '(empty)'}
-                  </Link>
-                </td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-500">{item.createdAt ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {!loading && !error && items.length === 0 && (
+        <EmptyState text="No queue items." />
+      )}
+
+      {!loading && items.length > 0 && (
+        <ul
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-sm)',
+          }}
+        >
+          {items.map((item) => (
+            <li key={`${item.agent}/${item.filename}`}>
+              <button
+                type="button"
+                onClick={() => navigate(`/queue/${encodeURIComponent(item.id)}`)}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  background: 'var(--color-surface-card)',
+                  border: '1px solid var(--color-hairline)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: 'var(--space-lg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--space-xs)',
+                  transition: 'border-color 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--color-hairline-strong)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--color-hairline)';
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--space-sm)',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span
+                    className="t-caption-uppercase"
+                    style={{
+                      background: 'var(--color-surface-strong)',
+                      color: 'var(--color-ink)',
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-pill)',
+                    }}
+                  >
+                    {item.kind}
+                  </span>
+                  <StatusPill status={item.state} />
+                  <span
+                    className="t-code"
+                    style={{ color: 'var(--color-muted)' }}
+                  >
+                    {item.from ?? '?'} → {item.to ?? '?'}
+                  </span>
+                  <span
+                    className="t-caption"
+                    style={{
+                      marginLeft: 'auto',
+                      color: 'var(--color-muted)',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    {item.createdAt ?? '—'}
+                  </span>
+                </div>
+                <div
+                  className="t-body-md"
+                  style={{
+                    color: 'var(--color-body)',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {item.body.split('\n')[0].slice(0, 96) || '(empty)'}
+                </div>
+                <div
+                  className="t-code"
+                  style={{ color: 'var(--color-muted-soft)' }}
+                >
+                  {item.agent}
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+function ErrorBlock({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      style={{
+        background: 'var(--color-surface-card)',
+        border: '1px solid var(--color-error)',
+        color: 'var(--color-error)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-base) var(--space-lg)',
+        marginBottom: 'var(--space-base)',
+      }}
+      className="t-body-sm"
+    >
+      {message}
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div
+      className="t-body-md"
+      style={{
+        background: 'var(--color-surface-card)',
+        border: '1px dashed var(--color-hairline-strong)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-xl)',
+        textAlign: 'center',
+        color: 'var(--color-muted)',
+      }}
+    >
+      {text}
     </div>
   );
 }

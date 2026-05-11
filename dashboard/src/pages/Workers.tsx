@@ -31,33 +31,80 @@ export default function Workers() {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Workers</h1>
-        <span className="text-xs text-slate-500">
-          tmux: {tmuxAvailable ? 'available' : 'not detected'}
+    <>
+      <header
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          gap: 'var(--space-base)',
+          marginBottom: 'var(--space-xl)',
+          flexWrap: 'wrap',
+        }}
+      >
+        <h1 className="t-display-lg" style={{ color: 'var(--color-ink)' }}>
+          Workers
+        </h1>
+        <span
+          className="t-caption-uppercase"
+          style={{ color: 'var(--color-muted)' }}
+        >
+          tmux {tmuxAvailable ? 'available' : 'not detected'}
         </span>
-      </div>
+      </header>
 
       {error && (
-        <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
+        <div
+          role="alert"
+          className="t-body-sm"
+          style={{
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-base) var(--space-lg)',
+            marginBottom: 'var(--space-base)',
+          }}
+        >
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="text-sm text-slate-400">loading…</div>
+        <p className="t-body-md" style={{ color: 'var(--color-muted)' }}>
+          loading…
+        </p>
       ) : workers.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-800 p-6 text-center text-sm text-slate-500">
-          No tmux sessions matching <code className="font-mono">awg-*</code>.
+        <div
+          className="t-body-md"
+          style={{
+            background: 'var(--color-surface-card)',
+            border: '1px dashed var(--color-hairline-strong)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-xl)',
+            textAlign: 'center',
+            color: 'var(--color-muted)',
+          }}
+        >
+          No tmux sessions matching{' '}
+          <code className="t-code" style={{ color: 'var(--color-ink)' }}>
+            awg-*
+          </code>
+          .
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: 'var(--space-base)',
+          }}
+        >
           {workers.map((worker) => (
             <WorkerCard key={worker.session} worker={worker} />
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }

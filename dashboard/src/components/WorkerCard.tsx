@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { WorkerSession } from '../api/client';
+import StatusPill from './StatusPill';
 
 function formatUptime(seconds: number | null): string {
   if (seconds == null) return '—';
@@ -12,29 +13,80 @@ function formatUptime(seconds: number | null): string {
 }
 
 export default function WorkerCard({ worker }: { worker: WorkerSession }) {
-  const dot = worker.attached ? 'bg-emerald-400' : 'bg-sky-400';
+  const navigate = useNavigate();
   return (
-    <Link
-      to={`/workers/${encodeURIComponent(worker.session)}`}
-      className="block rounded-lg border border-slate-800 bg-slate-900/40 p-4 transition-colors hover:border-slate-700 hover:bg-slate-900/70"
+    <button
+      type="button"
+      onClick={() => navigate(`/workers/${encodeURIComponent(worker.session)}`)}
+      style={{
+        textAlign: 'left',
+        width: '100%',
+        background: 'var(--color-surface-card)',
+        border: '1px solid var(--color-hairline)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-lg)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-sm)',
+        transition: 'border-color 0.15s',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = 'var(--color-hairline-strong)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'var(--color-hairline)';
+      }}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${dot}`} />
-          <span className="font-mono text-sm">{worker.session}</span>
-        </div>
-        <span className="text-xs text-slate-500">{worker.status}</span>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 'var(--space-sm)',
+        }}
+      >
+        <span
+          className="t-title-md"
+          style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-mono)' }}
+        >
+          {worker.session}
+        </span>
+        <StatusPill status={worker.attached ? 'fresh' : 'stale'} />
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-400">
-        <div>
-          <div className="text-slate-500">uptime</div>
-          <div className="text-slate-200">{formatUptime(worker.uptimeSeconds)}</div>
-        </div>
-        <div>
-          <div className="text-slate-500">windows</div>
-          <div className="text-slate-200">{worker.windows}</div>
-        </div>
+      <div
+        style={{
+          display: 'flex',
+          gap: 'var(--space-lg)',
+          flexWrap: 'wrap',
+        }}
+      >
+        <Stat label="uptime" value={formatUptime(worker.uptimeSeconds)} />
+        <Stat label="windows" value={String(worker.windows)} />
+        <Stat label="status" value={worker.status} />
       </div>
-    </Link>
+    </button>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div
+        className="t-caption-uppercase"
+        style={{ color: 'var(--color-muted)' }}
+      >
+        {label}
+      </div>
+      <div
+        className="t-body-sm"
+        style={{
+          color: 'var(--color-ink)',
+          marginTop: 2,
+          fontFamily: 'var(--font-mono)',
+        }}
+      >
+        {value}
+      </div>
+    </div>
   );
 }

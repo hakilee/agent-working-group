@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api, workerSocketUrl, type WorkerSession } from '../api/client';
-import TerminalOutput from '../components/TerminalOutput';
+import StatusPill from '../components/StatusPill';
 
 type WSMessage =
   | { type: 'snapshot' | 'update'; session: string; data: string; ts: number }
@@ -12,10 +12,12 @@ const RECONNECT_MAX_MS = 15000;
 
 export default function WorkerTerminal() {
   const { session = '' } = useParams<{ session: string }>();
+  const navigate = useNavigate();
   const [worker, setWorker] = useState<WorkerSession | null>(null);
   const [output, setOutput] = useState<string>('');
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const preRef = useRef<HTMLPreElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,8 +55,6 @@ export default function WorkerTerminal() {
         retryMs = Math.min(retryMs * 2, RECONNECT_MAX_MS);
       };
       ws.onerror = () => {
-        // onerror is always followed by onclose, so let the close handler
-        // schedule the reconnect.
         ws?.close();
       };
       ws.onmessage = (ev) => {
@@ -75,35 +75,124 @@ export default function WorkerTerminal() {
     };
   }, [session]);
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Link to="/workers" className="text-xs text-slate-400 hover:text-slate-200">
-          ← back to workers
-        </Link>
-        <div className="flex items-center gap-2 text-xs">
-          <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-          <span className="text-slate-500">{connected ? 'streaming' : 'disconnected'}</span>
-        </div>
-      </div>
+  useEffect(() => {
+    if (!preRef.current) return;
+    preRef.current.scrollTop = preRef.current.scrollHeight;
+  }, [output]);
 
-      <header className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-        <div className="font-mono text-sm text-slate-100">{session}</div>
-        {worker && (
-          <div className="mt-1 text-xs text-slate-500">
-            status: {worker.status} · windows: {worker.windows} ·{' '}
-            attached: {worker.attached ? 'yes' : 'no'}
-          </div>
-        )}
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => navigate('/workers')}
+        className="t-button"
+        style={{
+          color: 'var(--color-ink)',
+          marginBottom: 'var(--space-base)',
+        }}
+      >
+        ← Workers
+      </button>
+
+      <header
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          gap: 'var(--space-base)',
+          marginBottom: 'var(--space-lg)',
+          flexWrap: 'wrap',
+        }}
+      >
+        <h1
+          className="t-display-md"
+          style={{ color: 'var(--color-ink)', fontFamily: 'var(--font-mono)' }}
+        >
+          {session}
+        </h1>
+        <StatusPill
+          status={connected ? 'streaming' : 'disconnected'}
+          tone={connected ? 'success' : 'neutral'}
+        />
       </header>
 
+      {worker && (
+        <section
+          style={{
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-hairline)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-base) var(--space-lg)',
+            marginBottom: 'var(--space-base)',
+            display: 'flex',
+            gap: 'var(--space-lg)',
+            flexWrap: 'wrap',
+          }}
+        >
+          <Detail label="status" value={worker.status} />
+          <Detail label="windows" value={String(worker.windows)} />
+          <Detail label="attached" value={worker.attached ? 'yes' : 'no'} />
+        </section>
+      )}
+
       {error && (
-        <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
+        <div
+          role="alert"
+          className="t-body-sm"
+          style={{
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-base) var(--space-lg)',
+            marginBottom: 'var(--space-base)',
+          }}
+        >
           {error}
         </div>
       )}
 
-      <TerminalOutput text={output} />
+      <pre
+        ref={preRef}
+        className="t-code"
+        style={{
+          background: 'var(--color-canvas-soft)',
+          border: '1px solid var(--color-hairline)',
+          borderRadius: 'var(--radius-lg)',
+          padding: 'var(--space-md)',
+          color: 'var(--color-ink)',
+          margin: 0,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          maxHeight: 600,
+          overflowY: 'auto',
+        }}
+      >
+        {output || '(no output yet)'}
+      </pre>
+    </>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div
+        className="t-caption-uppercase"
+        style={{ color: 'var(--color-muted)' }}
+      >
+        {label}
+      </div>
+      <div
+        className="t-body-sm"
+        style={{
+          color: 'var(--color-ink)',
+          marginTop: 2,
+          fontFamily: 'var(--font-mono)',
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }

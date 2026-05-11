@@ -1,10 +1,71 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api, type QueueDetail } from '../api/client';
-import StatusBadge from '../components/StatusBadge';
+import StatusPill from '../components/StatusPill';
+
+function KVRow({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  mono?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 'var(--space-base)',
+        padding: 'var(--space-sm) 0',
+        borderBottom: '1px solid var(--color-hairline-soft)',
+      }}
+    >
+      <div
+        className="t-body-sm"
+        style={{
+          color: 'var(--color-muted)',
+          width: 120,
+          flexShrink: 0,
+          fontWeight: 500,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        className={mono ? 't-code' : 't-body-md'}
+        style={{ color: 'var(--color-ink)', minWidth: 0, wordBreak: 'break-word' }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function CodeBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <pre
+      className="t-code"
+      style={{
+        background: 'var(--color-surface-card)',
+        border: '1px solid var(--color-hairline)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 'var(--space-md)',
+        color: 'var(--color-ink)',
+        margin: 0,
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        overflow: 'auto',
+      }}
+    >
+      {children}
+    </pre>
+  );
+}
 
 export default function QueueDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [item, setItem] = useState<QueueDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,75 +80,120 @@ export default function QueueDetailPage() {
     };
   }, [id]);
 
-  if (error) {
-    return (
-      <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
-        {error}
-      </div>
-    );
-  }
-  if (!item) return <div className="text-sm text-slate-400">loading…</div>;
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Link to="/queue" className="text-xs text-slate-400 hover:text-slate-200">
-          ← back to queue
-        </Link>
-        <StatusBadge status={item.state} />
-      </div>
+    <>
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        className="t-button"
+        style={{
+          color: 'var(--color-ink)',
+          marginBottom: 'var(--space-base)',
+        }}
+      >
+        ← Back
+      </button>
 
-      <header className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-        <div className="flex flex-wrap items-baseline gap-2 text-sm">
-          <span className="rounded bg-slate-800 px-1.5 py-0.5 text-xs uppercase tracking-wide text-slate-300">
-            {item.kind}
-          </span>
-          <span className="font-mono text-emerald-400">{item.from ?? '?'}</span>
-          <span className="text-slate-600">→</span>
-          <span className="font-mono text-sky-400">{item.to ?? '?'}</span>
-          <span className="ml-auto font-mono text-xs text-slate-500">{item.createdAt ?? '—'}</span>
+      {error && (
+        <div
+          role="alert"
+          className="t-body-sm"
+          style={{
+            background: 'var(--color-surface-card)',
+            border: '1px solid var(--color-error)',
+            color: 'var(--color-error)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-base) var(--space-lg)',
+          }}
+        >
+          {error}
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-slate-400">
-          <div>
-            <span className="text-slate-500">id:</span>{' '}
-            <span className="font-mono text-slate-200">{item.id}</span>
-          </div>
-          <div>
-            <span className="text-slate-500">priority:</span> {item.priority}
-          </div>
-          <div>
-            <span className="text-slate-500">agent:</span>{' '}
-            <span className="font-mono text-slate-200">{item.agent}</span>
-          </div>
-          <div>
-            <span className="text-slate-500">filename:</span>{' '}
-            <span className="font-mono text-slate-200">{item.filename}</span>
-          </div>
-        </div>
-      </header>
-
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-300">Body</h2>
-        <pre className="whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-200">
-          {item.body || '(empty)'}
-        </pre>
-      </section>
-
-      {Object.keys(item.refs ?? {}).length > 0 && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-slate-300">Refs</h2>
-          <pre className="overflow-auto rounded-lg border border-slate-800 bg-slate-900/40 p-4 font-mono text-xs text-slate-200">
-            {JSON.stringify(item.refs, null, 2)}
-          </pre>
-        </section>
       )}
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-300">Raw message</h2>
-        <pre className="overflow-auto rounded-lg border border-slate-800 bg-slate-900/40 p-4 font-mono text-xs text-slate-200">
-          {JSON.stringify(item.message, null, 2)}
-        </pre>
-      </section>
-    </div>
+      {!error && !item && (
+        <p className="t-body-md" style={{ color: 'var(--color-muted)' }}>
+          loading…
+        </p>
+      )}
+
+      {item && (
+        <>
+          <header
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              gap: 'var(--space-base)',
+              marginBottom: 'var(--space-lg)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <h1 className="t-display-md" style={{ color: 'var(--color-ink)' }}>
+              {item.kind}
+            </h1>
+            <StatusPill status={item.state} />
+          </header>
+
+          <section
+            style={{
+              background: 'var(--color-surface-card)',
+              border: '1px solid var(--color-hairline)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 'var(--space-lg)',
+              marginBottom: 'var(--space-lg)',
+            }}
+          >
+            <KVRow label="id" value={item.id} mono />
+            <KVRow label="agent" value={item.agent} mono />
+            <KVRow label="from" value={item.from ?? '?'} mono />
+            <KVRow label="to" value={item.to ?? '?'} mono />
+            <KVRow label="priority" value={String(item.priority)} />
+            <KVRow label="filename" value={item.filename} mono />
+            <KVRow label="created" value={item.createdAt ?? '—'} mono />
+          </section>
+
+          <section style={{ marginBottom: 'var(--space-lg)' }}>
+            <h2
+              className="t-title-md"
+              style={{
+                color: 'var(--color-ink)',
+                marginBottom: 'var(--space-xs)',
+              }}
+            >
+              Body
+            </h2>
+            <CodeBlock>{item.body || '(empty)'}</CodeBlock>
+          </section>
+
+          {Object.keys(item.refs ?? {}).length > 0 && (
+            <section style={{ marginBottom: 'var(--space-lg)' }}>
+              <h2
+                className="t-title-md"
+                style={{
+                  color: 'var(--color-ink)',
+                  marginBottom: 'var(--space-xs)',
+                }}
+              >
+                Refs
+              </h2>
+              <CodeBlock>{JSON.stringify(item.refs, null, 2)}</CodeBlock>
+            </section>
+          )}
+
+          <section>
+            <h2
+              className="t-title-md"
+              style={{
+                color: 'var(--color-ink)',
+                marginBottom: 'var(--space-xs)',
+              }}
+            >
+              Raw message
+            </h2>
+            <CodeBlock>{JSON.stringify(item.message, null, 2)}</CodeBlock>
+          </section>
+        </>
+      )}
+    </>
   );
 }
