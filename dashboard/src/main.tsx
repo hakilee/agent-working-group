@@ -3,17 +3,35 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ThemeProvider } from './theme/ThemeContext';
 import './index.css';
 
-const root = document.getElementById('root');
-if (!root) throw new Error('root element missing');
+// Apply the persisted theme to <html> BEFORE React renders to avoid a flash.
+const stored = window.localStorage.getItem('awg.theme');
+const initialMode = stored === 'light' || stored === 'dark' ? stored : 'system';
+const root = document.documentElement;
+root.dataset.seed = '';
+root.dataset.seedColorMode =
+  initialMode === 'dark' ? 'dark-only'
+  : initialMode === 'light' ? 'light-only'
+  : 'system';
+if (window.matchMedia) {
+  root.dataset.seedUserColorScheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light';
+}
 
-createRoot(root).render(
+const container = document.getElementById('root');
+if (!container) throw new Error('root element missing');
+
+createRoot(container).render(
   <StrictMode>
     <ErrorBoundary>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,
 );

@@ -1,5 +1,22 @@
 import { useEffect, useState } from 'react';
 import {
+  Box,
+  CalloutContent,
+  CalloutDescription,
+  CalloutRoot,
+  CalloutTitle,
+  HStack,
+  ListContent,
+  ListDetail,
+  ListItem,
+  ListRoot,
+  ListSuffix,
+  ListTitle,
+  Skeleton,
+  Text,
+  VStack,
+} from '@seed-design/react';
+import {
   api,
   type ContractBreach,
   type HeartbeatEntry,
@@ -33,8 +50,38 @@ function applyHeartbeats(prev: Snapshot, hb: HeartbeatList): Snapshot {
   };
 }
 
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <Text
+      as="h2"
+      textStyle="t5Bold"
+      color="fg.neutralMuted"
+      style={{ marginBottom: 8, display: 'block' }}
+    >
+      {children}
+    </Text>
+  );
+}
+
+function EmptyHint({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      padding="24px"
+      borderRadius="r3"
+      borderWidth={1}
+      borderColor="stroke.neutralMuted"
+      style={{ textAlign: 'center' }}
+    >
+      <Text textStyle="t6Regular" color="fg.neutralMuted">
+        {children}
+      </Text>
+    </Box>
+  );
+}
+
 export default function Liveness() {
   const [snap, setSnap] = useState<Snapshot>(EMPTY);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const stream = useLivenessStream();
 
@@ -56,10 +103,10 @@ export default function Liveness() {
           });
           setError(null);
         })
-        .catch((err) => !cancelled && setError(String(err)));
+        .catch((err) => !cancelled && setError(String(err)))
+        .finally(() => !cancelled && setLoading(false));
     };
     load();
-    // Fallback polling for environments without the websocket.
     const id = window.setInterval(load, POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
@@ -67,7 +114,6 @@ export default function Liveness() {
     };
   }, []);
 
-  // Apply websocket pushes on top of the polled baseline.
   useEffect(() => {
     if (!stream) return;
     setSnap((prev) => {
@@ -80,142 +126,138 @@ export default function Liveness() {
   }, [stream]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-lg font-semibold">Liveness</h1>
-        <div className="text-xs text-slate-500">
-          fresh {snap.heartbeatCounts.fresh ?? 0} · stale{' '}
-          {snap.heartbeatCounts.stale ?? 0} · missing{' '}
-          {snap.heartbeatCounts.missing ?? 0}
-        </div>
-      </div>
+    <VStack gap="24px">
+      <HStack justify="space-between" gap="8px" wrap="wrap" style={{ alignItems: 'baseline' }}>
+        <Text as="h1" textStyle="screenTitle">
+          Liveness
+        </Text>
+        <HStack gap="6px" wrap="wrap" style={{ alignItems: 'center' }}>
+          <StatusBadge status="fresh" />
+          <Text textStyle="t7Regular" color="fg.neutralMuted">
+            {snap.heartbeatCounts.fresh ?? 0}
+          </Text>
+          <StatusBadge status="stale" />
+          <Text textStyle="t7Regular" color="fg.neutralMuted">
+            {snap.heartbeatCounts.stale ?? 0}
+          </Text>
+          <StatusBadge status="missing" />
+          <Text textStyle="t7Regular" color="fg.neutralMuted">
+            {snap.heartbeatCounts.missing ?? 0}
+          </Text>
+        </HStack>
+      </HStack>
 
       {error && (
-        <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
-          {error}
-        </div>
+        <CalloutRoot tone="critical">
+          <CalloutContent>
+            <CalloutTitle>Failed to load liveness</CalloutTitle>
+            <CalloutDescription>{error}</CalloutDescription>
+          </CalloutContent>
+        </CalloutRoot>
+      )}
+
+      {loading && !error && (
+        <VStack gap="8px">
+          <Skeleton height="56px" radius="8" />
+          <Skeleton height="56px" radius="8" />
+        </VStack>
       )}
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-300">Heartbeats</h2>
-        <div className="overflow-hidden rounded-lg border border-slate-800">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-900/60 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-3 py-2 font-medium">status</th>
-                <th className="px-3 py-2 font-medium">agent</th>
-                <th className="px-3 py-2 font-medium">session</th>
-                <th className="px-3 py-2 font-medium">age</th>
-                <th className="px-3 py-2 font-medium">timeout</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800 bg-slate-950">
-              {snap.heartbeats.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-slate-500">
-                    no heartbeats reported
-                  </td>
-                </tr>
-              )}
-              {snap.heartbeats.map((hb) => (
-                <tr key={`${hb.agent}/${hb.session || '_'}`} className="hover:bg-slate-900/60">
-                  <td className="px-3 py-2">
-                    <StatusBadge status={hb.status} />
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-200">{hb.agent}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-400">
-                    {hb.session || '—'}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-400">
-                    {hb.ageSeconds == null ? '—' : `${hb.ageSeconds}s`}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-500">
-                    {hb.timeoutSeconds}s
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SectionTitle>Heartbeats</SectionTitle>
+        {snap.heartbeats.length === 0 ? (
+          <EmptyHint>no heartbeats reported</EmptyHint>
+        ) : (
+          <ListRoot>
+            {snap.heartbeats.map((hb) => (
+              <ListItem key={`${hb.agent}/${hb.session || '_'}`}>
+                <ListContent>
+                  <ListTitle>
+                    <Text textStyle="t6Bold">{hb.agent}</Text>
+                  </ListTitle>
+                  <ListDetail>
+                    <Text textStyle="t7Regular" color="fg.neutralMuted">
+                      {hb.session || '—'} · age{' '}
+                      {hb.ageSeconds == null ? '—' : `${hb.ageSeconds}s`} · timeout{' '}
+                      {hb.timeoutSeconds}s
+                    </Text>
+                  </ListDetail>
+                </ListContent>
+                <ListSuffix>
+                  <StatusBadge status={hb.status} />
+                </ListSuffix>
+              </ListItem>
+            ))}
+          </ListRoot>
+        )}
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-300">
-          Processing timeouts ({snap.timeouts.length})
-        </h2>
-        <div className="overflow-hidden rounded-lg border border-slate-800">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-900/60 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-3 py-2 font-medium">agent</th>
-                <th className="px-3 py-2 font-medium">message</th>
-                <th className="px-3 py-2 font-medium">age</th>
-                <th className="px-3 py-2 font-medium">timeout</th>
-                <th className="px-3 py-2 font-medium">source</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800 bg-slate-950">
-              {snap.timeouts.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-slate-500">
-                    no stale processing items
-                  </td>
-                </tr>
-              )}
-              {snap.timeouts.map((row) => (
-                <tr key={`${row.agent}/${row.file}`} className="hover:bg-slate-900/60">
-                  <td className="px-3 py-2 font-mono text-xs text-slate-200">{row.agent}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-400">
-                    {row.messageId || row.file}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs text-amber-300">{row.ageSeconds}s</td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-500">{row.timeoutSeconds}s</td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-500">{row.timestampSource}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SectionTitle>Processing timeouts ({snap.timeouts.length})</SectionTitle>
+        {snap.timeouts.length === 0 ? (
+          <EmptyHint>no stale processing items</EmptyHint>
+        ) : (
+          <ListRoot>
+            {snap.timeouts.map((row) => (
+              <ListItem key={`${row.agent}/${row.file}`}>
+                <ListContent>
+                  <ListTitle>
+                    <Text textStyle="t6Bold">{row.agent}</Text>
+                  </ListTitle>
+                  <ListDetail>
+                    <Text textStyle="t7Regular" color="fg.neutralMuted">
+                      {row.messageId || row.file}
+                    </Text>
+                    <Text
+                      as="p"
+                      textStyle="t7Regular"
+                      color="fg.warning"
+                      style={{ marginTop: 2 }}
+                    >
+                      age {row.ageSeconds}s · timeout {row.timeoutSeconds}s ·{' '}
+                      {row.timestampSource}
+                    </Text>
+                  </ListDetail>
+                </ListContent>
+              </ListItem>
+            ))}
+          </ListRoot>
+        )}
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-300">
+        <SectionTitle>
           Response contract breaches ({snap.contracts.length})
-        </h2>
-        <div className="overflow-hidden rounded-lg border border-slate-800">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-900/60 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-3 py-2 font-medium">agent</th>
-                <th className="px-3 py-2 font-medium">message</th>
-                <th className="px-3 py-2 font-medium">location</th>
-                <th className="px-3 py-2 font-medium">expected</th>
-                <th className="px-3 py-2 font-medium">actual</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800 bg-slate-950">
-              {snap.contracts.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-slate-500">
-                    no contract breaches
-                  </td>
-                </tr>
-              )}
-              {snap.contracts.map((row) => (
-                <tr key={`${row.agent}/${row.file}`} className="hover:bg-slate-900/60">
-                  <td className="px-3 py-2 font-mono text-xs text-slate-200">{row.agent}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-400">
-                    {row.messageId || row.file}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-500">{row.location}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-500">{row.expectedSeconds}s</td>
-                  <td className="px-3 py-2 font-mono text-xs text-rose-300">{row.actualSeconds}s</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        </SectionTitle>
+        {snap.contracts.length === 0 ? (
+          <EmptyHint>no contract breaches</EmptyHint>
+        ) : (
+          <ListRoot>
+            {snap.contracts.map((row) => (
+              <ListItem key={`${row.agent}/${row.file}`}>
+                <ListContent>
+                  <ListTitle>
+                    <Text textStyle="t6Bold">{row.agent}</Text>
+                  </ListTitle>
+                  <ListDetail>
+                    <Text textStyle="t7Regular" color="fg.neutralMuted">
+                      {row.messageId || row.file} · {row.location}
+                    </Text>
+                    <Text
+                      as="p"
+                      textStyle="t7Regular"
+                      color="fg.critical"
+                      style={{ marginTop: 2 }}
+                    >
+                      expected {row.expectedSeconds}s · actual {row.actualSeconds}s
+                    </Text>
+                  </ListDetail>
+                </ListContent>
+              </ListItem>
+            ))}
+          </ListRoot>
+        )}
       </section>
-    </div>
+    </VStack>
   );
 }

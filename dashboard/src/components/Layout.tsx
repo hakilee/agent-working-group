@@ -1,44 +1,77 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Box, HStack, Text } from '@seed-design/react';
+import { Outlet, useLocation } from 'react-router-dom';
+import BottomTabs from './BottomTabs';
+import ThemeToggle from './ThemeToggle';
 
-const links = [
-  { to: '/', label: 'Overview', end: true },
-  { to: '/queue', label: 'Queue' },
-  { to: '/workers', label: 'Workers' },
-  { to: '/liveness', label: 'Liveness' },
-];
+function pageTitle(pathname: string): string {
+  if (pathname === '/' || pathname === '') return 'Overview';
+  if (pathname.startsWith('/queue/')) return 'Message';
+  if (pathname === '/queue') return 'Queue';
+  if (pathname.startsWith('/workers/')) return 'Worker';
+  if (pathname === '/workers') return 'Workers';
+  if (pathname === '/liveness') return 'Liveness';
+  return 'AWG';
+}
 
 export default function Layout() {
+  const { pathname } = useLocation();
+
   return (
-    <div className="min-h-full flex flex-col bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3">
-          <div className="text-sm font-semibold tracking-wide text-emerald-400">AWG</div>
-          <nav className="flex items-center gap-1 text-sm">
-            {links.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                end={link.end}
-                className={({ isActive }) =>
-                  `rounded-md px-3 py-1.5 transition-colors ${
-                    isActive
-                      ? 'bg-slate-800 text-slate-50'
-                      : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-100'
-                  }`
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
+    <Box
+      style={{
+        minHeight: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'var(--seed-color-bg-layer-default)',
+      }}
+    >
+      <Box
+        as="header"
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          background: 'var(--seed-color-bg-layer-default)',
+          borderBottom: '1px solid var(--seed-color-stroke-neutral-muted)',
+        }}
+      >
+        <HStack
+          justify="space-between"
+          gap="12px"
+          style={{
+            alignItems: 'center',
+            padding: '10px 16px',
+            maxWidth: 960,
+            margin: '0 auto',
+          }}
+        >
+          <HStack gap="10px" style={{ alignItems: 'baseline' }}>
+            <Text textStyle="t5Bold" color="fg.brand">
+              AWG
+            </Text>
+            <Text textStyle="t7Regular" color="fg.neutralSubtle">
+              {pageTitle(pathname)}
+            </Text>
+          </HStack>
+          <ThemeToggle />
+        </HStack>
+      </Box>
+
+      <Box
+        as="main"
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: 960,
+          margin: '0 auto',
+          padding: '16px',
+          boxSizing: 'border-box',
+        }}
+      >
         <Outlet />
-      </main>
-      <footer className="border-t border-slate-800 px-4 py-3 text-center text-xs text-slate-600">
-        agent-working-group dashboard
-      </footer>
-    </div>
+      </Box>
+
+      <BottomTabs />
+    </Box>
   );
 }

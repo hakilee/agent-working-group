@@ -1,5 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  CalloutContent,
+  CalloutDescription,
+  CalloutRoot,
+  CalloutTitle,
+  HStack,
+  ListContent,
+  ListDetail,
+  ListItem,
+  ListRoot,
+  ListTitle,
+  Skeleton,
+  TabsList,
+  TabsRoot,
+  TabsTrigger,
+  Text,
+  VStack,
+} from '@seed-design/react';
 import { api, type QueueSummary } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
 import { useQueueStream } from '../hooks/useQueueStream';
@@ -8,6 +27,7 @@ const FILTERS = ['all', 'pending', 'processing', 'processed', 'dead'] as const;
 type Filter = (typeof FILTERS)[number];
 
 export default function QueueList() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>('all');
   const [items, setItems] = useState<QueueSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,26 +36,21 @@ export default function QueueList() {
 
   useEffect(() => {
     let cancelled = false;
-    const load = () => {
-      api
-        .listQueue({ state: filter === 'all' ? undefined : filter, limit: 500 })
-        .then((data) => {
-          if (cancelled) return;
-          setItems(data.items);
-          setError(null);
-        })
-        .catch((err) => !cancelled && setError(String(err)))
-        .finally(() => !cancelled && setLoading(false));
-    };
     setLoading(true);
-    load();
+    api
+      .listQueue({ state: filter === 'all' ? undefined : filter, limit: 500 })
+      .then((data) => {
+        if (cancelled) return;
+        setItems(data.items);
+        setError(null);
+      })
+      .catch((err) => !cancelled && setError(String(err)))
+      .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
   }, [filter]);
 
-  // Re-fetch when the WebSocket signals a change. The stream itself only
-  // carries per-agent counts, so we still need the REST list for the table.
   useEffect(() => {
     if (!stream) return;
     api
@@ -50,81 +65,106 @@ export default function QueueList() {
   const grouped = useMemo(() => items, [items]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Queue</h1>
-        <div className="flex gap-1">
+    <VStack gap="20px">
+      <Text as="h1" textStyle="screenTitle">
+        Queue
+      </Text>
+
+      <TabsRoot
+        triggerLayout="hug"
+        size="small"
+        value={filter}
+        onValueChange={(v) => setFilter(v as Filter)}
+      >
+        <TabsList>
           {FILTERS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setFilter(value)}
-              className={`rounded px-2.5 py-1 text-xs uppercase tracking-wide transition-colors ${
-                filter === value
-                  ? 'bg-slate-800 text-slate-100'
-                  : 'text-slate-500 hover:bg-slate-800/60 hover:text-slate-300'
-              }`}
-            >
+            <TabsTrigger key={value} value={value}>
               {value}
-            </button>
+            </TabsTrigger>
           ))}
-        </div>
-      </div>
+        </TabsList>
+      </TabsRoot>
 
       {error && (
-        <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
-          {error}
-        </div>
+        <CalloutRoot tone="critical">
+          <CalloutContent>
+            <CalloutTitle>Failed to load queue</CalloutTitle>
+            <CalloutDescription>{error}</CalloutDescription>
+          </CalloutContent>
+        </CalloutRoot>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-slate-800">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-900/60 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-3 py-2 font-medium">state</th>
-              <th className="px-3 py-2 font-medium">kind</th>
-              <th className="px-3 py-2 font-medium">agent</th>
-              <th className="px-3 py-2 font-medium">from → to</th>
-              <th className="px-3 py-2 font-medium">body</th>
-              <th className="px-3 py-2 font-medium">created</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800 bg-slate-950">
-            {loading && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
-                  loading…
-                </td>
-              </tr>
-            )}
-            {!loading && grouped.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
-                  no items
-                </td>
-              </tr>
-            )}
-            {grouped.map((item) => (
-              <tr key={`${item.agent}/${item.filename}`} className="hover:bg-slate-900/60">
-                <td className="px-3 py-2">
-                  <StatusBadge status={item.state} />
-                </td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-300">{item.kind}</td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-300">{item.agent}</td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-400">
-                  {item.from ?? '?'} → {item.to ?? '?'}
-                </td>
-                <td className="px-3 py-2 text-slate-300">
-                  <Link to={`/queue/${item.id}`} className="hover:text-emerald-300">
-                    {item.body.split('\n')[0].slice(0, 96) || '(empty)'}
-                  </Link>
-                </td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-500">{item.createdAt ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      {loading && (
+        <VStack gap="8px">
+          <Skeleton height="56px" radius="8" />
+          <Skeleton height="56px" radius="8" />
+          <Skeleton height="56px" radius="8" />
+        </VStack>
+      )}
+
+      {!loading && grouped.length === 0 && !error && (
+        <Box
+          padding="32px"
+          borderRadius="r3"
+          borderWidth={1}
+          borderColor="stroke.neutralMuted"
+          style={{ textAlign: 'center' }}
+        >
+          <Text textStyle="t6Regular" color="fg.neutralMuted">
+            No queue items.
+          </Text>
+        </Box>
+      )}
+
+      {!loading && grouped.length > 0 && (
+        <ListRoot as="div">
+          {grouped.map((item) => (
+            <ListItem key={`${item.agent}/${item.filename}`} asChild>
+              <button
+                type="button"
+                onClick={() => navigate(`/queue/${encodeURIComponent(item.id)}`)}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  background: 'transparent',
+                  border: 0,
+                  font: 'inherit',
+                  color: 'inherit',
+                }}
+              >
+                <ListContent>
+                  <ListTitle>
+                    <HStack gap="8px" wrap="wrap" style={{ alignItems: 'center' }}>
+                      <StatusBadge status={item.state} />
+                      <Text textStyle="t6Medium" color="fg.neutralMuted">
+                        {item.kind}
+                      </Text>
+                      <Text textStyle="t7Regular" color="fg.neutralSubtle">
+                        {item.agent}
+                      </Text>
+                    </HStack>
+                  </ListTitle>
+                  <ListDetail>
+                    <Text textStyle="t6Regular">
+                      {item.body.split('\n')[0].slice(0, 96) || '(empty)'}
+                    </Text>
+                    <Text
+                      as="p"
+                      textStyle="t7Regular"
+                      color="fg.neutralSubtle"
+                      style={{ marginTop: 4 }}
+                    >
+                      {item.from ?? '?'} → {item.to ?? '?'} ·{' '}
+                      {item.createdAt ?? '—'}
+                    </Text>
+                  </ListDetail>
+                </ListContent>
+              </button>
+            </ListItem>
+          ))}
+        </ListRoot>
+      )}
+    </VStack>
   );
 }

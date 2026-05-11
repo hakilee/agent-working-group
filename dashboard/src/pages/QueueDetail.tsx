@@ -1,10 +1,67 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  ActionButton,
+  Box,
+  CalloutContent,
+  CalloutDescription,
+  CalloutRoot,
+  CalloutTitle,
+  HStack,
+  ListContent,
+  ListDetail,
+  ListItem,
+  ListRoot,
+  ListTitle,
+  Skeleton,
+  Text,
+  VStack,
+} from '@seed-design/react';
 import { api, type QueueDetail } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
 
+function KVRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <ListItem highlighted>
+      <ListContent>
+        <ListTitle>
+          <Text textStyle="t7Regular" color="fg.neutralSubtle">
+            {label}
+          </Text>
+        </ListTitle>
+        <ListDetail>
+          <Text textStyle="t6Medium">{value}</Text>
+        </ListDetail>
+      </ListContent>
+    </ListItem>
+  );
+}
+
+function JsonBlock({ children }: { children: React.ReactNode }) {
+  return (
+    <CalloutRoot tone="neutral">
+      <CalloutContent>
+        <CalloutDescription>
+          <pre
+            style={{
+              margin: 0,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              fontSize: 12,
+              lineHeight: 1.5,
+            }}
+          >
+            {children}
+          </pre>
+        </CalloutDescription>
+      </CalloutContent>
+    </CalloutRoot>
+  );
+}
+
 export default function QueueDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [item, setItem] = useState<QueueDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,75 +76,114 @@ export default function QueueDetailPage() {
     };
   }, [id]);
 
-  if (error) {
-    return (
-      <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
-        {error}
-      </div>
-    );
-  }
-  if (!item) return <div className="text-sm text-slate-400">loading…</div>;
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Link to="/queue" className="text-xs text-slate-400 hover:text-slate-200">
-          ← back to queue
-        </Link>
-        <StatusBadge status={item.state} />
-      </div>
+    <VStack gap="20px">
+      <HStack justify="space-between" style={{ alignItems: 'center' }}>
+        <ActionButton variant="ghost" size="small" onClick={() => navigate(-1)}>
+          ← Back
+        </ActionButton>
+        {item && <StatusBadge status={item.state} />}
+      </HStack>
 
-      <header className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-        <div className="flex flex-wrap items-baseline gap-2 text-sm">
-          <span className="rounded bg-slate-800 px-1.5 py-0.5 text-xs uppercase tracking-wide text-slate-300">
-            {item.kind}
-          </span>
-          <span className="font-mono text-emerald-400">{item.from ?? '?'}</span>
-          <span className="text-slate-600">→</span>
-          <span className="font-mono text-sky-400">{item.to ?? '?'}</span>
-          <span className="ml-auto font-mono text-xs text-slate-500">{item.createdAt ?? '—'}</span>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-slate-400">
-          <div>
-            <span className="text-slate-500">id:</span>{' '}
-            <span className="font-mono text-slate-200">{item.id}</span>
-          </div>
-          <div>
-            <span className="text-slate-500">priority:</span> {item.priority}
-          </div>
-          <div>
-            <span className="text-slate-500">agent:</span>{' '}
-            <span className="font-mono text-slate-200">{item.agent}</span>
-          </div>
-          <div>
-            <span className="text-slate-500">filename:</span>{' '}
-            <span className="font-mono text-slate-200">{item.filename}</span>
-          </div>
-        </div>
-      </header>
-
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-300">Body</h2>
-        <pre className="whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-900/40 p-4 text-sm text-slate-200">
-          {item.body || '(empty)'}
-        </pre>
-      </section>
-
-      {Object.keys(item.refs ?? {}).length > 0 && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-slate-300">Refs</h2>
-          <pre className="overflow-auto rounded-lg border border-slate-800 bg-slate-900/40 p-4 font-mono text-xs text-slate-200">
-            {JSON.stringify(item.refs, null, 2)}
-          </pre>
-        </section>
+      {error && (
+        <CalloutRoot tone="critical">
+          <CalloutContent>
+            <CalloutTitle>Failed to load message</CalloutTitle>
+            <CalloutDescription>{error}</CalloutDescription>
+          </CalloutContent>
+        </CalloutRoot>
       )}
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-slate-300">Raw message</h2>
-        <pre className="overflow-auto rounded-lg border border-slate-800 bg-slate-900/40 p-4 font-mono text-xs text-slate-200">
-          {JSON.stringify(item.message, null, 2)}
-        </pre>
-      </section>
-    </div>
+      {!error && !item && (
+        <VStack gap="8px">
+          <Skeleton height="32px" radius="8" />
+          <Skeleton height="120px" radius="8" />
+          <Skeleton height="120px" radius="8" />
+        </VStack>
+      )}
+
+      {item && (
+        <>
+          <Box
+            padding="16px"
+            borderRadius="r3"
+            borderWidth={1}
+            borderColor="stroke.neutralMuted"
+            background="bg.layerFill"
+          >
+            <HStack gap="8px" wrap="wrap" style={{ alignItems: 'baseline' }}>
+              <StatusBadge status={item.kind || 'msg'} />
+              <Text textStyle="t6Medium">{item.from ?? '?'}</Text>
+              <Text textStyle="t6Regular" color="fg.neutralSubtle">
+                →
+              </Text>
+              <Text textStyle="t6Medium">{item.to ?? '?'}</Text>
+              <Text
+                textStyle="t8Bold"
+                color="fg.neutralSubtle"
+                style={{ marginLeft: 'auto' }}
+              >
+                {item.createdAt ?? '—'}
+              </Text>
+            </HStack>
+          </Box>
+
+          <section>
+            <Text
+              as="h2"
+              textStyle="t5Bold"
+              color="fg.neutralMuted"
+              style={{ marginBottom: 8, display: 'block' }}
+            >
+              Metadata
+            </Text>
+            <ListRoot>
+              <KVRow label="id" value={item.id} />
+              <KVRow label="priority" value={item.priority} />
+              <KVRow label="agent" value={item.agent} />
+              <KVRow label="filename" value={item.filename} />
+            </ListRoot>
+          </section>
+
+          <section>
+            <Text
+              as="h2"
+              textStyle="t5Bold"
+              color="fg.neutralMuted"
+              style={{ marginBottom: 8, display: 'block' }}
+            >
+              Body
+            </Text>
+            <JsonBlock>{item.body || '(empty)'}</JsonBlock>
+          </section>
+
+          {Object.keys(item.refs ?? {}).length > 0 && (
+            <section>
+              <Text
+                as="h2"
+                textStyle="t5Bold"
+                color="fg.neutralMuted"
+                style={{ marginBottom: 8, display: 'block' }}
+              >
+                Refs
+              </Text>
+              <JsonBlock>{JSON.stringify(item.refs, null, 2)}</JsonBlock>
+            </section>
+          )}
+
+          <section>
+            <Text
+              as="h2"
+              textStyle="t5Bold"
+              color="fg.neutralMuted"
+              style={{ marginBottom: 8, display: 'block' }}
+            >
+              Raw message
+            </Text>
+            <JsonBlock>{JSON.stringify(item.message, null, 2)}</JsonBlock>
+          </section>
+        </>
+      )}
+    </VStack>
   );
 }

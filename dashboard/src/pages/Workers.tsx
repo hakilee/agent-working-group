@@ -1,4 +1,16 @@
 import { useEffect, useState } from 'react';
+import {
+  Box,
+  CalloutContent,
+  CalloutDescription,
+  CalloutRoot,
+  CalloutTitle,
+  HStack,
+  ListRoot,
+  Skeleton,
+  Text,
+  VStack,
+} from '@seed-design/react';
 import { api, type WorkerSession } from '../api/client';
 import WorkerCard from '../components/WorkerCard';
 
@@ -31,33 +43,50 @@ export default function Workers() {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Workers</h1>
-        <span className="text-xs text-slate-500">
+    <VStack gap="20px">
+      <HStack justify="space-between" gap="8px" style={{ alignItems: 'baseline' }}>
+        <Text as="h1" textStyle="screenTitle">
+          Workers
+        </Text>
+        <Text textStyle="t8Bold" color="fg.neutralSubtle">
           tmux: {tmuxAvailable ? 'available' : 'not detected'}
-        </span>
-      </div>
+        </Text>
+      </HStack>
 
       {error && (
-        <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
-          {error}
-        </div>
+        <CalloutRoot tone="critical">
+          <CalloutContent>
+            <CalloutTitle>Failed to load workers</CalloutTitle>
+            <CalloutDescription>{error}</CalloutDescription>
+          </CalloutContent>
+        </CalloutRoot>
       )}
 
       {loading ? (
-        <div className="text-sm text-slate-400">loading…</div>
+        <VStack gap="8px">
+          <Skeleton height="64px" radius="8" />
+          <Skeleton height="64px" radius="8" />
+          <Skeleton height="64px" radius="8" />
+        </VStack>
       ) : workers.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-800 p-6 text-center text-sm text-slate-500">
-          No tmux sessions matching <code className="font-mono">awg-*</code>.
-        </div>
+        <Box
+          padding="32px"
+          borderRadius="r3"
+          borderWidth={1}
+          borderColor="stroke.neutralMuted"
+          style={{ textAlign: 'center' }}
+        >
+          <Text textStyle="t6Regular" color="fg.neutralMuted">
+            No tmux sessions matching <Text as="span" textStyle="t6Medium">awg-*</Text>.
+          </Text>
+        </Box>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ListRoot as="div">
           {workers.map((worker) => (
             <WorkerCard key={worker.session} worker={worker} />
           ))}
-        </div>
+        </ListRoot>
       )}
-    </div>
+    </VStack>
   );
 }
