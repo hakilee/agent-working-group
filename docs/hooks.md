@@ -138,3 +138,74 @@ The runner also sets conservative environment fields:
 - Treating `reportTarget` as a security boundary.
 - Hiding provider credentials or destinations in public repository files.
 - Running unbounded background workers from hook commands.
+
+## Repository Script Patterns
+
+These examples show how to wire existing repository scripts into hooks.json. Scripts are argv-list commands that receive message JSON on stdin.
+
+### Pending Wake-Up Hook
+
+Use `message.pending` + `dispatch-hooks --dry-run` to inspect pending work without consuming it:
+
+```json
+{
+  "name": "wake-worker-on-pending",
+  "event": "message.pending",
+  "command": ["scripts/awg-queue-notifier.sh", "--role", "worker"],
+  "filters": {"to": "worker"},
+  "timeoutSeconds": 15
+}
+```
+
+```bash
+awg dispatch-hooks --event message.pending --as worker --dry-run
+```
+
+### Send-Time Notification Hook
+
+Use `message.sent` + `send --dispatch-hooks` to run a local adapter after enqueue:
+
+```json
+{
+  "name": "notify-on-send",
+  "event": "message.sent",
+  "command": ["scripts/awg-queue-notifier-dispatch.sh", "--mode", "notify"],
+  "filters": {"kind": "instruction"},
+  "timeoutSeconds": 10
+}
+```
+
+```bash
+awg send --from lead --to reviewer --kind instruction --body "Review the PR." --dispatch-hooks
+```
+
+### Artifact Index Hook
+
+Index new artifacts when work is queued for a specific workspace:
+
+```json
+{
+  "name": "index-artifacts",
+  "event": "message.sent",
+  "command": ["scripts/awg-artifact-index.sh", "--mode", "append"],
+  "filters": {"kind": "result", "workspace": "main"},
+  "timeoutSeconds": 10
+}
+```
+
+### Multi-Target Filter
+
+Match multiple report targets with a list:
+
+```json
+{
+  "name": "multi-channel-notify",
+  "event": "message.pending",
+  "command": ["scripts/awg-queue-notifier-dispatch.sh"],
+  "filters": {
+    "reportTarget": ["channel:working", "channel:reviews"]
+  }
+}
+```
+
+All scripts listed here are existing repository helpers. Hooks connect them to queue events without changing the scripts or the queue lifecycle.

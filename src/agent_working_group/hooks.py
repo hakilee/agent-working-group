@@ -97,13 +97,13 @@ def hook_filters_match(filters: object, message: dict[str, Any]) -> bool:
     }
     for key, expected in filters.items():
         actual = checks.get(key)
-        if key == "reportTarget":
-            expected = normalize_target(expected)
         if isinstance(expected, list):
             expected_values = [normalize_target(value) if key == "reportTarget" else value for value in expected]
             if actual not in expected_values:
                 return False
             continue
+        if key == "reportTarget":
+            expected = normalize_target(expected)
         if actual != expected:
             return False
     return True
