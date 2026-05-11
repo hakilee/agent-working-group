@@ -4,6 +4,7 @@ const links = [
   { to: '/', label: 'Overview', end: true },
   { to: '/queue', label: 'Queue' },
   { to: '/workers', label: 'Workers' },
+  { to: '/liveness', label: 'Liveness' },
 ];
 
 export default function Layout() {

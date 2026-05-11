@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type QueueSummary } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
+import { useQueueStream } from '../hooks/useQueueStream';
 
 const FILTERS = ['all', 'pending', 'processing', 'processed', 'dead'] as const;
 type Filter = (typeof FILTERS)[number];
@@ -11,23 +12,40 @@ export default function QueueList() {
   const [items, setItems] = useState<QueueSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const stream = useQueueStream();
 
   useEffect(() => {
     let cancelled = false;
+    const load = () => {
+      api
+        .listQueue({ state: filter === 'all' ? undefined : filter, limit: 500 })
+        .then((data) => {
+          if (cancelled) return;
+          setItems(data.items);
+          setError(null);
+        })
+        .catch((err) => !cancelled && setError(String(err)))
+        .finally(() => !cancelled && setLoading(false));
+    };
     setLoading(true);
-    api
-      .listQueue({ state: filter === 'all' ? undefined : filter, limit: 500 })
-      .then((data) => {
-        if (cancelled) return;
-        setItems(data.items);
-        setError(null);
-      })
-      .catch((err) => !cancelled && setError(String(err)))
-      .finally(() => !cancelled && setLoading(false));
+    load();
     return () => {
       cancelled = true;
     };
   }, [filter]);
+
+  // Re-fetch when the WebSocket signals a change. The stream itself only
+  // carries per-agent counts, so we still need the REST list for the table.
+  useEffect(() => {
+    if (!stream) return;
+    api
+      .listQueue({ state: filter === 'all' ? undefined : filter, limit: 500 })
+      .then((data) => {
+        setItems(data.items);
+        setError(null);
+      })
+      .catch((err) => setError(String(err)));
+  }, [stream, filter]);
 
   const grouped = useMemo(() => items, [items]);
 

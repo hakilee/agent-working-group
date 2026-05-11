@@ -45,6 +45,78 @@ export interface SystemStatus {
   serverTime: number;
 }
 
+export interface AgentSummary {
+  agent: string;
+  counts: Record<string, number>;
+  total: number;
+}
+
+export interface QueuesIndex {
+  root: string;
+  agents: AgentSummary[];
+}
+
+export interface AgentQueueList {
+  agent: string;
+  counts: Record<string, number>;
+  items: QueueSummary[];
+  total: number;
+}
+
+export interface HeartbeatEntry {
+  agent: string;
+  session: string;
+  status: 'fresh' | 'stale' | 'missing';
+  timestamp: number | null;
+  ageSeconds: number | null;
+  timeoutSeconds: number;
+}
+
+export interface HeartbeatList {
+  items: HeartbeatEntry[];
+  counts: Record<string, number>;
+  total: number;
+}
+
+export interface TimeoutItem {
+  agent: string;
+  messageId: string;
+  file: string;
+  ageSeconds: number;
+  timeoutSeconds: number;
+  timestampSource: string;
+}
+
+export interface TimeoutList {
+  items: TimeoutItem[];
+  total: number;
+  timeoutSeconds: number;
+}
+
+export interface ContractBreach {
+  agent: string;
+  messageId: string;
+  file: string;
+  location: string;
+  expectedSeconds: number;
+  actualSeconds: number;
+}
+
+export interface ContractList {
+  items: ContractBreach[];
+  total: number;
+}
+
+export interface HealthInfo {
+  ok: boolean;
+  version: string;
+  uptimeSeconds: number;
+  awgRoot: string;
+  counts: Record<string, number>;
+  totalQueueItems: number;
+  serverTime: number;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { ...init, headers: { Accept: 'application/json', ...(init?.headers ?? {}) } });
   if (!res.ok) {
@@ -56,6 +128,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   status: () => request<SystemStatus>('/api/status'),
+  health: () => request<HealthInfo>('/api/health'),
   listQueue: (params?: { state?: string; agent?: string; limit?: number }) => {
     const qs = new URLSearchParams();
     if (params?.state) qs.set('state', params.state);
@@ -65,13 +138,53 @@ export const api = {
     return request<{ items: QueueSummary[]; total: number }>(`/api/queue${q ? `?${q}` : ''}`);
   },
   getQueueItem: (id: string) => request<QueueDetail>(`/api/queue/${encodeURIComponent(id)}`),
+  listQueues: () => request<QueuesIndex>('/api/queues'),
+  listAgentMessages: (
+    agent: string,
+    params?: { status?: string; limit?: number },
+  ) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const q = qs.toString();
+    return request<AgentQueueList>(
+      `/api/queues/${encodeURIComponent(agent)}${q ? `?${q}` : ''}`,
+    );
+  },
+  getAgentMessage: (agent: string, messageId: string) =>
+    request<QueueDetail>(
+      `/api/queues/${encodeURIComponent(agent)}/${encodeURIComponent(messageId)}`,
+    ),
   listWorkers: () =>
     request<{ items: WorkerSession[]; total: number; tmuxAvailable: boolean }>('/api/workers'),
   getWorker: (session: string, lines = 200) =>
     request<WorkerSession>(`/api/workers/${encodeURIComponent(session)}?lines=${lines}`),
+  liveness: {
+    heartbeats: (timeoutSeconds?: number) => {
+      const qs = timeoutSeconds ? `?timeoutSeconds=${timeoutSeconds}` : '';
+      return request<HeartbeatList>(`/api/liveness/heartbeats${qs}`);
+    },
+    timeouts: (timeoutSeconds?: number) => {
+      const qs = timeoutSeconds ? `?timeoutSeconds=${timeoutSeconds}` : '';
+      return request<TimeoutList>(`/api/liveness/timeouts${qs}`);
+    },
+    contracts: () => request<ContractList>('/api/liveness/contracts'),
+  },
 };
 
-export function workerSocketUrl(session: string): string {
+function wsBase(): string {
   const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${proto}://${window.location.host}/ws/workers/${encodeURIComponent(session)}`;
+  return `${proto}://${window.location.host}`;
+}
+
+export function workerSocketUrl(session: string): string {
+  return `${wsBase()}/ws/workers/${encodeURIComponent(session)}`;
+}
+
+export function queueStreamUrl(): string {
+  return `${wsBase()}/ws/queues`;
+}
+
+export function livenessStreamUrl(): string {
+  return `${wsBase()}/ws/liveness`;
 }
