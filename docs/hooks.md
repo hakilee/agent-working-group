@@ -209,3 +209,40 @@ Match multiple report targets with a list:
 ```
 
 All scripts listed here are existing repository helpers. Hooks connect them to queue events without changing the scripts or the queue lifecycle.
+
+### Worker Preflight Check
+
+Before a bounded worker starts, verify the environment is safe:
+
+```json
+{
+  "name": "worker-preflight",
+  "event": "message.pending",
+  "command": ["scripts/awg-hook-worker-preflight.sh"],
+  "filters": {"to": "worker"},
+  "timeoutSeconds": 10
+}
+```
+
+The preflight script checks:
+1. `AWG_REPORT_TARGET` is set (prevents cross-channel scope leaks)
+2. Pending count is within `MAX_PENDING` (default 50)
+3. No duplicate worker lock (prevents double dispatch)
+
+### PR Publish Gate
+
+Gate publish intent messages against the PR review evidence policy:
+
+```json
+{
+  "name": "pr-publish-gate",
+  "event": "message.sent",
+  "command": ["scripts/awg-hook-pr-publish-gate.sh"],
+  "filters": {"kind": "publish"},
+  "timeoutSeconds": 30
+}
+```
+
+The gate script extracts `repo` and `pr` from message refs, runs
+`awg-pr-publish-gate-check.sh`, and reports pass/fail. It never merges,
+pushes, or mutates queue state.

@@ -740,3 +740,30 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
             platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
             self.assertNotRegex(content.lower(), platform_pattern)
+
+    def test_hook_scripts_are_safe_and_documented(self):
+            project_root = Path(__file__).resolve().parents[1]
+            hooks_doc = project_root / "docs" / "hooks.md"
+            hooks_content = hooks_doc.read_text(encoding="utf-8")
+
+            preflight = project_root / "scripts" / "awg-hook-worker-preflight.sh"
+            self.assertTrue(preflight.exists(), "awg-hook-worker-preflight.sh must exist")
+            preflight_content = preflight.read_text(encoding="utf-8")
+            self.assertIn("set -euo pipefail", preflight_content)
+            self.assertIn("Read-only preflight check", preflight_content)
+            self.assertIn("AWG_REPORT_TARGET", preflight_content)
+            self.assertIn("MAX_PENDING", preflight_content)
+            # must not contain queue lifecycle mutations
+            for forbidden in ["send ", "recv ", "ack ", "retry ", "prune ", "delete "]:
+                self.assertNotIn(forbidden, preflight_content, f"preflight must not call {forbidden.strip()}")
+            self.assertIn("preflight", hooks_content)
+
+            pr_gate = project_root / "scripts" / "awg-hook-pr-publish-gate.sh"
+            self.assertTrue(pr_gate.exists(), "awg-hook-pr-publish-gate.sh must exist")
+            pr_gate_content = pr_gate.read_text(encoding="utf-8")
+            self.assertIn("set -euo pipefail", pr_gate_content)
+            self.assertIn("Read-only gate check", pr_gate_content)
+            # must not contain destructive git operations
+            for forbidden in ["git push", "git merge", "gh pr merge"]:
+                self.assertNotIn(forbidden, pr_gate_content, f"pr gate must not call {forbidden}")
+            self.assertIn("publish", hooks_content.lower())
