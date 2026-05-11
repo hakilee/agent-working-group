@@ -9,7 +9,7 @@ from typing import Any, Iterable
 
 from .queue import normalize_target
 
-SUPPORTED_EVENTS = {"message.sent", "message.pending"}
+SUPPORTED_EVENTS = {"message.sent", "message.pending", "on_processing"}
 DEFAULT_CONFIG_NAME = "hooks.json"
 MAX_HOOK_DEPTH = 1
 

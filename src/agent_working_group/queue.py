@@ -173,6 +173,7 @@ class MessageQueue:
         report_target: object = None,
         repo: object = None,
         workspace: object = None,
+        expected_response_within: object = None,
     ) -> str:
         if kind not in PRIORITIES:
             raise ValueError(f"unknown kind: {kind}")
@@ -208,6 +209,14 @@ class MessageQueue:
             "createdAt": utc_iso(created_ms),
             "createdAtMs": created_ms,
         }
+        if expected_response_within is not None:
+            try:
+                contract = int(expected_response_within)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"expected_response_within must be an integer seconds value: {expected_response_within!r}") from exc
+            if contract <= 0:
+                raise ValueError("expected_response_within must be a positive integer (seconds)")
+            message["expectedResponseWithin"] = contract
         filename = f"{created_ms:013d}_{priority:02d}_{message_id[:8]}.json"
         tmp_dir = self.root / "tmp"
         tmp_dir.mkdir(parents=True, exist_ok=True)

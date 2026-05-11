@@ -263,6 +263,112 @@ class QueueHookTests(QueueTestCase):
         self.assertIn("hook error", result.get("stderr", ""))
         self.assertEqual(queue.peek("worker")[0]["id"], message_id)
 
+    def test_on_processing_event_dispatch_runs_after_message_moves_to_processing(self):
+        queue, root = self.with_queue()
+        capture = root / "on-processing.json"
+        hook_script = root / "on-processing-hook.py"
+        hook_script.write_text(
+            "import json, os, pathlib, sys\n"
+            "payload = json.loads(sys.stdin.read())\n"
+            "pathlib.Path(sys.argv[1]).write_text(json.dumps({\n"
+            "  'event': os.environ.get('AWG_HOOK_EVENT'),\n"
+            "  'messageId': os.environ.get('AWG_MESSAGE_ID'),\n"
+            "  'payloadEventType': payload['eventType'],\n"
+            "}, sort_keys=True), encoding='utf-8')\n",
+            encoding="utf-8",
+        )
+        config = root / "hooks.json"
+        config.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "hooks": [
+                        {
+                            "name": "on-processing-capture",
+                            "event": "on_processing",
+                            "command": [sys.executable, str(hook_script), str(capture)],
+                            "filters": {"to": "worker"},
+                            "timeoutSeconds": 5,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        message_id = queue.send("lead", "worker", "instruction", "process me")
+        received = queue.receive("worker", timeout=0, require_ack=True)
+        self.assertEqual(received["id"], message_id)
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "agent_working_group.cli",
+                "--root",
+                str(root),
+                "dispatch-hooks",
+                "--event",
+                "on_processing",
+                "--as",
+                "worker",
+                "--hook-config",
+                str(config),
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+            env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["event"], "on_processing")
+        self.assertEqual([item["messageId"] for item in payload["messages"]], [message_id])
+        self.assertEqual(payload["messages"][0]["hooks"][0]["status"], "success")
+        self.assertTrue(capture.exists())
+        captured = json.loads(capture.read_text(encoding="utf-8"))
+        self.assertEqual(captured["event"], "on_processing")
+        self.assertEqual(captured["messageId"], message_id)
+        self.assertEqual(captured["payloadEventType"], "awg.hook.on_processing.v1")
+        # processing state is unchanged — read-only dispatch
+        self.assertEqual(len(queue.processing("worker")), 1)
+
+    def test_on_processing_event_is_supported_directly_via_dispatch_function(self):
+        queue, root = self.with_queue()
+        queue.send("lead", "worker", "instruction", "direct on_processing")
+        message = queue.peek("worker")[0]
+        config = root / "hooks.json"
+        capture = root / "direct.json"
+        hook_script = root / "noop-hook.py"
+        hook_script.write_text(
+            "import pathlib, sys; pathlib.Path(sys.argv[1]).write_text('ran', encoding='utf-8')\n",
+            encoding="utf-8",
+        )
+        config.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "hooks": [
+                        {
+                            "name": "direct-on-processing",
+                            "event": "on_processing",
+                            "command": [sys.executable, str(hook_script), str(capture)],
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        results = dispatch_hooks(
+            root=root,
+            config_path=config,
+            event="on_processing",
+            message=message,
+        )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].status, "success")
+        self.assertTrue(capture.exists())
+
     def test_hook_filters_match_list_values(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "instruction", "match-a", report_target="channel:working")

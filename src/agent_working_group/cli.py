@@ -35,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--repo")
     send.add_argument("--workspace")
     send.add_argument("--body", required=True)
+    send.add_argument("--expected-response-within", type=int, help="Optional response contract: integer seconds within which a reply is expected.")
     send.add_argument("--dispatch-hooks", action="store_true", help="Run matching message.sent hooks after the message is durably enqueued.")
     send.add_argument("--hook-config", help="Path to hooks.json. Defaults to <AWG_ROOT>/hooks.json.")
 
@@ -98,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
     cleanup.add_argument("--stale-lock-min-age-sec", type=float, default=600)
 
     dispatch = sub.add_parser("dispatch-hooks")
-    dispatch.add_argument("--event", required=True, choices=("message.sent", "message.pending"))
+    dispatch.add_argument("--event", required=True, choices=("message.sent", "message.pending", "on_processing"))
     dispatch.add_argument("--as", required=True, dest="agent", help="Agent queue to inspect for matching pending messages.")
     dispatch.add_argument("--id", help="Limit dispatch to one pending message id.")
     dispatch.add_argument("--report-target", help="Only dispatch hooks for pending messages matching this report target.")
@@ -135,6 +136,7 @@ def main(argv=None) -> int:
                 report_target=args.report_target,
                 repo=args.repo,
                 workspace=args.workspace,
+                expected_response_within=args.expected_response_within,
             )
             print(message_id)
             if args.dispatch_hooks:
@@ -215,7 +217,10 @@ def main(argv=None) -> int:
             ))
             return 0
         if args.command == "dispatch-hooks":
-            messages = queue.peek(args.agent, args.report_target)
+            if args.event == "on_processing":
+                messages = queue.processing(args.agent)
+            else:
+                messages = queue.peek(args.agent, args.report_target)
             if args.id:
                 messages = [message for message in messages if message.get("id") == args.id]
             results = []
