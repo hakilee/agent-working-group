@@ -2,16 +2,75 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from .hooks import dispatch_hooks, results_to_dicts
-from .queue import MessageQueue, find_message_file, read_json
+from .queue import MessageQueue, default_root, find_message_file, read_json
+from .timeout import DEFAULT_PROCESSING_TIMEOUT_SEC, TimeoutChecker
 
 
 def print_json(data) -> None:
     print(json.dumps(data, ensure_ascii=False, indent=2))
+
+
+def _scan_heartbeats(root: Path, timeout_seconds: int) -> list[dict]:
+    alerts: list[dict] = []
+    heartbeats_dir = root / "heartbeats"
+    queues_dir = root / "queues"
+    now = int(time.time())
+
+    if heartbeats_dir.is_dir():
+        for agent_dir in sorted(heartbeats_dir.iterdir()):
+            if not agent_dir.is_dir():
+                continue
+            for ts_file in sorted(agent_dir.glob("*.ts")):
+                if not ts_file.is_file():
+                    continue
+                session = ts_file.stem
+                try:
+                    raw = ts_file.read_text(encoding="utf-8").strip().splitlines()[0].strip()
+                except (OSError, IndexError):
+                    raw = ""
+                if not raw.isdigit():
+                    alerts.append({
+                        "type": "heartbeat.stale",
+                        "agent": agent_dir.name,
+                        "session": session,
+                        "age_seconds": 0,
+                        "timeout_seconds": int(timeout_seconds),
+                    })
+                    continue
+                age = now - int(raw)
+                if age > timeout_seconds:
+                    alerts.append({
+                        "type": "heartbeat.stale",
+                        "agent": agent_dir.name,
+                        "session": session,
+                        "age_seconds": int(age),
+                        "timeout_seconds": int(timeout_seconds),
+                    })
+
+    if queues_dir.is_dir():
+        for agent_dir in sorted(queues_dir.iterdir()):
+            if not agent_dir.is_dir():
+                continue
+            processing = agent_dir / "processing"
+            if not processing.is_dir():
+                continue
+            if not any(processing.glob("*.json")):
+                continue
+            agent_heartbeat_dir = heartbeats_dir / agent_dir.name
+            if not agent_heartbeat_dir.is_dir() or not any(agent_heartbeat_dir.glob("*.ts")):
+                alerts.append({
+                    "type": "heartbeat.missing",
+                    "agent": agent_dir.name,
+                    "session": "",
+                })
+    return alerts
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -110,6 +169,34 @@ def build_parser() -> argparse.ArgumentParser:
     log.add_argument("--follow", action="store_true")
     log.add_argument("--local", action="store_true")
     log.add_argument("--tz", default="UTC")
+
+    heartbeat_write = sub.add_parser(
+        "worker-heartbeat-write",
+        help="Refresh $AWG_ROOT/heartbeats/{agent}/{session}.ts with the current epoch seconds.",
+    )
+    heartbeat_write.add_argument("--agent", help="Agent role. Defaults to $AWG_AGENT or $WORKER.")
+    heartbeat_write.add_argument("--session", help="Session id. Defaults to $AWG_SESSION.")
+
+    heartbeat_mon = sub.add_parser(
+        "heartbeat-monitor",
+        help="Read-only scan of $AWG_ROOT/heartbeats/ for stale or missing worker heartbeats.",
+    )
+    heartbeat_mon.add_argument("--timeout-seconds", type=int, help="Stale-heartbeat threshold. Defaults to $WORKER_HEARTBEAT_TIMEOUT or 300.")
+
+    processing_mon = sub.add_parser(
+        "processing-timeout-monitor",
+        help="Read-only TimeoutChecker scan for stale processing/ items.",
+    )
+    processing_mon.add_argument("--timeout-seconds", type=int, help=f"Processing timeout. Default {DEFAULT_PROCESSING_TIMEOUT_SEC}.")
+    processing_mon.add_argument("--notify-channel", help="Optional notify channel id; emits payload when set.")
+    processing_mon.add_argument("--notify-target", help="Optional notify target/handle attached to payload.")
+
+    response_mon = sub.add_parser(
+        "response-contract-monitor",
+        help="Read-only TimeoutChecker scan for expectedResponseWithin breaches.",
+    )
+    response_mon  # used by argparse only
+
     return parser
 
 
@@ -248,6 +335,59 @@ def main(argv=None) -> int:
             for line in queue.log_lines("local" if args.local else args.tz):
                 print(line)
             return 0
+        if args.command == "worker-heartbeat-write":
+            agent = args.agent or os.environ.get("AWG_AGENT") or os.environ.get("WORKER") or ""
+            session = args.session or os.environ.get("AWG_SESSION") or ""
+            if not agent:
+                print("agent must be provided via --agent, $AWG_AGENT, or $WORKER", file=sys.stderr)
+                return 1
+            if not session:
+                print("session must be provided via --session or $AWG_SESSION", file=sys.stderr)
+                return 1
+            heartbeat_dir = queue.root / "heartbeats" / agent
+            heartbeat_dir.mkdir(parents=True, exist_ok=True)
+            heartbeat_path = heartbeat_dir / f"{session}.ts"
+            now = int(time.time())
+            tmp_path = heartbeat_path.with_suffix(f".ts.{os.getpid()}.tmp")
+            tmp_path.write_text(f"{now}\n", encoding="utf-8")
+            os.replace(tmp_path, heartbeat_path)
+            print(str(heartbeat_path))
+            return 0
+        if args.command == "heartbeat-monitor":
+            timeout = args.timeout_seconds
+            if timeout is None:
+                timeout = int(os.environ.get("WORKER_HEARTBEAT_TIMEOUT") or 300)
+            alerts = _scan_heartbeats(queue.root, timeout)
+            for alert in alerts:
+                print(json.dumps(alert, ensure_ascii=False))
+            return 1 if alerts else 0
+        if args.command == "processing-timeout-monitor":
+            timeout = args.timeout_seconds
+            if timeout is None:
+                timeout = int(os.environ.get("AWG_PROCESSING_TIMEOUT") or DEFAULT_PROCESSING_TIMEOUT_SEC)
+            checker = TimeoutChecker(queue.root)
+            stale = checker.stale_processing(timeout_seconds=timeout)
+            for item in stale:
+                print(json.dumps({"type": "processing.timeout", **item.to_dict()}, ensure_ascii=False))
+            notify_channel = args.notify_channel or os.environ.get("AWG_NOTIFY_CHANNEL") or ""
+            notify_target = args.notify_target or os.environ.get("AWG_NOTIFY_TARGET") or ""
+            if stale and notify_channel:
+                payload = {
+                    "type": "processing.timeout.notification",
+                    "channel": notify_channel,
+                    "target": notify_target,
+                    "eventType": "awg.processing.timeout.v1",
+                    "alertCount": len(stale),
+                    "alerts": [item.to_dict() for item in stale],
+                }
+                print(json.dumps(payload, ensure_ascii=False))
+            return 1 if stale else 0
+        if args.command == "response-contract-monitor":
+            checker = TimeoutChecker(queue.root)
+            breaches = checker.response_contract_breaches()
+            for breach in breaches:
+                print(json.dumps({"type": "response.contract.breach", **breach.to_dict()}, ensure_ascii=False))
+            return 1 if breaches else 0
     except Exception as exc:
         print(str(exc), file=sys.stderr)
         return 1

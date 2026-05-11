@@ -264,13 +264,16 @@ Watch worker liveness while a message is being processed:
 
 Heartbeat contract:
 
-- Workers periodically refresh `$AWG_ROOT/heartbeats/{agent}/{session}.ts`.
+- Workers periodically refresh `$AWG_ROOT/heartbeats/{agent}/{session}.ts`
+  by calling `scripts/awg-worker-heartbeat-write.sh` (equivalently, the
+  `awg worker-heartbeat-write` subcommand). That script is the only
+  writer to `$AWG_ROOT/heartbeats/`; observer scripts never touch it.
+- Workers should refresh every `WORKER_HEARTBEAT_INTERVAL` seconds
+  (operator-chosen; a common value is 60s).
 - The file content is a single epoch-seconds integer.
-- The hook script `awg-hook-worker-heartbeat.sh` reads the timestamp and
-  compares it against `WORKER_HEARTBEAT_TIMEOUT` (default 300s).
-- If the freshest heartbeat exceeds the timeout, a `WARNING` line is
-  written to stdout. If the heartbeat file is missing entirely, a
-  `CRITICAL` line is written.
+- Observers (`awg-hook-worker-heartbeat.sh`, `awg-heartbeat-monitor.sh`,
+  `awg heartbeat-monitor`) compare the timestamp against
+  `WORKER_HEARTBEAT_TIMEOUT` (default 300s).
 - The hook is observer-only: it never writes, deletes, or moves anything
   under `$AWG_ROOT/heartbeats/` or in the queue.
 
@@ -278,6 +281,13 @@ Dispatch from the worker after it moves an item into processing:
 
 ```bash
 awg dispatch-hooks --event on_processing --as worker
+```
+
+From inside the worker loop, refresh the heartbeat as work proceeds:
+
+```bash
+AWG_AGENT=worker AWG_SESSION="${TMUX_SESSION:-$$}" \
+  scripts/awg-worker-heartbeat-write.sh
 ```
 
 ## Response Contracts
@@ -300,3 +310,56 @@ Two read-only audit scripts cover liveness gaps:
 
 Both scripts are observer-only (no queue mutation) and are safe to run
 from cron, a dispatcher loop, or a dashboard.
+
+Set `expectedResponseWithin` at send time:
+
+```bash
+awg send --from lead --to worker --kind instruction \
+  --body "..." --expected-response-within 600
+```
+
+## Liveness Runtime Monitors
+
+The audit scripts above have runtime-monitor companions that share their
+`TimeoutChecker` logic with the Python library, emit one JSON object per
+alert on stdout, and are wired into the `awg` CLI:
+
+- `scripts/awg-heartbeat-monitor.sh` / `awg heartbeat-monitor` —
+  Scans `$AWG_ROOT/heartbeats/` and reports:
+  - `{"type":"heartbeat.stale", "agent": ..., "session": ..., "age_seconds": ..., "timeout_seconds": ...}`
+    when a heartbeat file is older than `WORKER_HEARTBEAT_TIMEOUT`
+    (default 300).
+  - `{"type":"heartbeat.missing", "agent": ..., "session": ""}` when an
+    agent has at least one item in `processing/` but no heartbeat file
+    on disk.
+  - Exits 1 if any alert is emitted, 0 otherwise.
+- `scripts/awg-processing-timeout-monitor.sh` /
+  `awg processing-timeout-monitor` —
+  Uses `TimeoutChecker.stale_processing()` and emits one
+  `{"type":"processing.timeout", ...}` line per stale item. When the
+  optional env vars `AWG_NOTIFY_CHANNEL` and `AWG_NOTIFY_TARGET` (or the
+  `--notify-channel` / `--notify-target` CLI flags) are set, it also
+  emits a single `{"type":"processing.timeout.notification", ...}`
+  payload suitable for an operator-owned downstream delivery wrapper.
+  Exits 1 if any item is stale.
+- `scripts/awg-response-contract-monitor.sh` /
+  `awg response-contract-monitor` —
+  Uses `TimeoutChecker.response_contract_breaches()` and emits one
+  `{"type":"response.contract.breach", ...}` line per breached
+  `expectedResponseWithin` contract. Exits 1 if any breach is detected.
+
+All three monitors are observer-only and safe to run from cron, a
+dispatcher loop, or a dashboard. Recommended cron cadences:
+
+```cron
+*/1  * * * *  scripts/awg-heartbeat-monitor.sh           >> $AWG_LOG_DIR/heartbeat-monitor.jsonl 2>&1
+*/5  * * * *  scripts/awg-processing-timeout-monitor.sh  >> $AWG_LOG_DIR/processing-timeout.jsonl 2>&1
+*/5  * * * *  scripts/awg-response-contract-monitor.sh   >> $AWG_LOG_DIR/response-contract.jsonl 2>&1
+```
+
+Workers refresh their heartbeats through the single writer entrypoint:
+
+```bash
+AWG_AGENT=worker AWG_SESSION=$(tmux display -p '#S' 2>/dev/null || echo $$) \
+  scripts/awg-worker-heartbeat-write.sh
+```
