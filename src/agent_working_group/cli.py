@@ -6,7 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .queue import MessageQueue
+from .hooks import dispatch_hooks, results_to_dicts
+from .queue import MessageQueue, find_message_file, read_json
 
 
 def print_json(data) -> None:
@@ -34,6 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--repo")
     send.add_argument("--workspace")
     send.add_argument("--body", required=True)
+    send.add_argument("--dispatch-hooks", action="store_true", help="Run matching message.sent hooks after the message is durably enqueued.")
+    send.add_argument("--hook-config", help="Path to hooks.json. Defaults to <AWG_ROOT>/hooks.json.")
 
     recv = sub.add_parser("recv")
     recv.add_argument("--as", required=True, dest="agent")
@@ -94,6 +97,14 @@ def build_parser() -> argparse.ArgumentParser:
     cleanup.add_argument("--temp-file-min-age-sec", type=float, default=3600)
     cleanup.add_argument("--stale-lock-min-age-sec", type=float, default=600)
 
+    dispatch = sub.add_parser("dispatch-hooks")
+    dispatch.add_argument("--event", required=True, choices=("message.sent", "message.pending"))
+    dispatch.add_argument("--as", required=True, dest="agent", help="Agent queue to inspect for matching pending messages.")
+    dispatch.add_argument("--id", help="Limit dispatch to one pending message id.")
+    dispatch.add_argument("--report-target", help="Only dispatch hooks for pending messages matching this report target.")
+    dispatch.add_argument("--hook-config", help="Path to hooks.json. Defaults to <AWG_ROOT>/hooks.json.")
+    dispatch.add_argument("--dry-run", action="store_true")
+
     log = sub.add_parser("log")
     log.add_argument("--follow", action="store_true")
     log.add_argument("--local", action="store_true")
@@ -111,7 +122,7 @@ def main(argv=None) -> int:
             queue.initialize(args.agent)
             return 0
         if args.command == "send":
-            print(queue.send(
+            message_id = queue.send(
                 args.sender,
                 args.recipient,
                 args.kind,
@@ -124,7 +135,21 @@ def main(argv=None) -> int:
                 report_target=args.report_target,
                 repo=args.repo,
                 workspace=args.workspace,
-            ))
+            )
+            print(message_id)
+            if args.dispatch_hooks:
+                path = find_message_file(queue.paths(args.recipient).inbox, message_id)
+                if not path:
+                    raise FileNotFoundError(f"message not in inbox after send: {message_id}")
+                results = dispatch_hooks(
+                    root=queue.root,
+                    config_path=Path(args.hook_config).expanduser() if args.hook_config else None,
+                    event="message.sent",
+                    message=read_json(path),
+                )
+                print_json({"messageId": message_id, "hooks": results_to_dicts(results)})
+                if any(result.status in {"failed", "timeout", "invalid"} for result in results):
+                    return 1
             return 0
         if args.command == "recv":
             message = queue.receive(args.agent, args.timeout, args.require_ack, args.report_target)
@@ -188,6 +213,26 @@ def main(argv=None) -> int:
                 args.temp_file_min_age_sec,
                 args.stale_lock_min_age_sec,
             ))
+            return 0
+        if args.command == "dispatch-hooks":
+            messages = queue.peek(args.agent, args.report_target)
+            if args.id:
+                messages = [message for message in messages if message.get("id") == args.id]
+            results = []
+            for message in messages:
+                results.append({
+                    "messageId": message.get("id"),
+                    "hooks": results_to_dicts(dispatch_hooks(
+                        root=queue.root,
+                        config_path=Path(args.hook_config).expanduser() if args.hook_config else None,
+                        event=args.event,
+                        message=message,
+                        dry_run=args.dry_run,
+                    )),
+                })
+            print_json({"event": args.event, "agent": args.agent, "messages": results})
+            if any(hook.get("status") in {"failed", "timeout", "invalid"} for item in results for hook in item["hooks"]):
+                return 1
             return 0
         if args.command == "log":
             if args.follow:

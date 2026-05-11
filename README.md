@@ -15,6 +15,7 @@ The package is designed around a practical working pattern: a lead decomposes wo
 - **No daemon required:** the CLI can be run manually, by agents, or from cron/watchdog jobs.
 - **Safe scheduling:** observers can inspect and recover queues without consuming work.
 - **Queue reconciliation policy:** old inbox items require evidence before any future reconciliation action.
+- **Explicit queue hooks:** local argv-list adapters can be dispatched around sent or pending messages without becoming queue authority.
 
 ## Installation
 
@@ -82,6 +83,7 @@ For the full Python surface, see [Python API Reference](docs/api.md).
 ```bash
 awg init --agent leader --agent worker
 awg send --from=leader --to=worker --kind=instruction --body="Do one clear task."
+awg send --from=leader --to=worker --kind=instruction --body="Notify then inspect." --dispatch-hooks
 awg recv --as=worker --timeout=120 --require-ack
 awg ack --as=worker --id=<message-id>
 awg ack-pending --as=worker --id=<message-id> --expect-kind=instruction
@@ -94,6 +96,7 @@ awg processing --as=worker --limit=5
 awg processed --as=worker --limit=5 --tz=Asia/Seoul
 awg dead --as=worker --limit=5
 awg status --as=worker --tz=Asia/Seoul
+awg dispatch-hooks --event message.pending --as=worker --dry-run
 awg prune --as=worker --processed-keep=100 --include-processing --processing-keep=20 --log-keep-lines=1000 --dry-run
 awg cleanup-artifacts --dry-run
 scripts/awg-queue-reconciliation-report.sh --role worker
@@ -203,6 +206,8 @@ For repository-first commit message and pull request title rules with Convention
 For cron, timer, and watchdog patterns, see [Safe Scheduling](docs/safe-scheduling.md). Scheduled observers should not call `recv` unless a real processor is attached. For old inbox messages that may be superseded, see [Queue Inbox Reconciliation](docs/queue-reconciliation.md) and the read-only reconciliation report helper.
 
 For pending queue notifications, see [Queue Notifier](docs/queue-notifier.md), [Queue Notifier Adapters](docs/queue-notifier-adapters.md), [Runtime-Neutral Notifier Contract](docs/runtime-neutral-notifier-contract.md), and [Queue Notifier Scheduler Sample](docs/queue-notifier-scheduler-sample.md). Repository notifier helpers are channel-agnostic wake-up bridges: they emit `awg.notifier.pending.v1` provider-neutral payloads and do not consume, execute, or send work. Site-local send-time wrappers may enqueue first and then deliver externally only after the operator configures secrets, destinations, delivery verification, and rollback outside the repository.
+
+For explicit local hook dispatch, see [Queue Hooks](docs/hooks.md). Hooks are opt-in per CLI invocation, use argv-list commands instead of shell strings, receive message payloads as JSON data, block recursion by default, and never turn notification or observer code into queue authority.
 
 For a read-only pre-work or close-readiness snapshot, use [Operator Baseline Doctor](docs/operator-baseline-doctor.md). It reports local Git status, optional GitHub counts, role queue status, and active artifact counts without mutating queues, repositories, artifacts, schedulers, or providers.
 
