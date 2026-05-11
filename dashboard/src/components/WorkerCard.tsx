@@ -1,4 +1,14 @@
+import {
+  HStack,
+  ListContent,
+  ListDetail,
+  ListItem,
+  ListSuffix,
+  ListTitle,
+  Text,
+} from '@seed-design/react';
 import type { WorkerSession } from '../api/client';
+import StatusBadge from './StatusBadge';
 import { useFlow } from '../stackflow';
 
 function formatUptime(seconds: number | null): string {
@@ -14,32 +24,42 @@ function formatUptime(seconds: number | null): string {
 export default function WorkerCard({ worker }: { worker: WorkerSession }) {
   const flow = useFlow();
   return (
-    <button
-      type="button"
-      className="worker-card"
-      onClick={() => flow.push('WorkerTerminal', { session: worker.session })}
-    >
-      <div className="row-between">
-        <div className="row">
-          <span
-            className={`worker-dot ${worker.attached ? 'worker-dot--on' : 'worker-dot--off'}`}
-          />
-          <span className="font-mono">{worker.session}</span>
-        </div>
-        <span className="dim" style={{ fontSize: 11 }}>
-          {worker.status}
-        </span>
-      </div>
-      <div className="kv-grid" style={{ marginTop: 12 }}>
-        <div>
-          <div className="dim">uptime</div>
-          <div style={{ color: 'var(--app-fg)' }}>{formatUptime(worker.uptimeSeconds)}</div>
-        </div>
-        <div>
-          <div className="dim">windows</div>
-          <div style={{ color: 'var(--app-fg)' }}>{worker.windows}</div>
-        </div>
-      </div>
-    </button>
+    <ListItem asChild highlighted={worker.attached}>
+      <button
+        type="button"
+        onClick={() => flow.push('WorkerTerminal', { session: worker.session })}
+        style={{
+          width: '100%',
+          textAlign: 'left',
+          cursor: 'pointer',
+          background: 'transparent',
+          border: 0,
+        }}
+      >
+        <ListContent>
+        <ListTitle>
+          <Text textStyle="t5Bold" className="awg-mono">
+            {worker.session}
+          </Text>
+        </ListTitle>
+        <ListDetail>
+          <HStack gap="12px" wrap="wrap">
+            <Text textStyle="t7Regular" color="fg.neutralMuted">
+              uptime {formatUptime(worker.uptimeSeconds)}
+            </Text>
+            <Text textStyle="t7Regular" color="fg.neutralMuted">
+              windows {worker.windows}
+            </Text>
+            <Text textStyle="t7Regular" color="fg.neutralMuted">
+              {worker.status}
+            </Text>
+          </HStack>
+        </ListDetail>
+      </ListContent>
+        <ListSuffix>
+          <StatusBadge status={worker.attached ? 'fresh' : 'pending'} />
+        </ListSuffix>
+      </button>
+    </ListItem>
   );
 }

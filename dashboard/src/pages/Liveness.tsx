@@ -2,6 +2,23 @@ import { useEffect, useState } from 'react';
 import { AppScreen } from '@stackflow/plugin-basic-ui';
 import type { ActivityComponentType } from '@stackflow/react';
 import {
+  Box,
+  CalloutContent,
+  CalloutDescription,
+  CalloutRoot,
+  CalloutTitle,
+  HStack,
+  ListContent,
+  ListDetail,
+  ListItem,
+  ListRoot,
+  ListSuffix,
+  ListTitle,
+  Skeleton,
+  Text,
+  VStack,
+} from '@seed-design/react';
+import {
   api,
   type ContractBreach,
   type HeartbeatEntry,
@@ -36,8 +53,38 @@ function applyHeartbeats(prev: Snapshot, hb: HeartbeatList): Snapshot {
   };
 }
 
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <Text
+      as="h2"
+      textStyle="t5Bold"
+      color="fg.neutralMuted"
+      style={{ marginBottom: 8, display: 'block' }}
+    >
+      {children}
+    </Text>
+  );
+}
+
+function EmptyHint({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      padding="24px"
+      borderRadius="r3"
+      borderWidth={1}
+      borderColor="stroke.neutralMuted"
+      style={{ textAlign: 'center' }}
+    >
+      <Text textStyle="t6Regular" color="fg.neutralMuted">
+        {children}
+      </Text>
+    </Box>
+  );
+}
+
 const Liveness: ActivityComponentType = () => {
   const [snap, setSnap] = useState<Snapshot>(EMPTY);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const stream = useLivenessStream();
 
@@ -59,7 +106,8 @@ const Liveness: ActivityComponentType = () => {
           });
           setError(null);
         })
-        .catch((err) => !cancelled && setError(String(err)));
+        .catch((err) => !cancelled && setError(String(err)))
+        .finally(() => !cancelled && setLoading(false));
     };
     load();
     const id = window.setInterval(load, POLL_INTERVAL_MS);
@@ -82,153 +130,164 @@ const Liveness: ActivityComponentType = () => {
 
   return (
     <AppScreen appBar={{ title: 'Liveness' }}>
-      <div className="app-screen">
-        <div className="stack-lg">
-          <div className="row-between">
-            <h1 className="h1">Liveness</h1>
-            <div className="dim" style={{ fontSize: 11 }}>
-              fresh {snap.heartbeatCounts.fresh ?? 0} · stale{' '}
-              {snap.heartbeatCounts.stale ?? 0} · missing{' '}
-              {snap.heartbeatCounts.missing ?? 0}
-            </div>
-          </div>
+      <Box padding="16px" paddingBottom="96px" style={{ minHeight: '100%' }}>
+        <VStack gap="24px">
+          <HStack justify="space-between" wrap="wrap" style={{ alignItems: 'baseline' }}>
+            <Text as="h1" textStyle="screenTitle">
+              Liveness
+            </Text>
+            <HStack gap="6px" wrap="wrap">
+              <StatusBadge status="fresh" />
+              <Text textStyle="t7Regular" color="fg.neutralMuted">
+                {snap.heartbeatCounts.fresh ?? 0}
+              </Text>
+              <StatusBadge status="stale" />
+              <Text textStyle="t7Regular" color="fg.neutralMuted">
+                {snap.heartbeatCounts.stale ?? 0}
+              </Text>
+              <StatusBadge status="missing" />
+              <Text textStyle="t7Regular" color="fg.neutralMuted">
+                {snap.heartbeatCounts.missing ?? 0}
+              </Text>
+            </HStack>
+          </HStack>
 
-          {error && <div className="alert-error">{error}</div>}
+          {error && (
+            <CalloutRoot tone="critical">
+              <CalloutContent>
+                <CalloutTitle>Failed to load liveness</CalloutTitle>
+                <CalloutDescription>{error}</CalloutDescription>
+              </CalloutContent>
+            </CalloutRoot>
+          )}
+
+          {loading && !error && (
+            <VStack gap="8px">
+              <Skeleton height="56px" radius="8" />
+              <Skeleton height="56px" radius="8" />
+            </VStack>
+          )}
 
           <section>
-            <h2 className="section-title">Heartbeats</h2>
-            <div className="data-table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>status</th>
-                    <th>agent</th>
-                    <th>session</th>
-                    <th>age</th>
-                    <th>timeout</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {snap.heartbeats.length === 0 && (
-                    <tr className="empty-row">
-                      <td colSpan={5}>no heartbeats reported</td>
-                    </tr>
-                  )}
-                  {snap.heartbeats.map((hb) => (
-                    <tr key={`${hb.agent}/${hb.session || '_'}`}>
-                      <td>
-                        <StatusBadge status={hb.status} />
-                      </td>
-                      <td className="font-mono" style={{ color: 'var(--app-fg)', fontSize: 11 }}>
-                        {hb.agent}
-                      </td>
-                      <td className="font-mono muted" style={{ fontSize: 11 }}>
-                        {hb.session || '—'}
-                      </td>
-                      <td className="font-mono muted" style={{ fontSize: 11 }}>
-                        {hb.ageSeconds == null ? '—' : `${hb.ageSeconds}s`}
-                      </td>
-                      <td className="font-mono dim" style={{ fontSize: 11 }}>
-                        {hb.timeoutSeconds}s
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <SectionTitle>Heartbeats</SectionTitle>
+            {snap.heartbeats.length === 0 ? (
+              <EmptyHint>no heartbeats reported</EmptyHint>
+            ) : (
+              <ListRoot>
+                {snap.heartbeats.map((hb) => (
+                  <ListItem key={`${hb.agent}/${hb.session || '_'}`}>
+                    <ListContent>
+                      <ListTitle>
+                        <Text textStyle="t6Bold" className="awg-mono">
+                          {hb.agent}
+                        </Text>
+                      </ListTitle>
+                      <ListDetail>
+                        <Text
+                          textStyle="t7Regular"
+                          color="fg.neutralMuted"
+                          className="awg-mono"
+                        >
+                          {hb.session || '—'} · age{' '}
+                          {hb.ageSeconds == null ? '—' : `${hb.ageSeconds}s`} ·
+                          timeout {hb.timeoutSeconds}s
+                        </Text>
+                      </ListDetail>
+                    </ListContent>
+                    <ListSuffix>
+                      <StatusBadge status={hb.status} />
+                    </ListSuffix>
+                  </ListItem>
+                ))}
+              </ListRoot>
+            )}
           </section>
 
           <section>
-            <h2 className="section-title">
+            <SectionTitle>
               Processing timeouts ({snap.timeouts.length})
-            </h2>
-            <div className="data-table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>agent</th>
-                    <th>message</th>
-                    <th>age</th>
-                    <th>timeout</th>
-                    <th>source</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {snap.timeouts.length === 0 && (
-                    <tr className="empty-row">
-                      <td colSpan={5}>no stale processing items</td>
-                    </tr>
-                  )}
-                  {snap.timeouts.map((row) => (
-                    <tr key={`${row.agent}/${row.file}`}>
-                      <td className="font-mono" style={{ color: 'var(--app-fg)', fontSize: 11 }}>
-                        {row.agent}
-                      </td>
-                      <td className="font-mono muted" style={{ fontSize: 11 }}>
-                        {row.messageId || row.file}
-                      </td>
-                      <td className="font-mono" style={{ color: 'var(--app-warn)', fontSize: 11 }}>
-                        {row.ageSeconds}s
-                      </td>
-                      <td className="font-mono dim" style={{ fontSize: 11 }}>
-                        {row.timeoutSeconds}s
-                      </td>
-                      <td className="font-mono dim" style={{ fontSize: 11 }}>
-                        {row.timestampSource}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            </SectionTitle>
+            {snap.timeouts.length === 0 ? (
+              <EmptyHint>no stale processing items</EmptyHint>
+            ) : (
+              <ListRoot>
+                {snap.timeouts.map((row) => (
+                  <ListItem key={`${row.agent}/${row.file}`}>
+                    <ListContent>
+                      <ListTitle>
+                        <Text textStyle="t6Bold" className="awg-mono">
+                          {row.agent}
+                        </Text>
+                      </ListTitle>
+                      <ListDetail>
+                        <Text
+                          textStyle="t7Regular"
+                          color="fg.neutralMuted"
+                          className="awg-mono"
+                        >
+                          {row.messageId || row.file}
+                        </Text>
+                        <Text
+                          as="p"
+                          textStyle="t7Regular"
+                          color="fg.warning"
+                          style={{ marginTop: 2 }}
+                          className="awg-mono"
+                        >
+                          age {row.ageSeconds}s · timeout {row.timeoutSeconds}s ·{' '}
+                          {row.timestampSource}
+                        </Text>
+                      </ListDetail>
+                    </ListContent>
+                  </ListItem>
+                ))}
+              </ListRoot>
+            )}
           </section>
 
           <section>
-            <h2 className="section-title">
+            <SectionTitle>
               Response contract breaches ({snap.contracts.length})
-            </h2>
-            <div className="data-table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>agent</th>
-                    <th>message</th>
-                    <th>location</th>
-                    <th>expected</th>
-                    <th>actual</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {snap.contracts.length === 0 && (
-                    <tr className="empty-row">
-                      <td colSpan={5}>no contract breaches</td>
-                    </tr>
-                  )}
-                  {snap.contracts.map((row) => (
-                    <tr key={`${row.agent}/${row.file}`}>
-                      <td className="font-mono" style={{ color: 'var(--app-fg)', fontSize: 11 }}>
-                        {row.agent}
-                      </td>
-                      <td className="font-mono muted" style={{ fontSize: 11 }}>
-                        {row.messageId || row.file}
-                      </td>
-                      <td className="font-mono dim" style={{ fontSize: 11 }}>
-                        {row.location}
-                      </td>
-                      <td className="font-mono dim" style={{ fontSize: 11 }}>
-                        {row.expectedSeconds}s
-                      </td>
-                      <td className="font-mono" style={{ color: 'var(--app-danger)', fontSize: 11 }}>
-                        {row.actualSeconds}s
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            </SectionTitle>
+            {snap.contracts.length === 0 ? (
+              <EmptyHint>no contract breaches</EmptyHint>
+            ) : (
+              <ListRoot>
+                {snap.contracts.map((row) => (
+                  <ListItem key={`${row.agent}/${row.file}`}>
+                    <ListContent>
+                      <ListTitle>
+                        <Text textStyle="t6Bold" className="awg-mono">
+                          {row.agent}
+                        </Text>
+                      </ListTitle>
+                      <ListDetail>
+                        <Text
+                          textStyle="t7Regular"
+                          color="fg.neutralMuted"
+                          className="awg-mono"
+                        >
+                          {row.messageId || row.file} · {row.location}
+                        </Text>
+                        <Text
+                          as="p"
+                          textStyle="t7Regular"
+                          color="fg.critical"
+                          style={{ marginTop: 2 }}
+                          className="awg-mono"
+                        >
+                          expected {row.expectedSeconds}s · actual{' '}
+                          {row.actualSeconds}s
+                        </Text>
+                      </ListDetail>
+                    </ListContent>
+                  </ListItem>
+                ))}
+              </ListRoot>
+            )}
           </section>
-        </div>
-      </div>
+        </VStack>
+      </Box>
       <BottomTabs />
     </AppScreen>
   );

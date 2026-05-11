@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
 import { AppScreen } from '@stackflow/plugin-basic-ui';
 import { useActivityParams, type ActivityComponentType } from '@stackflow/react';
+import {
+  Badge,
+  Box,
+  CalloutContent,
+  CalloutDescription,
+  CalloutRoot,
+  CalloutTitle,
+  HStack,
+  Text,
+  VStack,
+} from '@seed-design/react';
 import { api, workerSocketUrl, type WorkerSession } from '../api/client';
 import TerminalOutput from '../components/TerminalOutput';
 
@@ -79,36 +90,51 @@ const WorkerTerminal: ActivityComponentType<Params> = () => {
   }, [session]);
 
   return (
-    <AppScreen appBar={{ title: session || 'Worker', backButton: { ariaLabel: 'Back' } }}>
-      <div className="app-screen app-screen--no-pad-bottom">
-        <div className="stack-lg">
-          <div className="row-between">
-            <span className="font-mono" style={{ color: 'var(--app-fg)' }}>
+    <AppScreen
+      appBar={{ title: session || 'Worker', backButton: { ariaLabel: 'Back' } }}
+    >
+      <Box padding="16px" style={{ minHeight: '100%' }}>
+        <VStack gap="16px">
+          <HStack justify="space-between" align="center">
+            <Text textStyle="t5Bold" className="awg-mono">
               {session}
-            </span>
-            <div className="row" style={{ fontSize: 11 }}>
-              <span
-                className={`worker-dot ${connected ? 'worker-dot--on' : ''}`}
-                style={connected ? undefined : { background: '#475569' }}
-              />
-              <span className="dim">{connected ? 'streaming' : 'disconnected'}</span>
-            </div>
-          </div>
+            </Text>
+            <Badge
+              tone={connected ? 'positive' : 'neutral'}
+              variant="weak"
+              size="medium"
+            >
+              {connected ? 'streaming' : 'disconnected'}
+            </Badge>
+          </HStack>
 
           {worker && (
-            <header className="card">
-              <div className="dim" style={{ fontSize: 11 }}>
+            <Box
+              padding="12px 16px"
+              borderRadius="r3"
+              borderWidth={1}
+              borderColor="stroke.neutralMuted"
+              background="bg.layerFill"
+            >
+              <Text textStyle="t7Regular" color="fg.neutralMuted">
                 status: {worker.status} · windows: {worker.windows} · attached:{' '}
                 {worker.attached ? 'yes' : 'no'}
-              </div>
-            </header>
+              </Text>
+            </Box>
           )}
 
-          {error && <div className="alert-error">{error}</div>}
+          {error && (
+            <CalloutRoot tone="critical">
+              <CalloutContent>
+                <CalloutTitle>Worker error</CalloutTitle>
+                <CalloutDescription>{error}</CalloutDescription>
+              </CalloutContent>
+            </CalloutRoot>
+          )}
 
           <TerminalOutput text={output} />
-        </div>
-      </div>
+        </VStack>
+      </Box>
     </AppScreen>
   );
 };

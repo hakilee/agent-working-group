@@ -1,94 +1,205 @@
 import { use, Suspense, startTransition, useEffect, useState } from 'react';
 import { AppScreen } from '@stackflow/plugin-basic-ui';
 import type { ActivityComponentType } from '@stackflow/react';
+import {
+  ActionButton,
+  Box,
+  ChipLabel,
+  ChipRoot,
+  Grid,
+  HStack,
+  Skeleton,
+  Text,
+  VStack,
+} from '@seed-design/react';
 import { api, type SystemStatus } from '../api/client';
 import ActivityFeed from '../components/ActivityFeed';
 import BottomTabs from '../components/BottomTabs';
 import { useFlow } from '../stackflow';
 
-const STATE_CARDS: Array<{ key: string; label: string; tone: string }> = [
-  { key: 'pending', label: 'Pending', tone: 'tile-value--warn' },
-  { key: 'processing', label: 'Processing', tone: 'tile-value--info' },
-  { key: 'processed', label: 'Processed', tone: 'tile-value--ok' },
-  { key: 'dead', label: 'Dead', tone: 'tile-value--danger' },
+interface Tone {
+  key: string;
+  label: string;
+  color: 'fg.warning' | 'fg.informative' | 'fg.positive' | 'fg.critical';
+}
+
+const STATE_CARDS: Tone[] = [
+  { key: 'pending', label: 'Pending', color: 'fg.warning' },
+  { key: 'processing', label: 'Processing', color: 'fg.informative' },
+  { key: 'processed', label: 'Processed', color: 'fg.positive' },
+  { key: 'dead', label: 'Dead', color: 'fg.critical' },
 ];
 
-function StatusInner({ statusPromise }: { statusPromise: Promise<SystemStatus> }) {
+function StatTile({
+  label,
+  value,
+  color = 'fg.neutral',
+}: {
+  label: string;
+  value: number | string;
+  color?: string;
+}) {
+  return (
+    <Box
+      padding="16px"
+      borderRadius="r3"
+      borderWidth={1}
+      borderColor="stroke.neutralMuted"
+      background="bg.layerFill"
+    >
+      <Text as="p" textStyle="t8Bold" color="fg.neutralSubtle">
+        {label}
+      </Text>
+      <Text
+        as="p"
+        textStyle="t2Bold"
+        color={color}
+        style={{ marginTop: 4 }}
+      >
+        {value}
+      </Text>
+    </Box>
+  );
+}
+
+function HomeBody({ statusPromise }: { statusPromise: Promise<SystemStatus> }) {
   const status = use(statusPromise);
   const flow = useFlow();
+
   return (
-    <div className="stack-lg">
+    <VStack gap="24px">
       <section>
-        <div className="row-between" style={{ marginBottom: 12 }}>
-          <h1 className="h1">Overview</h1>
-          <span className="font-mono dim" style={{ fontSize: 11 }}>
+        <HStack
+          justify="space-between"
+          style={{ marginBottom: 12, alignItems: 'baseline' }}
+        >
+          <Text as="h1" textStyle="screenTitle">
+            Overview
+          </Text>
+          <Text textStyle="t8Bold" color="fg.neutralSubtle" className="awg-mono">
             {status.root}
-          </span>
-        </div>
-        <div className="tile-grid">
+          </Text>
+        </HStack>
+        <Grid columns={2} gap="12px">
           {STATE_CARDS.map((card) => (
-            <div key={card.key} className="tile">
-              <div className="tile-label">{card.label}</div>
-              <div className={`tile-value ${card.tone}`}>
-                {status.counts[card.key] ?? 0}
-              </div>
-            </div>
+            <StatTile
+              key={card.key}
+              label={card.label}
+              value={status.counts[card.key] ?? 0}
+              color={card.color}
+            />
           ))}
-        </div>
+        </Grid>
       </section>
 
-      <section className="col">
-        <div className="card">
-          <div className="tile-label">Workers</div>
-          <div className="tile-value">{status.workers.total}</div>
-          <div className="dim" style={{ fontSize: 11, marginTop: 4 }}>
+      <VStack gap="12px">
+        <Box
+          padding="16px"
+          borderRadius="r3"
+          borderWidth={1}
+          borderColor="stroke.neutralMuted"
+          background="bg.layerFill"
+        >
+          <Text as="p" textStyle="t8Bold" color="fg.neutralSubtle">
+            Workers
+          </Text>
+          <Text as="p" textStyle="t2Bold" style={{ marginTop: 4 }}>
+            {status.workers.total}
+          </Text>
+          <Text
+            as="p"
+            textStyle="t7Regular"
+            color="fg.neutralMuted"
+            style={{ marginTop: 4 }}
+          >
             {status.workers.attached} attached · tmux{' '}
             {status.workers.tmuxAvailable ? 'ok' : 'unavailable'}
-          </div>
-          <button
-            type="button"
-            className="link-inline"
-            style={{ marginTop: 10 }}
-            onClick={() => flow.replace('Workers', {}, { animate: false })}
-          >
-            view all workers →
-          </button>
-        </div>
-        <div className="card">
-          <div className="tile-label">Agents</div>
-          <div className="row" style={{ flexWrap: 'wrap', marginTop: 8 }}>
+          </Text>
+          <Box style={{ marginTop: 8 }}>
+            <ActionButton
+              variant="ghost"
+              size="small"
+              onClick={() => flow.replace('Workers', {}, { animate: false })}
+            >
+              view all workers →
+            </ActionButton>
+          </Box>
+        </Box>
+
+        <Box
+          padding="16px"
+          borderRadius="r3"
+          borderWidth={1}
+          borderColor="stroke.neutralMuted"
+          background="bg.layerFill"
+        >
+          <Text as="p" textStyle="t8Bold" color="fg.neutralSubtle">
+            Agents
+          </Text>
+          <HStack gap="6px" wrap="wrap" style={{ marginTop: 8 }}>
             {status.agents.length ? (
               status.agents.map((agent) => (
-                <span key={agent} className="chip">
-                  {agent}
-                </span>
+                <ChipRoot key={agent} variant="solid" size="small" disabled>
+                  <ChipLabel>
+                    <span className="awg-mono">{agent}</span>
+                  </ChipLabel>
+                </ChipRoot>
               ))
             ) : (
-              <span className="dim" style={{ fontSize: 11 }}>
+              <Text textStyle="t7Regular" color="fg.neutralSubtle">
                 no agents registered
-              </span>
+              </Text>
             )}
-          </div>
-        </div>
-        <div className="card">
-          <div className="tile-label">Total queue items</div>
-          <div className="tile-value">{status.totalQueueItems}</div>
-          <button
-            type="button"
-            className="link-inline"
-            style={{ marginTop: 10 }}
-            onClick={() => flow.replace('QueueList', {}, { animate: false })}
-          >
-            browse queue →
-          </button>
-        </div>
-      </section>
+          </HStack>
+        </Box>
+
+        <Box
+          padding="16px"
+          borderRadius="r3"
+          borderWidth={1}
+          borderColor="stroke.neutralMuted"
+          background="bg.layerFill"
+        >
+          <Text as="p" textStyle="t8Bold" color="fg.neutralSubtle">
+            Total queue items
+          </Text>
+          <Text as="p" textStyle="t2Bold" style={{ marginTop: 4 }}>
+            {status.totalQueueItems}
+          </Text>
+          <Box style={{ marginTop: 8 }}>
+            <ActionButton
+              variant="ghost"
+              size="small"
+              onClick={() => flow.replace('QueueList', {}, { animate: false })}
+            >
+              browse queue →
+            </ActionButton>
+          </Box>
+        </Box>
+      </VStack>
 
       <section>
-        <h2 className="section-title">Recent activity</h2>
+        <Text
+          as="h2"
+          textStyle="t5Bold"
+          color="fg.neutralMuted"
+          style={{ marginBottom: 8, display: 'block' }}
+        >
+          Recent activity
+        </Text>
         <ActivityFeed entries={status.recentActivity} />
       </section>
-    </div>
+    </VStack>
+  );
+}
+
+function HomeFallback() {
+  return (
+    <VStack gap="12px">
+      <Skeleton height="28px" width="200px" radius="8" />
+      <Skeleton height="80px" radius="8" />
+      <Skeleton height="80px" radius="8" />
+    </VStack>
   );
 }
 
@@ -104,11 +215,11 @@ const Home: ActivityComponentType = () => {
 
   return (
     <AppScreen appBar={{ title: 'AWG' }}>
-      <div className="app-screen">
-        <Suspense fallback={<div className="muted">loading overview…</div>}>
-          <StatusInner statusPromise={promise} />
+      <Box padding="16px" paddingBottom="96px" style={{ minHeight: '100%' }}>
+        <Suspense fallback={<HomeFallback />}>
+          <HomeBody statusPromise={promise} />
         </Suspense>
-      </div>
+      </Box>
       <BottomTabs />
     </AppScreen>
   );

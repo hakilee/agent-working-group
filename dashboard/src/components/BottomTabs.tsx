@@ -1,47 +1,48 @@
-import { useFlow, type TabActivity } from '../stackflow';
+import { TabsList, TabsRoot, TabsTrigger } from '@seed-design/react';
 import { useActivity } from '@stackflow/react';
+import { useFlow, type TabActivity } from '../stackflow';
 
-interface Tab {
-  key: TabActivity;
-  label: string;
-  icon: string;
-}
-
-const TABS: Tab[] = [
-  { key: 'Home', label: 'Overview', icon: '◎' },
-  { key: 'QueueList', label: 'Queue', icon: '⊞' },
-  { key: 'Workers', label: 'Workers', icon: '⌘' },
-  { key: 'Liveness', label: 'Liveness', icon: '♡' },
+const TABS: { value: TabActivity; label: string }[] = [
+  { value: 'Home', label: 'Overview' },
+  { value: 'QueueList', label: 'Queue' },
+  { value: 'Workers', label: 'Workers' },
+  { value: 'Liveness', label: 'Liveness' },
 ];
+
+const TAB_VALUES = TABS.map((t) => t.value);
 
 export default function BottomTabs() {
   const flow = useFlow();
-  const current = useActivity().name as string;
-
-  const handleSelect = (key: TabActivity) => {
-    if (key === current) return;
-    flow.replace(key, {}, { animate: false });
-  };
+  const current = useActivity().name as TabActivity;
+  const active = TAB_VALUES.includes(current) ? current : 'Home';
 
   return (
-    <nav className="bottom-tabs" aria-label="Primary">
-      {TABS.map((tab) => {
-        const active = tab.key === current;
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            className="bottom-tab"
-            aria-current={active ? 'page' : undefined}
-            onClick={() => handleSelect(tab.key)}
-          >
-            <span className="bottom-tab-icon" aria-hidden>
-              {tab.icon}
-            </span>
-            <span>{tab.label}</span>
-          </button>
-        );
-      })}
-    </nav>
+    <TabsRoot
+      triggerLayout="fill"
+      size="medium"
+      value={active}
+      onValueChange={(value) => {
+        if (value === current) return;
+        flow.replace(value as TabActivity, {}, { animate: false });
+      }}
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        background: 'var(--seed-color-bg-layer-default)',
+        borderTop: '1px solid var(--seed-color-stroke-neutral-muted)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}
+    >
+      <TabsList>
+        {TABS.map((tab) => (
+          <TabsTrigger key={tab.value} value={tab.value}>
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </TabsRoot>
   );
 }

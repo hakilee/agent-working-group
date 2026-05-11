@@ -1,4 +1,13 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import {
+  ActionButton,
+  Box,
+  CalloutContent,
+  CalloutDescription,
+  CalloutRoot,
+  CalloutTitle,
+  VStack,
+} from '@seed-design/react';
 
 interface Props {
   children: ReactNode;
@@ -28,13 +37,21 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
     if (this.props.fallback) return this.props.fallback(error, this.reset);
     return (
-      <div className="eb-wrap">
-        <div className="eb-title">Something went wrong</div>
-        <pre className="eb-trace">{error.message || String(error)}</pre>
-        <button type="button" onClick={this.reset} className="eb-retry">
-          retry
-        </button>
-      </div>
+      <Box padding="24px" maxWidth="640px" style={{ margin: '32px auto' }}>
+        <VStack gap="12px">
+          <CalloutRoot tone="critical">
+            <CalloutContent>
+              <CalloutTitle>Something went wrong</CalloutTitle>
+              <CalloutDescription>
+                {error.message || String(error)}
+              </CalloutDescription>
+            </CalloutContent>
+          </CalloutRoot>
+          <ActionButton variant="criticalSolid" size="small" onClick={this.reset}>
+            Retry
+          </ActionButton>
+        </VStack>
+      </Box>
     );
   }
 }

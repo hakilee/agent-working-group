@@ -15,7 +15,7 @@ export default function TerminalOutput({ text, autoScroll = true }: Props) {
   }, [text, autoScroll]);
 
   return (
-    <pre ref={ref} className="terminal">
+    <pre ref={ref} className="awg-terminal">
       {text || '(no output yet)'}
     </pre>
   );

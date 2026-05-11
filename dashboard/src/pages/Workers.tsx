@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
 import { AppScreen } from '@stackflow/plugin-basic-ui';
 import type { ActivityComponentType } from '@stackflow/react';
+import {
+  Box,
+  CalloutContent,
+  CalloutDescription,
+  CalloutRoot,
+  CalloutTitle,
+  HStack,
+  ListRoot,
+  Skeleton,
+  Text,
+  VStack,
+} from '@seed-design/react';
 import { api, type WorkerSession } from '../api/client';
 import WorkerCard from '../components/WorkerCard';
 import BottomTabs from '../components/BottomTabs';
@@ -35,32 +47,54 @@ const Workers: ActivityComponentType = () => {
 
   return (
     <AppScreen appBar={{ title: 'Workers' }}>
-      <div className="app-screen">
-        <div className="stack-lg">
-          <div className="row-between">
-            <h1 className="h1">Workers</h1>
-            <span className="dim" style={{ fontSize: 11 }}>
+      <Box padding="16px" paddingBottom="96px" style={{ minHeight: '100%' }}>
+        <VStack gap="20px">
+          <HStack justify="space-between" style={{ alignItems: 'baseline' }}>
+            <Text as="h1" textStyle="screenTitle">
+              Workers
+            </Text>
+            <Text textStyle="t8Bold" color="fg.neutralSubtle">
               tmux: {tmuxAvailable ? 'available' : 'not detected'}
-            </span>
-          </div>
+            </Text>
+          </HStack>
 
-          {error && <div className="alert-error">{error}</div>}
+          {error && (
+            <CalloutRoot tone="critical">
+              <CalloutContent>
+                <CalloutTitle>Failed to load workers</CalloutTitle>
+                <CalloutDescription>{error}</CalloutDescription>
+              </CalloutContent>
+            </CalloutRoot>
+          )}
 
           {loading ? (
-            <div className="muted">loading…</div>
+            <VStack gap="8px">
+              <Skeleton height="64px" radius="8" />
+              <Skeleton height="64px" radius="8" />
+              <Skeleton height="64px" radius="8" />
+            </VStack>
           ) : workers.length === 0 ? (
-            <div className="card-dashed">
-              No tmux sessions matching <code className="font-mono">awg-*</code>.
-            </div>
+            <Box
+              padding="32px"
+              borderRadius="r3"
+              borderWidth={1}
+              borderColor="stroke.neutralMuted"
+              style={{ textAlign: 'center' }}
+            >
+              <Text textStyle="t6Regular" color="fg.neutralMuted">
+                No tmux sessions matching{' '}
+                <span className="awg-mono">awg-*</span>.
+              </Text>
+            </Box>
           ) : (
-            <div className="worker-grid">
+            <ListRoot as="div">
               {workers.map((worker) => (
                 <WorkerCard key={worker.session} worker={worker} />
               ))}
-            </div>
+            </ListRoot>
           )}
-        </div>
-      </div>
+        </VStack>
+      </Box>
       <BottomTabs />
     </AppScreen>
   );

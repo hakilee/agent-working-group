@@ -1,11 +1,46 @@
 import { useEffect, useState } from 'react';
 import { AppScreen } from '@stackflow/plugin-basic-ui';
 import { useActivityParams, type ActivityComponentType } from '@stackflow/react';
+import {
+  Box,
+  CalloutContent,
+  CalloutDescription,
+  CalloutRoot,
+  CalloutTitle,
+  HStack,
+  ListContent,
+  ListDetail,
+  ListItem,
+  ListRoot,
+  ListTitle,
+  Skeleton,
+  Text,
+  VStack,
+} from '@seed-design/react';
 import { api, type QueueDetail } from '../api/client';
 import StatusBadge from '../components/StatusBadge';
 
 interface Params {
   id: string;
+}
+
+function KVRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <ListItem>
+      <ListContent>
+        <ListTitle>
+          <Text textStyle="t6Medium" color="fg.neutralSubtle">
+            {label}
+          </Text>
+        </ListTitle>
+        <ListDetail>
+          <Text textStyle="t6Regular" className="awg-mono">
+            {value}
+          </Text>
+        </ListDetail>
+      </ListContent>
+    </ListItem>
+  );
 }
 
 const QueueDetailPage: ActivityComponentType<Params> = () => {
@@ -26,70 +61,164 @@ const QueueDetailPage: ActivityComponentType<Params> = () => {
 
   return (
     <AppScreen appBar={{ title: 'Message', backButton: { ariaLabel: 'Back' } }}>
-      <div className="app-screen app-screen--no-pad-bottom">
-        {error && <div className="alert-error">{error}</div>}
-        {!error && !item && <div className="muted">loading…</div>}
+      <Box padding="16px" style={{ minHeight: '100%' }}>
+        {error && (
+          <CalloutRoot tone="critical">
+            <CalloutContent>
+              <CalloutTitle>Failed to load message</CalloutTitle>
+              <CalloutDescription>{error}</CalloutDescription>
+            </CalloutContent>
+          </CalloutRoot>
+        )}
+        {!error && !item && (
+          <VStack gap="8px">
+            <Skeleton height="32px" radius="8" />
+            <Skeleton height="120px" radius="8" />
+            <Skeleton height="120px" radius="8" />
+          </VStack>
+        )}
         {item && (
-          <div className="stack-lg">
-            <div className="row-between">
-              <span className="dim font-mono" style={{ fontSize: 11 }}>
+          <VStack gap="20px">
+            <HStack justify="space-between" align="center">
+              <Text textStyle="t8Bold" color="fg.neutralSubtle" className="awg-mono">
                 {item.id}
-              </span>
+              </Text>
               <StatusBadge status={item.state} />
-            </div>
+            </HStack>
 
-            <header className="card">
-              <div className="row" style={{ flexWrap: 'wrap', alignItems: 'baseline' }}>
-                <span className="feed-kind">{item.kind}</span>
-                <span className="feed-from font-mono">{item.from ?? '?'}</span>
-                <span className="feed-arrow">→</span>
-                <span className="feed-to font-mono">{item.to ?? '?'}</span>
-                <span
-                  className="font-mono dim"
-                  style={{ fontSize: 11, marginLeft: 'auto' }}
+            <Box
+              padding="16px"
+              borderRadius="r3"
+              borderWidth={1}
+              borderColor="stroke.neutralMuted"
+              background="bg.layerFill"
+            >
+              <HStack gap="8px" wrap="wrap" style={{ alignItems: 'baseline' }}>
+                <StatusBadge status={item.kind || 'msg'} />
+                <Text textStyle="t6Medium" className="awg-mono">
+                  {item.from ?? '?'}
+                </Text>
+                <Text textStyle="t6Regular" color="fg.neutralSubtle">
+                  →
+                </Text>
+                <Text textStyle="t6Medium" className="awg-mono">
+                  {item.to ?? '?'}
+                </Text>
+                <Text
+                  textStyle="t8Bold"
+                  color="fg.neutralSubtle"
+                  className="awg-mono"
+                  style={{ marginLeft: 'auto' }}
                 >
                   {item.createdAt ?? '—'}
-                </span>
-              </div>
-              <div className="kv-grid" style={{ marginTop: 12 }}>
-                <div>
-                  <span className="dim">priority:</span>{' '}
-                  <span style={{ color: 'var(--app-fg)' }}>{item.priority}</span>
-                </div>
-                <div>
-                  <span className="dim">agent:</span>{' '}
-                  <span className="font-mono" style={{ color: 'var(--app-fg)' }}>
-                    {item.agent}
-                  </span>
-                </div>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <span className="dim">filename:</span>{' '}
-                  <span className="font-mono" style={{ color: 'var(--app-fg)' }}>
-                    {item.filename}
-                  </span>
-                </div>
-              </div>
-            </header>
+                </Text>
+              </HStack>
+            </Box>
 
             <section>
-              <h2 className="section-title">Body</h2>
-              <pre className="json-block">{item.body || '(empty)'}</pre>
+              <Text
+                as="h2"
+                textStyle="t5Bold"
+                color="fg.neutralMuted"
+                style={{ marginBottom: 8, display: 'block' }}
+              >
+                Metadata
+              </Text>
+              <ListRoot>
+                <KVRow label="priority" value={item.priority} />
+                <KVRow label="agent" value={item.agent} />
+                <KVRow label="filename" value={item.filename} />
+              </ListRoot>
+            </section>
+
+            <section>
+              <Text
+                as="h2"
+                textStyle="t5Bold"
+                color="fg.neutralMuted"
+                style={{ marginBottom: 8, display: 'block' }}
+              >
+                Body
+              </Text>
+              <CalloutRoot tone="neutral">
+                <CalloutContent>
+                  <CalloutDescription>
+                    <pre
+                      className="awg-mono"
+                      style={{
+                        margin: 0,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        fontSize: 12,
+                      }}
+                    >
+                      {item.body || '(empty)'}
+                    </pre>
+                  </CalloutDescription>
+                </CalloutContent>
+              </CalloutRoot>
             </section>
 
             {Object.keys(item.refs ?? {}).length > 0 && (
               <section>
-                <h2 className="section-title">Refs</h2>
-                <pre className="json-block">{JSON.stringify(item.refs, null, 2)}</pre>
+                <Text
+                  as="h2"
+                  textStyle="t5Bold"
+                  color="fg.neutralMuted"
+                  style={{ marginBottom: 8, display: 'block' }}
+                >
+                  Refs
+                </Text>
+                <CalloutRoot tone="informative">
+                  <CalloutContent>
+                    <CalloutDescription>
+                      <pre
+                        className="awg-mono"
+                        style={{
+                          margin: 0,
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          fontSize: 12,
+                        }}
+                      >
+                        {JSON.stringify(item.refs, null, 2)}
+                      </pre>
+                    </CalloutDescription>
+                  </CalloutContent>
+                </CalloutRoot>
               </section>
             )}
 
             <section>
-              <h2 className="section-title">Raw message</h2>
-              <pre className="json-block">{JSON.stringify(item.message, null, 2)}</pre>
+              <Text
+                as="h2"
+                textStyle="t5Bold"
+                color="fg.neutralMuted"
+                style={{ marginBottom: 8, display: 'block' }}
+              >
+                Raw message
+              </Text>
+              <CalloutRoot tone="neutral">
+                <CalloutContent>
+                  <CalloutDescription>
+                    <pre
+                      className="awg-mono"
+                      style={{
+                        margin: 0,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        fontSize: 12,
+                      }}
+                    >
+                      {JSON.stringify(item.message, null, 2)}
+                    </pre>
+                  </CalloutDescription>
+                </CalloutContent>
+              </CalloutRoot>
             </section>
-          </div>
+          </VStack>
         )}
-      </div>
+      </Box>
     </AppScreen>
   );
 };
