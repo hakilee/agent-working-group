@@ -8,6 +8,7 @@ The React app under dashboard/ is served from dashboard/dist/ in production.
 
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -17,11 +18,17 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from services.awg_reader import AwgReader, default_root
+from services.awg_watcher import AwgWatcher
 from services.tmux_monitor import PollingTmuxMonitor
+from routers import liveness as liveness_router
 from routers import queue as queue_router
+from routers import queues as queues_router
 from routers import status as status_router
 from routers import workers as workers_router
+from routers import ws as ws_router
 
+
+VERSION = "0.2.0"
 
 SERVER_DIR = Path(__file__).resolve().parent
 DASHBOARD_DIR = SERVER_DIR.parent
@@ -32,9 +39,18 @@ DEFAULT_LOOPBACK_ORIGINS = (
     "http://localhost:5173",
     "http://127.0.0.1:8000",
     "http://localhost:8000",
+    "https://awg.haklee.me",
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_root() -> Path:
+    """AwgReader root with DASHBOARD_ROOT taking precedence over AWG_ROOT."""
+    raw = os.environ.get("DASHBOARD_ROOT")
+    if raw:
+        return Path(raw).expanduser()
+    return default_root()
 
 
 def _resolve_allowed_origins(host: str) -> list[str]:
@@ -55,23 +71,27 @@ def _resolve_allowed_origins(host: str) -> list[str]:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await app.state.tmux_monitor.start()
+    await app.state.awg_watcher.start()
     try:
         yield
     finally:
+        await app.state.awg_watcher.stop()
         await app.state.tmux_monitor.stop()
 
 
 def create_app() -> FastAPI:
     logging.basicConfig(
-        level=os.environ.get("DASHBOARD_LOG_LEVEL", "INFO"),
+        level=os.environ.get("DASHBOARD_LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-    app = FastAPI(title="AWG Dashboard", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="AWG Dashboard", version=VERSION, lifespan=lifespan)
 
     host = os.environ.get("DASHBOARD_HOST", "127.0.0.1")
     allowed_origins = _resolve_allowed_origins(host)
     app.state.allowed_origins = allowed_origins
+    app.state.started_at = time.time()
+    app.state.version = VERSION
     logger.info("CORS allowed origins: %s", allowed_origins)
 
     app.add_middleware(
@@ -82,16 +102,30 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.state.awg_reader = AwgReader(default_root())
+    reader = AwgReader(_resolve_root())
+    app.state.awg_reader = reader
     app.state.tmux_monitor = PollingTmuxMonitor()
+    app.state.awg_watcher = AwgWatcher(reader)
 
     app.include_router(status_router.router)
     app.include_router(queue_router.router)
+    app.include_router(queues_router.router)
     app.include_router(workers_router.router)
+    app.include_router(liveness_router.router)
+    app.include_router(ws_router.router)
 
     @app.get("/api/health")
     def health() -> dict:
-        return {"ok": True, "awgRoot": str(app.state.awg_reader.root)}
+        counts = app.state.awg_reader.counts()
+        return {
+            "ok": True,
+            "version": app.state.version,
+            "uptimeSeconds": int(time.time() - app.state.started_at),
+            "awgRoot": str(app.state.awg_reader.root),
+            "counts": counts,
+            "totalQueueItems": sum(counts.values()),
+            "serverTime": time.time(),
+        }
 
     _mount_static(app)
     return app
@@ -139,5 +173,6 @@ if __name__ == "__main__":
         "main:app",
         host=os.environ.get("DASHBOARD_HOST", "127.0.0.1"),
         port=int(os.environ.get("DASHBOARD_PORT", "8000")),
+        log_level=os.environ.get("DASHBOARD_LOG_LEVEL", "info").lower(),
         reload=False,
     )

@@ -32,6 +32,7 @@ STATE_TO_PUBLIC = {
     "processed": "processed",
     "dead": "dead",
 }
+PUBLIC_TO_STATE = {v: k for k, v in STATE_TO_PUBLIC.items()}
 
 
 def default_root() -> Path:
@@ -157,7 +158,10 @@ class AwgReader:
     ) -> list[QueueItem]:
         items = self.iter_items()
         if state:
-            items = [item for item in items if item.state == state]
+            # Accept either the on-disk dir name (inbox, processing, processed,
+            # dead) or the public name (pending, processing, …).
+            public_state = STATE_TO_PUBLIC.get(state, state)
+            items = [item for item in items if item.state == public_state]
         if agent:
             items = [item for item in items if item.agent == agent]
         items.sort(
@@ -179,6 +183,57 @@ class AwgReader:
         for item in self.iter_items():
             counts[item.state] = counts.get(item.state, 0) + 1
         return counts
+
+    def agent_counts(self, agent: str) -> dict[str, int]:
+        """Per-state counts for a single agent, derived by stat'ing directories."""
+        counts = {public: 0 for public in STATE_TO_PUBLIC.values()}
+        base = self.queues_dir() / agent
+        if not base.is_dir():
+            return counts
+        for state_dir in QUEUE_STATES:
+            directory = base / state_dir
+            if not directory.is_dir():
+                continue
+            counts[STATE_TO_PUBLIC[state_dir]] = sum(
+                1 for path in directory.glob("*.json") if path.is_file()
+            )
+        return counts
+
+    def agents_summary(self) -> list[dict]:
+        """List every agent with per-state counts and totals."""
+        summary: list[dict] = []
+        for agent in self.agents():
+            counts = self.agent_counts(agent)
+            summary.append(
+                {
+                    "agent": agent,
+                    "counts": counts,
+                    "total": sum(counts.values()),
+                }
+            )
+        return summary
+
+    def find_in_agent(self, agent: str, item_id: str) -> Optional[QueueItem]:
+        agent_root = self.queues_dir() / agent
+        if not agent_root.is_dir():
+            return None
+        for state_dir in QUEUE_STATES:
+            directory = agent_root / state_dir
+            if not directory.is_dir():
+                continue
+            for path in directory.glob("*.json"):
+                if not path.is_file():
+                    continue
+                if path.name.startswith(item_id):
+                    item = _build_item(path, agent, state_dir)
+                    if item is not None:
+                        return item
+        # Fallback: scan all messages and match by `id` field, which can differ
+        # from the filename when the queue stores a longer canonical id.
+        for item in self.iter_items():
+            if item.agent == agent and item.id == item_id:
+                return item
+        return None
 
     def recent_log(self, limit: int = 50) -> list[dict]:
         log_path = self.root / "log" / "messages.jsonl"
