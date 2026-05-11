@@ -932,3 +932,109 @@ class QueueWorkerExecutorTests(QueueTestCase):
 
             for content in [loop_content, tmux_content]:
                 self.assert_public_safe_content(content)
+
+    def test_agent_executor_falls_back_to_secondary_on_429(self):
+            project_root = Path(__file__).resolve().parents[1]
+            agent_executor_src = project_root / "scripts" / "awg-agent-executor.sh"
+
+            queue, root = self.with_queue()
+            fake_dir = root / "fake-scripts"
+            fake_dir.mkdir()
+
+            agent_executor = fake_dir / "awg-agent-executor.sh"
+            agent_executor.write_text(
+                agent_executor_src.read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            agent_executor.chmod(0o755)
+
+            fake_claude = fake_dir / "awg-claude-executor.sh"
+            fake_claude.write_text(
+                "#!/bin/sh\n"
+                "echo '{\"status\":\"retry\",\"summary\":\"claude rate limited (429): too many requests\"}'\n",
+                encoding="utf-8",
+            )
+            fake_claude.chmod(0o755)
+
+            fake_codex = fake_dir / "awg-codex-executor.sh"
+            fake_codex.write_text(
+                "#!/bin/sh\n"
+                "echo '{\"status\":\"success\",\"summary\":\"codex did the work\",\"verification\":\"ran tests\"}'\n",
+                encoding="utf-8",
+            )
+            fake_codex.chmod(0o755)
+
+            message_file = root / "message.json"
+            message_file.write_text(
+                json.dumps({
+                    "id": "m1",
+                    "kind": "instruction",
+                    "from": "lead",
+                    "to": "worker",
+                    "body": "do work",
+                }),
+                encoding="utf-8",
+            )
+
+            fallback_env = {
+                **os.environ,
+                "AGENT": "claude",
+                "AWG_FALLBACK": "1",
+                "AWG_AGENT_TIMEOUT": "30",
+            }
+            result = subprocess.run(
+                [str(agent_executor), str(message_file)],
+                env=fallback_env,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=20,
+            )
+            self.assertEqual(result.returncode, 0, msg=f"stderr={result.stderr}")
+            payload = json.loads(result.stdout.strip().splitlines()[-1])
+            self.assertEqual(payload["status"], "success")
+            self.assertIn("codex", payload["summary"])
+            stderr_lower = result.stderr.lower()
+            self.assertIn("rate limited", stderr_lower)
+            self.assertIn("falling back", stderr_lower)
+
+            no_fallback_env = {
+                **os.environ,
+                "AGENT": "claude",
+                "AWG_FALLBACK": "0",
+                "AWG_AGENT_TIMEOUT": "30",
+            }
+            result_no_fallback = subprocess.run(
+                [str(agent_executor), str(message_file)],
+                env=no_fallback_env,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=20,
+            )
+            self.assertEqual(result_no_fallback.returncode, 0, msg=f"stderr={result_no_fallback.stderr}")
+            payload_no_fallback = json.loads(result_no_fallback.stdout.strip().splitlines()[-1])
+            self.assertEqual(payload_no_fallback["status"], "retry")
+            self.assertIn("429", payload_no_fallback["summary"])
+            self.assertNotIn("falling back", result_no_fallback.stderr.lower())
+
+            both_rate_limited_codex = fake_dir / "awg-codex-executor.sh"
+            both_rate_limited_codex.write_text(
+                "#!/bin/sh\n"
+                "echo '{\"status\":\"retry\",\"summary\":\"codex rate limited (429)\"}'\n",
+                encoding="utf-8",
+            )
+            both_rate_limited_codex.chmod(0o755)
+            result_both = subprocess.run(
+                [str(agent_executor), str(message_file)],
+                env=fallback_env,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=20,
+            )
+            self.assertEqual(result_both.returncode, 0, msg=f"stderr={result_both.stderr}")
+            payload_both = json.loads(result_both.stdout.strip().splitlines()[-1])
+            self.assertEqual(payload_both["status"], "retry")
+            self.assertIn("claude", payload_both["summary"].lower())
+            self.assertIn("both agents rate limited", result_both.stderr.lower())
