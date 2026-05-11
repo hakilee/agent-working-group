@@ -109,6 +109,8 @@ and reads the JSON result:
 | `AWG_CODEX_REPO` | Default repo when message lacks `refs.repo`. | unset |
 | `AWG_CODEX_TIMEOUT_SECONDS` | Codex CLI timeout. | `900` |
 | `AWG_CODEX_ALLOW_DIRTY` | Allow dirty Git worktree. | `0` |
+| `AWG_CODEX_SANDBOX` | Codex `--sandbox` mode. | `workspace-write` |
+| `AWG_CODEX_EPHEMERAL` | Pass `--ephemeral` to `codex exec`. | `1` |
 | `AWG_CLAUDE_BIN` | Claude CLI executable. | `claude` |
 | `AWG_CLAUDE_REPO` | Default repo when message lacks `refs.repo`. | unset |
 | `AWG_CLAUDE_TIMEOUT_SECONDS` | Claude CLI timeout. | `900` |
