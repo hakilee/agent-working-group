@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: agent-executor
+# Role: Bridge that receives one AWG instruction and runs an executor with structured-result ack.
+
 AWG_CLI=${AWG_CLI:-awg}
 AWG_ROOT=${AWG_ROOT:-"${PWD}/.agent-working-group"}
 WORKER=${WORKER:-worker}

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: pr-review
+# Role: Send a PR review request to a reviewer queue with a checklist body.
+
 AWG_CLI=${AWG_CLI:-awg}
 GH_CLI=${GH_CLI:-gh}
 AWG_ROOT=${AWG_ROOT:-.agent-working-group}

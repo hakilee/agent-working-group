@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: queue-operation
+# Role: Read-only reconciliation report for one AWG role queue (observes; never mutates).
+
 usage() {
   cat <<'USAGE'
 Usage: awg-queue-reconciliation-report.sh --role <name>

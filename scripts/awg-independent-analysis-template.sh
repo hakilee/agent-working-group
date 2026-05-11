@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: template
+# Role: Print Markdown scaffolds for independent analysis sections (stdout only).
+
 usage() {
   cat <<'USAGE'
 Usage: awg-independent-analysis-template.sh [task-spec|review-result|close-report|all]

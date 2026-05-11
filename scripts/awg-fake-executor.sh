@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: agent-executor
+# Role: Deterministic fake executor for tests and harness checks.
+
 STATUS=${FAKE_EXECUTOR_STATUS:-success}
 MESSAGE_FILE=${1:-}
 

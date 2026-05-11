@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: queue-operation
+# Role: Read-only advisory worker-state report for one AWG role queue.
+
 usage() {
   cat <<'USAGE'
 Usage: awg-worker-state-report.sh --role <name>

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: queue-operation
+# Role: Manual no-install notifier dispatch tick for operators (prints provider-neutral payloads).
+
 DISPATCH=${DISPATCH:-scripts/awg-queue-notifier-dispatch.sh}
 FORMAT=json
 ROLE_MAP=""

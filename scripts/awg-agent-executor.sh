@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: agent-executor
+# Role: Dual-agent (codex/claude) executor with automatic 429 fallback.
+#
 # awg-agent-executor.sh — Dual-agent executor with automatic 429 fallback.
 #
 # Tries the primary agent (codex or claude). If the executor returns a

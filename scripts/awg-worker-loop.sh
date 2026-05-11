@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: worker-infrastructure
+# Role: Generic bounded worker loop that delegates execution via the executor bridge (agent-agnostic).
+
 AWG_CLI=${AWG_CLI:-awg}
 AWG_ROOT=${AWG_ROOT:-"${PWD}/.agent-working-group"}
 WORKER=${WORKER:-worker}

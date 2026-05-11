@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: pr-review
+# Role: Validate that a PR has a public review-gate comment or an explicit skip reason.
+
 GH_CLI=${GH_CLI:-gh}
 REPO=${REPO:-}
 PR=${PR:-}

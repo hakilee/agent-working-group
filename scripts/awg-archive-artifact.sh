@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: artifact
+# Role: Move one operational artifact into a completed or archive directory (dry-run by default).
+
 SOURCE=""
 DEST_DIR=""
 ALLOWED_BASE=""

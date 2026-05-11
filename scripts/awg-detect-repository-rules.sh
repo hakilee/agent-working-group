@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: repository-utility
+# Role: Advisory detection of commit/PR title/squash merge rules in a repository.
+
 usage() {
   cat <<'USAGE'
 Usage: awg-detect-repository-rules.sh [repository-dir]

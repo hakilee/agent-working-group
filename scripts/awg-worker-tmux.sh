@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: worker-infrastructure
+# Role: tmux supervisor for the generic worker loop (start/status/stop/kill/log/requeue-stale).
+
 AWG_CLI=${AWG_CLI:-awg}
 AWG_ROOT=${AWG_ROOT:-"${PWD}/.agent-working-group"}
 WORKER=${WORKER:-worker}
