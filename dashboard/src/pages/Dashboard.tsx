@@ -1,4 +1,4 @@
-import { use, Suspense, useEffect, useState } from 'react';
+import { use, Suspense, startTransition, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type SystemStatus } from '../api/client';
 import ActivityFeed from '../components/ActivityFeed';
@@ -86,7 +86,11 @@ export default function Dashboard() {
   const [promise, setPromise] = useState(() => api.status());
 
   useEffect(() => {
-    const id = window.setInterval(() => setPromise(api.status()), 5000);
+    // startTransition keeps the prior render mounted while the new promise
+    // resolves, so the 5s poll no longer flashes the Suspense fallback.
+    const id = window.setInterval(() => {
+      startTransition(() => setPromise(api.status()));
+    }, 5000);
     return () => window.clearInterval(id);
   }, []);
 

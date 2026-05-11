@@ -12,12 +12,15 @@ source (libtmux pty hook, fifo, etc.) becomes available.
 """
 
 import asyncio
+import logging
 import shutil
 import subprocess
 import time
-from dataclasses import dataclass, field
-from typing import Optional, Awaitable, Callable, Iterable
+from dataclasses import dataclass
+from typing import Optional
 
+
+logger = logging.getLogger(__name__)
 
 SESSION_PREFIX = "awg-"
 POLL_INTERVAL_SEC = 2.0
@@ -51,9 +54,17 @@ class TmuxBackend:
                 text=True,
                 timeout=timeout,
             )
-        except (OSError, subprocess.TimeoutExpired):
+        except subprocess.TimeoutExpired:
+            logger.warning("tmux command timed out: %s", args)
+            return ""
+        except OSError as exc:
+            logger.warning("tmux command failed (%s): %s", args, exc)
             return ""
         if result.returncode != 0:
+            logger.debug(
+                "tmux %s exited %s: %s",
+                args, result.returncode, result.stderr.strip()
+            )
             return ""
         return result.stdout
 
@@ -122,7 +133,10 @@ class PollingTmuxMonitor:
         async with self._lock:
             self._subscribers.setdefault(session, set()).add(queue)
         # Prime with current snapshot so new clients get state immediately.
-        snapshot = self._last_capture.get(session) or self.snapshot(session)
+        # Offload the blocking tmux call to a thread so the event loop stays free.
+        snapshot = self._last_capture.get(session)
+        if snapshot is None:
+            snapshot = await asyncio.to_thread(self.snapshot, session)
         await queue.put({"type": "snapshot", "session": session, "data": snapshot, "ts": time.time()})
         return queue
 
@@ -133,6 +147,8 @@ class PollingTmuxMonitor:
                 subs.discard(queue)
                 if not subs:
                     self._subscribers.pop(session, None)
+                    # Drop cached capture so the dict doesn't grow unboundedly.
+                    self._last_capture.pop(session, None)
 
     async def start(self) -> None:
         if self._task and not self._task.done():
@@ -146,8 +162,10 @@ class PollingTmuxMonitor:
             self._task.cancel()
             try:
                 await self._task
-            except (asyncio.CancelledError, Exception):
+            except asyncio.CancelledError:
                 pass
+            except Exception:
+                logger.exception("tmux monitor task raised during shutdown")
             self._task = None
 
     async def _run_loop(self) -> None:
@@ -155,8 +173,8 @@ class PollingTmuxMonitor:
             try:
                 await self._tick()
             except Exception:
-                # Never let polling crash the server.
-                pass
+                # Never let polling crash the server — but never silently either.
+                logger.exception("tmux monitor tick failed")
             try:
                 await asyncio.wait_for(self._stopping.wait(), timeout=self.interval)
             except asyncio.TimeoutError:

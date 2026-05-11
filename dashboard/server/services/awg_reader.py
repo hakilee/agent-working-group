@@ -15,10 +15,15 @@ Filenames follow `{createdAtMs:013d}_{priority:02d}_{shortId}.json`.
 """
 
 import json
+import logging
 import os
+from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Iterable, Union
+
+
+logger = logging.getLogger(__name__)
 
 QUEUE_STATES = ("inbox", "processing", "processed", "dead")
 STATE_TO_PUBLIC = {
@@ -86,7 +91,11 @@ def _read_json(path: Path) -> Optional[dict]:
     try:
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
-    except (OSError, json.JSONDecodeError):
+    except json.JSONDecodeError as exc:
+        logger.warning("malformed queue JSON at %s: %s", path, exc)
+        return None
+    except OSError as exc:
+        logger.warning("could not read queue file %s: %s", path, exc)
         return None
 
 
@@ -177,12 +186,15 @@ class AwgReader:
             return []
         try:
             with log_path.open("r", encoding="utf-8") as handle:
-                lines = handle.readlines()
-        except OSError:
+                # deque(maxlen=limit) keeps only the last `limit` lines in memory,
+                # so the file can grow indefinitely without blowing up the server.
+                tail: deque[str] = deque(handle, maxlen=limit)
+        except OSError as exc:
+            logger.warning("could not read message log %s: %s", log_path, exc)
             return []
         out: list[dict] = []
-        for line in lines[-limit:][::-1]:
-            line = line.strip()
+        for raw in reversed(tail):
+            line = raw.strip()
             if not line:
                 continue
             try:

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, workerSocketUrl, type WorkerSession } from '../api/client';
 import TerminalOutput from '../components/TerminalOutput';
@@ -7,13 +7,15 @@ type WSMessage =
   | { type: 'snapshot' | 'update'; session: string; data: string; ts: number }
   | { type: 'ping'; ts: number };
 
+const RECONNECT_INITIAL_MS = 1000;
+const RECONNECT_MAX_MS = 15000;
+
 export default function WorkerTerminal() {
   const { session = '' } = useParams<{ session: string }>();
   const [worker, setWorker] = useState<WorkerSession | null>(null);
   const [output, setOutput] = useState<string>('');
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,22 +34,44 @@ export default function WorkerTerminal() {
 
   useEffect(() => {
     if (!session) return;
-    const ws = new WebSocket(workerSocketUrl(session));
-    wsRef.current = ws;
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
-    ws.onerror = () => setConnected(false);
-    ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data) as WSMessage;
-        if (msg.type === 'snapshot' || msg.type === 'update') setOutput(msg.data);
-      } catch {
-        /* ignore */
-      }
+    let ws: WebSocket | null = null;
+    let retryMs = RECONNECT_INITIAL_MS;
+    let retryTimer: number | undefined;
+    let cancelled = false;
+
+    const connect = () => {
+      if (cancelled) return;
+      ws = new WebSocket(workerSocketUrl(session));
+      ws.onopen = () => {
+        setConnected(true);
+        retryMs = RECONNECT_INITIAL_MS;
+      };
+      ws.onclose = () => {
+        setConnected(false);
+        if (cancelled) return;
+        retryTimer = window.setTimeout(connect, retryMs);
+        retryMs = Math.min(retryMs * 2, RECONNECT_MAX_MS);
+      };
+      ws.onerror = () => {
+        // onerror is always followed by onclose, so let the close handler
+        // schedule the reconnect.
+        ws?.close();
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data) as WSMessage;
+          if (msg.type === 'snapshot' || msg.type === 'update') setOutput(msg.data);
+        } catch {
+          /* ignore */
+        }
+      };
     };
+
+    connect();
     return () => {
-      ws.close();
-      wsRef.current = null;
+      cancelled = true;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+      ws?.close();
     };
   }, [session]);
 
