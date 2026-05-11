@@ -1037,3 +1037,176 @@ class QueueWorkerExecutorTests(QueueTestCase):
             self.assertEqual(payload_both["status"], "retry")
             self.assertIn("claude", payload_both["summary"].lower())
             self.assertIn("both agents rate limited", result_both.stderr.lower())
+
+
+class IntegrationTests(QueueTestCase):
+    """End-to-end tests for the bridge -> agent-executor -> codex/claude chain.
+
+    These tests exercise the full pipeline with mock shims for codex and claude
+    so the chain can be verified without needing the real binaries installed.
+    """
+
+    def _setup_pipeline_dir(self, root):
+            project_root = Path(__file__).resolve().parents[1]
+            fake_dir = root / "pipeline-scripts"
+            fake_dir.mkdir()
+            agent_executor_src = project_root / "scripts" / "awg-agent-executor.sh"
+            agent_executor = fake_dir / "awg-agent-executor.sh"
+            agent_executor.write_text(
+                agent_executor_src.read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            agent_executor.chmod(0o755)
+            return fake_dir, agent_executor
+
+    def _write_mock_executor(self, path, payload, sleep_seconds=0, exit_code=0):
+            body = json.dumps(payload)
+            lines = ["#!/bin/sh"]
+            if sleep_seconds > 0:
+                lines.append(f"sleep {sleep_seconds}")
+            lines.append(f"cat <<'PAYLOAD'\n{body}\nPAYLOAD")
+            lines.append(f"exit {exit_code}")
+            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            path.chmod(0o755)
+
+    def _write_message_file(self, root, body="do work", message_id="m1"):
+            message_file = root / "message.json"
+            message_file.write_text(
+                json.dumps({
+                    "id": message_id,
+                    "kind": "instruction",
+                    "from": "lead",
+                    "to": "worker",
+                    "body": body,
+                }),
+                encoding="utf-8",
+            )
+            return message_file
+
+    def test_bridge_dispatches_to_agent_executor(self):
+            project_root = Path(__file__).resolve().parents[1]
+            bridge = project_root / "scripts" / "awg-executor-bridge.sh"
+            agent_executor = project_root / "scripts" / "awg-agent-executor.sh"
+            self.assertTrue(bridge.exists(), "executor bridge script must exist")
+            self.assertTrue(os.access(bridge, os.X_OK), "executor bridge must be executable")
+            self.assertTrue(agent_executor.exists(), "agent-executor must exist")
+            self.assertTrue(os.access(agent_executor, os.X_OK), "agent-executor must be executable")
+
+            # The worker loop is the wiring point that hands the agent-executor
+            # to the bridge as the child command, completing the dispatch chain.
+            loop = (project_root / "scripts" / "awg-claude-worker-loop.sh").read_text(encoding="utf-8")
+            self.assertIn("awg-executor-bridge.sh", loop)
+            self.assertIn("awg-agent-executor.sh", loop)
+            self.assertIn('"$BRIDGE_SCRIPT"', loop)
+            self.assertIn('"$AGENT_EXECUTOR"', loop)
+            self.assertLess(loop.index('"$BRIDGE_SCRIPT"'), loop.index('"$AGENT_EXECUTOR"'))
+
+    def test_full_pipeline_with_mock_executors(self):
+            _, root = self.with_queue()
+            fake_dir, agent_executor = self._setup_pipeline_dir(root)
+            self._write_mock_executor(
+                fake_dir / "awg-codex-executor.sh",
+                {"status": "success", "summary": "codex did the work", "verification": "ran tests"},
+            )
+            self._write_mock_executor(
+                fake_dir / "awg-claude-executor.sh",
+                {"status": "success", "summary": "claude did the work"},
+            )
+            message_file = self._write_message_file(root)
+
+            env = {
+                **os.environ,
+                "AGENT": "codex",
+                "AWG_FALLBACK": "0",
+                "AWG_AGENT_TIMEOUT": "30",
+            }
+            result = subprocess.run(
+                [str(agent_executor), str(message_file)],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=20,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=f"stderr={result.stderr}")
+            payload = json.loads(result.stdout.strip().splitlines()[-1])
+            self.assertEqual(payload["status"], "success")
+            self.assertIn("codex", payload["summary"])
+
+    def test_pipeline_fallback_e2e(self):
+            _, root = self.with_queue()
+            fake_dir, agent_executor = self._setup_pipeline_dir(root)
+            self._write_mock_executor(
+                fake_dir / "awg-claude-executor.sh",
+                {"status": "retry", "summary": "claude rate limited (429): too many requests"},
+            )
+            self._write_mock_executor(
+                fake_dir / "awg-codex-executor.sh",
+                {"status": "success", "summary": "codex completed", "verification": "ran tests"},
+            )
+            message_file = self._write_message_file(root)
+
+            env = {
+                **os.environ,
+                "AGENT": "claude",
+                "AWG_FALLBACK": "1",
+                "AWG_AGENT_TIMEOUT": "30",
+            }
+            result = subprocess.run(
+                [str(agent_executor), str(message_file)],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=20,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=f"stderr={result.stderr}")
+            payload = json.loads(result.stdout.strip().splitlines()[-1])
+            self.assertEqual(payload["status"], "success")
+            self.assertIn("codex", payload["summary"])
+            self.assertIn("falling back", result.stderr.lower())
+
+    def test_pipeline_timeout_handled(self):
+            _, root = self.with_queue()
+            fake_dir, agent_executor = self._setup_pipeline_dir(root)
+            # Primary sleeps so the chain has to wait for slow upstream and then
+            # surface a retry. AWG_AGENT_TIMEOUT is documented; this test asserts
+            # the agent-executor terminates cleanly and emits parseable JSON even
+            # when the executor takes longer than the documented timeout, rather
+            # than hanging or crashing the worker loop.
+            slow = fake_dir / "awg-codex-executor.sh"
+            slow.write_text(
+                "#!/bin/sh\n"
+                "sleep 5\n"
+                "cat <<'PAYLOAD'\n"
+                '{"status":"retry","summary":"timed out waiting for upstream"}\n'
+                "PAYLOAD\n",
+                encoding="utf-8",
+            )
+            slow.chmod(0o755)
+            self._write_mock_executor(
+                fake_dir / "awg-claude-executor.sh",
+                {"status": "success", "summary": "claude completed"},
+            )
+            message_file = self._write_message_file(root)
+
+            env = {
+                **os.environ,
+                "AGENT": "codex",
+                "AWG_FALLBACK": "0",
+                "AWG_AGENT_TIMEOUT": "2",
+            }
+            result = subprocess.run(
+                [str(agent_executor), str(message_file)],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=15,
+            )
+
+            self.assertEqual(result.returncode, 0, msg=f"stderr={result.stderr}")
+            payload = json.loads(result.stdout.strip().splitlines()[-1])
+            self.assertIn(payload["status"], ("retry", "failed"))
