@@ -1,1 +1,3 @@
 .agent-working-group/
+__pycache__/
+*.py[cod]

@@ -181,6 +181,32 @@ Use this flow for every enhancement:
 
 This keeps implementation, documentation, and tests aligned.
 
+## Claude Code Worker
+
+For code-related instructions, a Claude Code adapter can drive the executor
+bridge alongside the existing Codex adapter. A dual-agent executor wraps
+both: it tries the primary agent and automatically falls back to the other
+on a 429 / rate-limit retry, without changing the bridge's
+ack-on-structured-success contract.
+
+```bash
+export AWG_ROOT=.agent-working-group
+export WORKER=claude-worker
+export LEAD=lead
+export AGENT=claude              # primary; "codex" is also supported
+export AWG_FALLBACK=1            # 1 = enable cross-agent fallback
+export AWG_CLAUDE_REPO=/path/to/repo
+scripts/awg-claude-worker-tmux.sh start
+scripts/awg-claude-worker-tmux.sh status
+scripts/awg-claude-worker-tmux.sh stop
+```
+
+The Claude worker is opt-in, bounded by `MAX_TASKS` and `MAX_IDLE_SECONDS`,
+treats message bodies as prompt data only, and writes a JSON run summary
+under `log/claude-worker/run-summaries/`. See
+[Dual-Agent Executor](docs/executors.md) for architecture, fallback rules,
+and the full environment matrix.
+
 ## Current Scope
 
 This is intentionally simple and local-first. It does not require a broker, database, network service, or daemon. It is best suited for local agent orchestration, coding-agent experiments, office workflows, and small workflow projects.
@@ -199,7 +225,7 @@ For the general output boundary model, see [Output And Publish Gate](docs/output
 
 For operational Markdown artifact lifecycle, timestamped filenames, and active/completed/archive retention, see [Artifact Retention](docs/artifact-retention.md). For read-only discovery across an ops workspace, see [Artifact Index](docs/artifact-index.md).
 
-For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-executor-bridge.md). The bridge acknowledges only successful instruction execution and never executes message bodies as shell. `scripts/awg-real-executor-template.sh` provides a provider-neutral adapter template for private real executor wrappers. For code-related queue execution through Codex in a bounded tmux session, see [Codex Tmux Worker](docs/codex-tmux-worker.md). Codex and tmux are optional worker paths, not requirements for office, local artifact, or non-coding workflows.
+For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-executor-bridge.md). The bridge acknowledges only successful instruction execution and never executes message bodies as shell. `scripts/awg-real-executor-template.sh` provides a provider-neutral adapter template for private real executor wrappers. For code-related queue execution through Codex in a bounded tmux session, see [Codex Tmux Worker](docs/codex-tmux-worker.md). For the dual-agent (Codex + Claude Code) variant with automatic 429 fallback, see [Dual-Agent Executor](docs/executors.md). Codex, Claude Code, and tmux are optional worker paths, not requirements for office, local artifact, or non-coding workflows.
 
 For repository-first commit message and pull request title rules with Conventional Commits fallback, see [Repository Rules](docs/repository-rules.md). `scripts/awg-detect-repository-rules.sh` provides a read-only advisory scan for candidate rule sources.
 
