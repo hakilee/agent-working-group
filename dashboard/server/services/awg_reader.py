@@ -13,13 +13,12 @@ Parses the on-disk layout produced by `agent_working_group.MessageQueue`:
 
 Filenames follow `{createdAtMs:013d}_{priority:02d}_{shortId}.json`.
 """
-from __future__ import annotations
 
 import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import Optional, Iterable, Union
 
 QUEUE_STATES = ("inbox", "processing", "processed", "dead")
 STATE_TO_PUBLIC = {
@@ -41,11 +40,11 @@ class QueueItem:
     agent: str
     state: str  # "pending" | "processing" | "processed" | "dead"
     kind: str
-    sender: str | None
-    recipient: str | None
+    sender: Optional[str]
+    recipient: Optional[str]
     priority: int
-    created_at: str | None
-    created_at_ms: int | None
+    created_at: Optional[str]
+    created_at_ms: Optional[int]
     body: str
     refs: dict
     filename: str
@@ -83,7 +82,7 @@ def _parse_filename(name: str) -> tuple[int, int]:
         return 0, 0
 
 
-def _read_json(path: Path) -> dict | None:
+def _read_json(path: Path) -> Optional[dict]:
     try:
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
@@ -91,7 +90,7 @@ def _read_json(path: Path) -> dict | None:
         return None
 
 
-def _build_item(path: Path, agent: str, state_dir: str) -> QueueItem | None:
+def _build_item(path: Path, agent: str, state_dir: str) -> Optional[QueueItem]:
     data = _read_json(path)
     if data is None:
         return None
@@ -114,7 +113,7 @@ def _build_item(path: Path, agent: str, state_dir: str) -> QueueItem | None:
 
 
 class AwgReader:
-    def __init__(self, root: Path | str | None = None):
+    def __init__(self, root: Optional[Union[Path, str]] = None):
         self.root = Path(root).expanduser() if root else default_root()
 
     def queues_dir(self) -> Path:
@@ -143,9 +142,9 @@ class AwgReader:
 
     def list_items(
         self,
-        state: str | None = None,
-        agent: str | None = None,
-        limit: int | None = None,
+        state: Optional[str] = None,
+        agent: Optional[str] = None,
+        limit: Optional[int] = None,
     ) -> list[QueueItem]:
         items = self.iter_items()
         if state:
@@ -160,7 +159,7 @@ class AwgReader:
             items = items[:limit]
         return items
 
-    def find(self, item_id: str) -> QueueItem | None:
+    def find(self, item_id: str) -> Optional[QueueItem]:
         for item in self.iter_items():
             if item.id == item_id or item.filename.startswith(item_id):
                 return item

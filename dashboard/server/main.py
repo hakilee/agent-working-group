@@ -5,7 +5,6 @@ Run in dev:
 
 The React app under dashboard/ is served from dashboard/dist/ in production.
 """
-from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager

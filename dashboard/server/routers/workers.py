@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 
 import asyncio
 import time
@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisco
 router = APIRouter(tags=["workers"])
 
 
-def _session_payload(session, capture: str | None = None) -> dict:
+def _session_payload(session, capture: Optional[str] = None) -> dict:
     uptime = max(0, int(time.time()) - int(session.created_at)) if session.created_at else None
     payload = {
         "session": session.name,

@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -8,9 +8,9 @@ router = APIRouter(prefix="/api/queue", tags=["queue"])
 @router.get("")
 def list_queue(
     request: Request,
-    state: str | None = Query(default=None, description="pending|processing|processed|dead"),
-    agent: str | None = Query(default=None),
-    limit: int | None = Query(default=None, ge=1, le=1000),
+    state: Optional[str] = Query(default=None, description="pending|processing|processed|dead"),
+    agent: Optional[str] = Query(default=None),
+    limit: Optional[int] = Query(default=None, ge=1, le=1000),
 ) -> dict:
     reader = request.app.state.awg_reader
     items = reader.list_items(state=state, agent=agent, limit=limit)

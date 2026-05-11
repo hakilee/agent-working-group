@@ -10,14 +10,13 @@ slot in without touching the router/WebSocket code:
 queue per subscriber, and can be swapped out wholesale if/when a streaming
 source (libtmux pty hook, fifo, etc.) becomes available.
 """
-from __future__ import annotations
 
 import asyncio
 import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
-from typing import Awaitable, Callable, Iterable
+from typing import Optional, Awaitable, Callable, Iterable
 
 
 SESSION_PREFIX = "awg-"
@@ -97,14 +96,14 @@ class PollingTmuxMonitor:
 
     def __init__(
         self,
-        backend: TmuxBackend | None = None,
+        backend: Optional[TmuxBackend] = None,
         interval: float = POLL_INTERVAL_SEC,
         capture_lines: int = CAPTURE_LINES,
     ):
         self.backend = backend or TmuxBackend()
         self.interval = interval
         self.capture_lines = capture_lines
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Optional[Task] = None
         self._stopping = asyncio.Event()
         self._last_capture: dict[str, str] = {}
         self._subscribers: dict[str, set[asyncio.Queue]] = {}
