@@ -9,16 +9,19 @@
     "preview": "vite preview --port 5173"
   },
   "dependencies": {
+    "@seed-design/css": "^1.2.11",
+    "@seed-design/react": "^1.2.10",
+    "@stackflow/core": "^1.3.2",
+    "@stackflow/plugin-basic-ui": "^1.18.1",
+    "@stackflow/plugin-renderer-basic": "^1.1.13",
+    "@stackflow/react": "^1.12.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.1.1"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
-    "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0"
   }

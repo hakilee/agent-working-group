@@ -28,16 +28,10 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
     if (this.props.fallback) return this.props.fallback(error, this.reset);
     return (
-      <div className="mx-auto max-w-2xl space-y-3 rounded-lg border border-rose-800 bg-rose-900/30 p-6 text-sm text-rose-200">
-        <div className="font-semibold text-rose-100">Something went wrong</div>
-        <pre className="overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-rose-200/80">
-          {error.message || String(error)}
-        </pre>
-        <button
-          type="button"
-          onClick={this.reset}
-          className="rounded bg-rose-800/60 px-3 py-1 text-xs text-rose-100 hover:bg-rose-800"
-        >
+      <div className="eb-wrap">
+        <div className="eb-title">Something went wrong</div>
+        <pre className="eb-trace">{error.message || String(error)}</pre>
+        <button type="button" onClick={this.reset} className="eb-retry">
           retry
         </button>
       </div>

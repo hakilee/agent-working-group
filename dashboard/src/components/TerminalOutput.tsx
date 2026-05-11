@@ -15,10 +15,7 @@ export default function TerminalOutput({ text, autoScroll = true }: Props) {
   }, [text, autoScroll]);
 
   return (
-    <pre
-      ref={ref}
-      className="h-[28rem] overflow-auto rounded-lg border border-slate-800 bg-black/80 p-4 font-mono text-xs leading-snug text-slate-200 whitespace-pre-wrap"
-    >
+    <pre ref={ref} className="terminal">
       {text || '(no output yet)'}
     </pre>
   );

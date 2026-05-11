@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { AppScreen } from '@stackflow/plugin-basic-ui';
+import { useActivityParams, type ActivityComponentType } from '@stackflow/react';
 import { api, workerSocketUrl, type WorkerSession } from '../api/client';
 import TerminalOutput from '../components/TerminalOutput';
 
@@ -10,8 +11,12 @@ type WSMessage =
 const RECONNECT_INITIAL_MS = 1000;
 const RECONNECT_MAX_MS = 15000;
 
-export default function WorkerTerminal() {
-  const { session = '' } = useParams<{ session: string }>();
+interface Params {
+  session: string;
+}
+
+const WorkerTerminal: ActivityComponentType<Params> = () => {
+  const { session = '' } = useActivityParams<Params>();
   const [worker, setWorker] = useState<WorkerSession | null>(null);
   const [output, setOutput] = useState<string>('');
   const [connected, setConnected] = useState(false);
@@ -53,8 +58,6 @@ export default function WorkerTerminal() {
         retryMs = Math.min(retryMs * 2, RECONNECT_MAX_MS);
       };
       ws.onerror = () => {
-        // onerror is always followed by onclose, so let the close handler
-        // schedule the reconnect.
         ws?.close();
       };
       ws.onmessage = (ev) => {
@@ -76,34 +79,38 @@ export default function WorkerTerminal() {
   }, [session]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Link to="/workers" className="text-xs text-slate-400 hover:text-slate-200">
-          ← back to workers
-        </Link>
-        <div className="flex items-center gap-2 text-xs">
-          <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-          <span className="text-slate-500">{connected ? 'streaming' : 'disconnected'}</span>
+    <AppScreen appBar={{ title: session || 'Worker', backButton: { ariaLabel: 'Back' } }}>
+      <div className="app-screen app-screen--no-pad-bottom">
+        <div className="stack-lg">
+          <div className="row-between">
+            <span className="font-mono" style={{ color: 'var(--app-fg)' }}>
+              {session}
+            </span>
+            <div className="row" style={{ fontSize: 11 }}>
+              <span
+                className={`worker-dot ${connected ? 'worker-dot--on' : ''}`}
+                style={connected ? undefined : { background: '#475569' }}
+              />
+              <span className="dim">{connected ? 'streaming' : 'disconnected'}</span>
+            </div>
+          </div>
+
+          {worker && (
+            <header className="card">
+              <div className="dim" style={{ fontSize: 11 }}>
+                status: {worker.status} · windows: {worker.windows} · attached:{' '}
+                {worker.attached ? 'yes' : 'no'}
+              </div>
+            </header>
+          )}
+
+          {error && <div className="alert-error">{error}</div>}
+
+          <TerminalOutput text={output} />
         </div>
       </div>
-
-      <header className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-        <div className="font-mono text-sm text-slate-100">{session}</div>
-        {worker && (
-          <div className="mt-1 text-xs text-slate-500">
-            status: {worker.status} · windows: {worker.windows} ·{' '}
-            attached: {worker.attached ? 'yes' : 'no'}
-          </div>
-        )}
-      </header>
-
-      {error && (
-        <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
-          {error}
-        </div>
-      )}
-
-      <TerminalOutput text={output} />
-    </div>
+    </AppScreen>
   );
-}
+};
+
+export default WorkerTerminal;
