@@ -416,9 +416,10 @@ class QueueWorkflowDocsTests(QueueTestCase):
             api = project_root / "docs" / "api.md"
             runbook = project_root / "docs" / "operator-runbook.md"
             spec_matrix = project_root / "docs" / "spec-matrix.md"
+            hooks = project_root / "docs" / "hooks.md"
             queue_source = project_root / "src" / "agent_working_group" / "queue.py"
             content = "\n".join(
-                path.read_text(encoding="utf-8") for path in (readme, api, runbook, spec_matrix)
+                path.read_text(encoding="utf-8") for path in (readme, api, runbook, spec_matrix, hooks)
             )
 
             self.assertTrue(runbook.exists())
@@ -441,6 +442,13 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("artifact", content.lower())
             self.assertIn("docs/operator-runbook.md", readme.read_text(encoding="utf-8"))
             self.assertIn("test_operator_runbook_and_api_docs_are_current_and_safe", spec_matrix.read_text(encoding="utf-8"))
+            self.assertIn("Queue Hooks", content)
+            self.assertIn("hooks.json", content)
+            self.assertIn("message.sent", content)
+            self.assertIn("message.pending", content)
+            self.assertIn("argv lists", content)
+            self.assertIn("Recursive hook dispatch is blocked", content)
+            self.assertIn("tests/test_hooks.py::QueueHookTests.test_send_dispatch_hooks_runs_matching_argv_command_after_enqueue", content)
 
             queue_text = queue_source.read_text(encoding="utf-8")
             self.assertIn("source_channel: object = None", queue_text)

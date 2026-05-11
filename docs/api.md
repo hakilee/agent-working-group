@@ -4,6 +4,7 @@ The public API is intentionally small:
 
 ```python
 from agent_working_group import MessageQueue, MessageKind, PRIORITIES
+from agent_working_group import dispatch_hooks
 ```
 
 ## MessageQueue
@@ -75,6 +76,16 @@ cleanup_artifacts(
 ```
 
 `cleanup_artifacts` removes generated worker clutter without touching queue JSON.
+
+## Hooks
+
+```python
+dispatch_hooks(root, config_path, event, message, dry_run=False, environ=None) -> list[HookResult]
+```
+
+`dispatch_hooks` loads a `hooks.json` config, filters hooks for one message, and runs matching commands with a JSON payload on stdin. Supported events are `message.sent` and `message.pending`. Commands must be argv lists, not shell strings. Recursive hook dispatch is blocked by default through `AWG_HOOK_DEPTH`, and hook failures do not roll back already-enqueued messages.
+
+For the full hook contract and config format, see [Queue Hooks](hooks.md).
 
 ## MessageKind and PRIORITIES
 
