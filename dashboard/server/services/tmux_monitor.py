@@ -103,7 +103,7 @@ class PollingTmuxMonitor:
         self.backend = backend or TmuxBackend()
         self.interval = interval
         self.capture_lines = capture_lines
-        self._task: asyncio.Optional[Task] = None
+        self._task: Optional[asyncio.Task] = None
         self._stopping = asyncio.Event()
         self._last_capture: dict[str, str] = {}
         self._subscribers: dict[str, set[asyncio.Queue]] = {}
