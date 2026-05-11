@@ -10,8 +10,9 @@ Supported events:
 
 - `message.sent`: dispatched by `awg send --dispatch-hooks` after the message is durably written to the recipient inbox and log.
 - `message.pending`: dispatched by `awg dispatch-hooks --event message.pending --as ROLE` for matching messages that are still pending in the inbox.
+- `on_processing`: dispatched by `awg dispatch-hooks --event on_processing --as ROLE` for messages that a worker has moved into its `processing/` directory. Use this for liveness/heartbeat checks while work is in flight.
 
-Both events pass the full message as JSON on stdin. Hook commands must treat the message body as data.
+All events pass the full message as JSON on stdin. Hook commands must treat the message body as data.
 
 ## Configuration
 
@@ -246,3 +247,56 @@ Gate publish intent messages against the PR review evidence policy:
 The gate script extracts `repo` and `pr` from message refs, runs
 `awg-pr-publish-gate-check.sh`, and reports pass/fail. It never merges,
 pushes, or mutates queue state.
+
+### Worker Heartbeat (on_processing)
+
+Watch worker liveness while a message is being processed:
+
+```json
+{
+  "name": "worker-heartbeat",
+  "event": "on_processing",
+  "command": ["scripts/awg-hook-worker-heartbeat.sh"],
+  "filters": {"to": "worker"},
+  "timeoutSeconds": 5
+}
+```
+
+Heartbeat contract:
+
+- Workers periodically refresh `$AWG_ROOT/heartbeats/{agent}/{session}.ts`.
+- The file content is a single epoch-seconds integer.
+- The hook script `awg-hook-worker-heartbeat.sh` reads the timestamp and
+  compares it against `WORKER_HEARTBEAT_TIMEOUT` (default 300s).
+- If the freshest heartbeat exceeds the timeout, a `WARNING` line is
+  written to stdout. If the heartbeat file is missing entirely, a
+  `CRITICAL` line is written.
+- The hook is observer-only: it never writes, deletes, or moves anything
+  under `$AWG_ROOT/heartbeats/` or in the queue.
+
+Dispatch from the worker after it moves an item into processing:
+
+```bash
+awg dispatch-hooks --event on_processing --as worker
+```
+
+## Response Contracts
+
+Senders may attach an integer `expectedResponseWithin` (seconds) to a
+message via `awg send --expected-response-within N`. This is a soft
+contract: it advertises the time within which the sender expects to see
+a response. It does not change priority, ack semantics, or queue
+ordering — it is an advisory field consumed by monitoring scripts.
+
+Two read-only audit scripts cover liveness gaps:
+
+- `scripts/awg-processing-timeout-check.sh` — flags items that have been
+  in `processing/` longer than `AWG_PROCESSING_TIMEOUT` seconds (default
+  600). Exit 0 if clean, exit 1 if any item is stale.
+- `scripts/awg-response-contract-check.sh` — flags items in `inbox/` or
+  `processing/` whose elapsed-since-send exceeds the
+  `expectedResponseWithin` contract. Exit 0 if clean, exit 1 if any
+  contract is breached.
+
+Both scripts are observer-only (no queue mutation) and are safe to run
+from cron, a dispatcher loop, or a dashboard.
