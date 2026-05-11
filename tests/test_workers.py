@@ -881,3 +881,54 @@ class QueueWorkerExecutorTests(QueueTestCase):
             self.assertNotRegex(content, r"[\uac00-\ud7af]")
             platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
             self.assertNotRegex(content.lower(), platform_pattern)
+
+    def test_claude_executor_script_exists_and_is_safe(self):
+            project_root = Path(__file__).resolve().parents[1]
+            script = project_root / "scripts" / "awg-claude-executor.sh"
+            self.assertTrue(script.exists(), "awg-claude-executor.sh must exist")
+            content = script.read_text(encoding="utf-8")
+            self.assertIn("set -euo pipefail", content)
+            self.assertIn("Opt-in Claude Code adapter", content)
+            self.assertIn("dangerously-skip-permissions", content)
+            # must not contain destructive operations
+            for forbidden in ["git push", "git merge", "curl -X POST", "wget "]:
+                self.assertNotIn(forbidden, content, f"claude executor must not call {forbidden}")
+            self.assert_public_safe_content(content)
+
+    def test_agent_executor_supports_dual_agent_with_fallback(self):
+            project_root = Path(__file__).resolve().parents[1]
+            script = project_root / "scripts" / "awg-agent-executor.sh"
+            self.assertTrue(script.exists(), "awg-agent-executor.sh must exist")
+            content = script.read_text(encoding="utf-8")
+            self.assertIn("set -euo pipefail", content)
+            self.assertIn("Dual-agent executor with automatic 429 fallback", content)
+            # must reference both agents
+            self.assertIn("awg-codex-executor.sh", content)
+            self.assertIn("awg-claude-executor.sh", content)
+            self.assertIn("is_rate_limited", content)
+            self.assertIn("429", content)
+            self.assertIn("FALLBACK", content)
+            self.assert_public_safe_content(content)
+
+    def test_claude_worker_scripts_exist_and_are_safe(self):
+            project_root = Path(__file__).resolve().parents[1]
+            loop = project_root / "scripts" / "awg-claude-worker-loop.sh"
+            tmux = project_root / "scripts" / "awg-claude-worker-tmux.sh"
+            self.assertTrue(loop.exists(), "awg-claude-worker-loop.sh must exist")
+            self.assertTrue(tmux.exists(), "awg-claude-worker-tmux.sh must exist")
+
+            loop_content = loop.read_text(encoding="utf-8")
+            self.assertIn("set -euo pipefail", loop_content)
+            self.assertIn("awg-agent-executor", loop_content)
+            self.assertIn("AGENT", loop_content)
+            self.assertIn("MAX_TASKS", loop_content)
+            self.assertIn("MAX_IDLE_SECONDS", loop_content)
+
+            tmux_content = tmux.read_text(encoding="utf-8")
+            self.assertIn("set -euo pipefail", tmux_content)
+            self.assertIn("awg-claude-worker-loop.sh", tmux_content)
+            self.assertIn("DANGEROUSLY_SKIP_PERMS", tmux_content)
+            self.assertIn("FALLBACK", tmux_content)
+
+            for content in [loop_content, tmux_content]:
+                self.assert_public_safe_content(content)
