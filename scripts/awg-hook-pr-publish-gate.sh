@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: hook
+# Role: Hook adapter that runs the PR publish-gate check on publish-intent events.
+#
 # awg-hook-pr-publish-gate.sh — Read-only gate check triggered on publish intent.
 #
 # Reads the hook message JSON from stdin. Extracts repo and PR refs from

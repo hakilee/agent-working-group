@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: hook
+# Role: Hook adapter that runs a read-only preflight safety check for bounded worker spawns.
+#
 # awg-hook-worker-preflight.sh — Read-only preflight check for bounded workers.
 #
 # Reads the hook message JSON from stdin. Exits 0 if safe to proceed,

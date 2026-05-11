@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: template
+# Role: Opt-in adapter template for connecting the executor bridge to a real provider.
+#
 # Opt-in adapter template for connecting the bridge to a real executor.
 # Replace the deterministic mode handler with provider-specific code in a
 # private wrapper. Keep the message body as data; never execute it as shell.

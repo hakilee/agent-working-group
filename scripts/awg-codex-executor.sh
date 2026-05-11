@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: agent-executor
+# Role: Opt-in Codex adapter for the executor bridge.
+#
 # Opt-in Codex adapter for the executor bridge. The AWG message body is data
 # passed to `codex exec`; it is never evaluated as shell.
 MESSAGE_FILE=${1:-}

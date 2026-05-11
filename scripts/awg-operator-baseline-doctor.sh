@@ -1,6 +1,9 @@
 #! /usr/bin/env bash
 set -euo pipefail
 
+# Category: repository-utility
+# Role: Diagnostic doctor reporting operator baseline (Git, tools, env) health.
+
 python3 - "$@" <<'PY'
 import argparse
 import json

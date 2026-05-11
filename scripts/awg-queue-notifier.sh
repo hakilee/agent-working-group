@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: queue-operation
+# Role: Read-only pending-inbox notifier with state-file duplicate suppression.
+
 AWG_CLI=${AWG_CLI:-awg}
 AWG_ROOT=${AWG_ROOT:-.agent-working-group}
 STATE_FILE=${STATE_FILE:-"${AWG_ROOT}/queue-notifier-state.json"}

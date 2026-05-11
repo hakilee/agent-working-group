@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: queue-operation
+# Role: Safe polling wrapper around `awg status` with optional requeue-stale.
+
 AWG_CLI=${AWG_CLI:-awg}
 AWG_ROOT=${AWG_ROOT:-"${PWD}/.agent-working-group"}
 WORKER=${WORKER:-worker}

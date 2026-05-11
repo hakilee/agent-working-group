@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: agent-executor
+# Role: Codex worktree readiness check; reports Git state (read-only by default).
+
 REPO=${AWG_CODEX_REPO:-}
 BRANCH=${BRANCH:-}
 CREATE_BRANCH=0

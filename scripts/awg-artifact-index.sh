@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: artifact
+# Role: Generate a read-only index for an AWG ops artifact workspace.
+
 ROOT=""
 FORMAT="markdown"
 LIMIT=""

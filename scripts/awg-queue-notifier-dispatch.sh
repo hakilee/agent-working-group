@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: queue-operation
+# Role: Build provider-neutral delivery payloads from read-only queue notifier output.
+
 AWG_ROOT=${AWG_ROOT:-.agent-working-group}
 NOTIFIER=${NOTIFIER:-scripts/awg-queue-notifier.sh}
 STATE_FILE=${STATE_FILE:-"${AWG_ROOT}/queue-notifier-state.json"}

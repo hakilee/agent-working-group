@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Category: agent-executor
+# Role: Opt-in Claude Code adapter for the executor bridge.
+#
 # Opt-in Claude Code adapter for the executor bridge. The AWG message body is
 # data passed to `claude -p`; it is never evaluated as shell.
 
