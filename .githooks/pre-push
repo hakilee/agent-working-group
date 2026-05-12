@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Local safety net: block direct pushes to main. GitHub branch protection is the
+# authoritative guard; this hook catches mistakes on this workstation too.
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$remote_ref" == "refs/heads/main" ]]; then
+    cat >&2 <<'MSG'
+ERROR: direct push to main is blocked for AWG reliability.
+Create an implementation branch and use scripts/awg-pr-create-and-stop.sh.
+Review/merge should start from a later GitHub webhook-triggered AWG review flow.
+MSG
+    exit 1
+  fi
+  if [[ "$local_ref" == "refs/heads/main" ]]; then
+    cat >&2 <<'MSG'
+ERROR: pushing local main is blocked for AWG reliability.
+Create a branch and open a PR instead.
+MSG
+    exit 1
+  fi
+done
