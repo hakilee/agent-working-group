@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { WorkerSession } from '../api/client';
+import StatusPill from './StatusPill';
 
 function formatUptime(seconds: number | null): string {
   if (seconds == null) return '—';
@@ -12,29 +13,31 @@ function formatUptime(seconds: number | null): string {
 }
 
 export default function WorkerCard({ worker }: { worker: WorkerSession }) {
-  const dot = worker.attached ? 'bg-emerald-400' : 'bg-sky-400';
+  const navigate = useNavigate();
   return (
-    <Link
-      to={`/workers/${encodeURIComponent(worker.session)}`}
-      className="block rounded-lg border border-slate-800 bg-slate-900/40 p-4 transition-colors hover:border-slate-700 hover:bg-slate-900/70"
+    <button
+      type="button"
+      onClick={() => navigate(`/workers/${encodeURIComponent(worker.session)}`)}
+      className="card-button"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${dot}`} />
-          <span className="font-mono text-sm">{worker.session}</span>
-        </div>
-        <span className="text-xs text-slate-500">{worker.status}</span>
+      <div className="row-meta" style={{ justifyContent: 'space-between' }}>
+        <strong className="title-md mono">{worker.session}</strong>
+        <StatusPill status={worker.attached ? 'fresh' : 'stale'} />
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-400">
-        <div>
-          <div className="text-slate-500">uptime</div>
-          <div className="text-slate-200">{formatUptime(worker.uptimeSeconds)}</div>
-        </div>
-        <div>
-          <div className="text-slate-500">windows</div>
-          <div className="text-slate-200">{worker.windows}</div>
-        </div>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 18 }}>
+        <Stat label="uptime" value={formatUptime(worker.uptimeSeconds)} />
+        <Stat label="windows" value={String(worker.windows)} />
+        <Stat label="status" value={worker.status} />
       </div>
-    </Link>
+    </button>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="kpi-label">{label}</div>
+      <div className="mono body" style={{ color: 'var(--color-ink)', marginTop: 4 }}>{value}</div>
+    </div>
   );
 }

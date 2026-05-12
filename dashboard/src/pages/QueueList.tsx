@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type QueueSummary } from '../api/client';
-import StatusBadge from '../components/StatusBadge';
+import StatusPill from '../components/StatusPill';
 import { useQueueStream } from '../hooks/useQueueStream';
 
 const FILTERS = ['all', 'pending', 'processing', 'processed', 'dead'] as const;
 type Filter = (typeof FILTERS)[number];
 
 export default function QueueList() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>('all');
   const [items, setItems] = useState<QueueSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,115 +17,74 @@ export default function QueueList() {
 
   useEffect(() => {
     let cancelled = false;
-    const load = () => {
-      api
-        .listQueue({ state: filter === 'all' ? undefined : filter, limit: 500 })
-        .then((data) => {
-          if (cancelled) return;
-          setItems(data.items);
-          setError(null);
-        })
-        .catch((err) => !cancelled && setError(String(err)))
-        .finally(() => !cancelled && setLoading(false));
-    };
     setLoading(true);
-    load();
-    return () => {
-      cancelled = true;
-    };
+    api
+      .listQueue({ state: filter === 'all' ? undefined : filter, limit: 500 })
+      .then((data) => {
+        if (cancelled) return;
+        setItems(data.items);
+        setError(null);
+      })
+      .catch((err) => !cancelled && setError(String(err)))
+      .finally(() => !cancelled && setLoading(false));
+    return () => { cancelled = true; };
   }, [filter]);
 
-  // Re-fetch when the WebSocket signals a change. The stream itself only
-  // carries per-agent counts, so we still need the REST list for the table.
   useEffect(() => {
     if (!stream) return;
     api
       .listQueue({ state: filter === 'all' ? undefined : filter, limit: 500 })
-      .then((data) => {
-        setItems(data.items);
-        setError(null);
-      })
+      .then((data) => { setItems(data.items); setError(null); })
       .catch((err) => setError(String(err)));
   }, [stream, filter]);
 
-  const grouped = useMemo(() => items, [items]);
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Queue</h1>
-        <div className="flex gap-1">
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <div className="eyebrow">Queue</div>
+          <h1 className="title-xl">Work items</h1>
+        </div>
+        <div className="filter-bar" aria-label="Queue filters">
           {FILTERS.map((value) => (
             <button
               key={value}
               type="button"
+              className={`filter-btn${filter === value ? ' active' : ''}`}
               onClick={() => setFilter(value)}
-              className={`rounded px-2.5 py-1 text-xs uppercase tracking-wide transition-colors ${
-                filter === value
-                  ? 'bg-slate-800 text-slate-100'
-                  : 'text-slate-500 hover:bg-slate-800/60 hover:text-slate-300'
-              }`}
             >
               {value}
             </button>
           ))}
         </div>
-      </div>
+      </header>
 
-      {error && (
-        <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
-          {error}
-        </div>
+      {error && <div className="alert">{error}</div>}
+      {loading && <div className="empty">Loading queue…</div>}
+      {!loading && !error && items.length === 0 && <div className="empty">No queue items.</div>}
+
+      {!loading && items.length > 0 && (
+        <ul className="grid queue-grid">
+          {items.map((item) => (
+            <li key={`${item.agent}/${item.filename}`}>
+              <button type="button" className="card-button" onClick={() => navigate(`/queue/${encodeURIComponent(item.id)}`)}>
+                <div className="row-meta">
+                  <span className="pill pill-neutral">{item.kind}</span>
+                  <StatusPill status={item.state} />
+                  <time className="mono caption" style={{ marginLeft: 'auto' }}>{item.createdAt ?? '—'}</time>
+                </div>
+                <p className="body" style={{ marginTop: 12, color: 'var(--color-ink)' }}>
+                  {item.body.split('\n')[0].slice(0, 132) || '(empty)'}
+                </p>
+                <div className="row-meta" style={{ marginTop: 16 }}>
+                  <span className="mono caption">{item.from ?? '?'} → {item.to ?? '?'}</span>
+                  <span className="mono caption" style={{ marginLeft: 'auto' }}>{item.agent}</span>
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
-
-      <div className="overflow-hidden rounded-lg border border-slate-800">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-900/60 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-3 py-2 font-medium">state</th>
-              <th className="px-3 py-2 font-medium">kind</th>
-              <th className="px-3 py-2 font-medium">agent</th>
-              <th className="px-3 py-2 font-medium">from → to</th>
-              <th className="px-3 py-2 font-medium">body</th>
-              <th className="px-3 py-2 font-medium">created</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800 bg-slate-950">
-            {loading && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
-                  loading…
-                </td>
-              </tr>
-            )}
-            {!loading && grouped.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
-                  no items
-                </td>
-              </tr>
-            )}
-            {grouped.map((item) => (
-              <tr key={`${item.agent}/${item.filename}`} className="hover:bg-slate-900/60">
-                <td className="px-3 py-2">
-                  <StatusBadge status={item.state} />
-                </td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-300">{item.kind}</td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-300">{item.agent}</td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-400">
-                  {item.from ?? '?'} → {item.to ?? '?'}
-                </td>
-                <td className="px-3 py-2 text-slate-300">
-                  <Link to={`/queue/${item.id}`} className="hover:text-emerald-300">
-                    {item.body.split('\n')[0].slice(0, 96) || '(empty)'}
-                  </Link>
-                </td>
-                <td className="px-3 py-2 font-mono text-xs text-slate-500">{item.createdAt ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }

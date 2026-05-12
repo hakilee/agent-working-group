@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api, workerSocketUrl, type WorkerSession } from '../api/client';
-import TerminalOutput from '../components/TerminalOutput';
+import StatusPill from '../components/StatusPill';
 
 type WSMessage =
   | { type: 'snapshot' | 'update'; session: string; data: string; ts: number }
@@ -12,10 +12,12 @@ const RECONNECT_MAX_MS = 15000;
 
 export default function WorkerTerminal() {
   const { session = '' } = useParams<{ session: string }>();
+  const navigate = useNavigate();
   const [worker, setWorker] = useState<WorkerSession | null>(null);
-  const [output, setOutput] = useState<string>('');
+  const [output, setOutput] = useState('');
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const preRef = useRef<HTMLPreElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -27,9 +29,7 @@ export default function WorkerTerminal() {
         if (data.recentOutput) setOutput(data.recentOutput);
       })
       .catch((err) => !cancelled && setError(String(err)));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [session]);
 
   useEffect(() => {
@@ -42,27 +42,20 @@ export default function WorkerTerminal() {
     const connect = () => {
       if (cancelled) return;
       ws = new WebSocket(workerSocketUrl(session));
-      ws.onopen = () => {
-        setConnected(true);
-        retryMs = RECONNECT_INITIAL_MS;
-      };
+      ws.onopen = () => { setConnected(true); retryMs = RECONNECT_INITIAL_MS; };
       ws.onclose = () => {
         setConnected(false);
         if (cancelled) return;
         retryTimer = window.setTimeout(connect, retryMs);
         retryMs = Math.min(retryMs * 2, RECONNECT_MAX_MS);
       };
-      ws.onerror = () => {
-        // onerror is always followed by onclose, so let the close handler
-        // schedule the reconnect.
-        ws?.close();
-      };
+      ws.onerror = () => ws?.close();
       ws.onmessage = (ev) => {
         try {
           const msg = JSON.parse(ev.data) as WSMessage;
           if (msg.type === 'snapshot' || msg.type === 'update') setOutput(msg.data);
         } catch {
-          /* ignore */
+          /* ignore malformed stream frames */
         }
       };
     };
@@ -75,35 +68,41 @@ export default function WorkerTerminal() {
     };
   }, [session]);
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Link to="/workers" className="text-xs text-slate-400 hover:text-slate-200">
-          ← back to workers
-        </Link>
-        <div className="flex items-center gap-2 text-xs">
-          <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-          <span className="text-slate-500">{connected ? 'streaming' : 'disconnected'}</span>
-        </div>
-      </div>
+  useEffect(() => {
+    if (!preRef.current) return;
+    preRef.current.scrollTop = preRef.current.scrollHeight;
+  }, [output]);
 
-      <header className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
-        <div className="font-mono text-sm text-slate-100">{session}</div>
-        {worker && (
-          <div className="mt-1 text-xs text-slate-500">
-            status: {worker.status} · windows: {worker.windows} ·{' '}
-            attached: {worker.attached ? 'yes' : 'no'}
-          </div>
-        )}
+  return (
+    <div className="page">
+      <button type="button" onClick={() => navigate('/workers')} className="action-btn">← Workers</button>
+      <header className="page-header panel panel-pad">
+        <div>
+          <div className="eyebrow">Worker Terminal</div>
+          <h1 className="title-lg mono">{session}</h1>
+        </div>
+        <StatusPill status={connected ? 'streaming' : 'disconnected'} tone={connected ? 'success' : 'neutral'} />
       </header>
 
-      {error && (
-        <div className="rounded border border-rose-800 bg-rose-900/30 p-3 text-sm text-rose-300">
-          {error}
-        </div>
+      {worker && (
+        <section className="panel panel-pad grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+          <Detail label="status" value={worker.status} />
+          <Detail label="windows" value={String(worker.windows)} />
+          <Detail label="attached" value={worker.attached ? 'yes' : 'no'} />
+        </section>
       )}
 
-      <TerminalOutput text={output} />
+      {error && <div role="alert" className="alert">{error}</div>}
+      <pre ref={preRef} className="code-block terminal">{output || '(no output yet)'}</pre>
+    </div>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="kpi-label">{label}</div>
+      <div className="mono body" style={{ color: 'var(--color-ink)', marginTop: 4 }}>{value}</div>
     </div>
   );
 }
