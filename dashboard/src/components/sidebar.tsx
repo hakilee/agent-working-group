@@ -76,7 +76,7 @@ function MobileSidebar() {
   useEffect(() => setOpen(false), [location.pathname]);
 
   return (
-    <Collapsible.Root open={open} onOpenChange={setOpen} className="border-b border-ops-line bg-white/70 p-3 backdrop-blur-2xl dark:border-white/15 dark:bg-[#202a25]/75 md:hidden">
+    <Collapsible.Root open={open} onOpenChange={setOpen} className="relative z-40 border-b border-ops-line bg-white/70 p-3 backdrop-blur-2xl dark:border-white/15 dark:bg-[#202a25]/75 md:hidden">
       <div className="flex items-center justify-between gap-3">
         <Brand />
         <Collapsible.Trigger className="action-btn min-h-9" aria-label="Toggle dashboard navigation">
@@ -85,8 +85,8 @@ function MobileSidebar() {
           <IconChevronDown size={15} stroke={1.9} className={cn('transition-transform duration-150', open && 'rotate-180')} />
         </Collapsible.Trigger>
       </div>
-      <Collapsible.Panel keepMounted className="mobile-nav-panel data-[closed]:hidden">
-        <div className="mt-3 grid gap-1 border-t border-ops-line pt-3 dark:border-white/15">
+      <Collapsible.Panel keepMounted className="mobile-nav-panel absolute left-3 right-3 top-[calc(100%-1px)] border border-ops-line bg-ops-panel p-3 shadow-[0_18px_50px_rgb(31_39_34/.18)] backdrop-blur-2xl data-[closed]:hidden dark:border-white/15 dark:bg-[#1e2722]/95 dark:shadow-black/35">
+        <div className="grid gap-1">
           <NavGroups onSelect={() => setOpen(false)} />
         </div>
       </Collapsible.Panel>
