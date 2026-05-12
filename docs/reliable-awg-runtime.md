@@ -28,6 +28,8 @@ own reviewer after compaction or context drift.
   PR URL, and latest status under `.agent-working-group/runtime/work-state/`.
 - **Decouple completion detection.** tmux completion is detected by a watcher
   process that writes durable files, not by main-session cron/systemEvents.
+- **Supervise the dashboard.** The dashboard is a production surface and must be
+  managed by a process supervisor with restart-on-failure, not ad-hoc `nohup`.
 
 ## Required Helpers
 
@@ -38,6 +40,10 @@ own reviewer after compaction or context drift.
   writes completion evidence to `.agent-working-group/runtime/tmux-results/`.
 - `scripts/awg-pr-create-and-stop.sh` pushes the implementation branch, creates
   the PR, records the PR URL, and stops implementation mode.
+- `scripts/install-dashboard-launchd.sh` installs a macOS LaunchAgent that keeps
+  the dashboard running after crashes, logout/login, or reboot.
+- `scripts/awg-dashboard-healthcheck.sh` verifies `/api/status` and fails if the
+  dashboard is unreachable or using an unsafe temporary root.
 
 ## Implementation Checklist
 
@@ -47,7 +53,9 @@ own reviewer after compaction or context drift.
    ```bash
    scripts/awg-work-state.sh start --id WORK_ID --title "..." --branch BRANCH --repo OWNER/REPO
    ```
-4. Run code work in tmux and start the watcher:
+4. Run code work in tmux and start the watcher. The safe default requires a new
+   explicit marker such as `AWG_TMUX_DONE:WORK_ID` in pane output; it no longer
+   treats generic historical `PASS`, `FAIL`, `DONE`, or prompt text as complete.
    ```bash
    scripts/tmux-completion-watcher.sh --sessions SESSION --state-id WORK_ID
    ```
@@ -66,6 +74,11 @@ Apply once per repository:
 scripts/github-protect-main.sh --repo OWNER/REPO
 ```
 
+By default the helper fetches and preserves existing required status checks and
+push restrictions. If GitHub rejects the read, fix permissions first or rerun
+with `--replace-existing` only when intentionally creating a baseline policy from
+scratch.
+
 If GitHub rejects the request, the operator account lacks permission. Treat that
 as a blocker because direct main push remains possible on GitHub.
 
@@ -78,3 +91,17 @@ scripts/install-local-main-guard.sh
 The local guard is not a substitute for GitHub branch protection, but it prevents
 this workstation from accidentally pushing `main` while repo-admin protection is
 being enabled.
+
+## Dashboard Supervision
+
+Install the macOS LaunchAgent on the host that serves `awg.haklee.me`:
+
+```bash
+scripts/install-dashboard-launchd.sh
+scripts/awg-dashboard-healthcheck.sh --url http://127.0.0.1:8000/api/status
+```
+
+The LaunchAgent runs `scripts/awg-dashboard-start.sh` with `RunAtLoad` and
+`KeepAlive`, writing logs to `.agent-working-group/log/dashboard/`. Manual starts
+remain available for debugging, but production use should rely on launchd so a
+crash or reboot does not leave Cloudflare pointing at a dead local origin.
