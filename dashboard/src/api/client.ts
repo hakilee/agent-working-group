@@ -1,3 +1,5 @@
+import { WORKER_TERMINAL_LINES } from '../dashboard-rules';
+
 export interface QueueSummary {
   id: string;
   agent: string;
@@ -17,30 +19,50 @@ export interface QueueDetail extends QueueSummary {
   message: Record<string, unknown>;
 }
 
+export interface WorkerWindow {
+  index: number;
+  name: string;
+  active: boolean;
+  panes: number;
+  flags: string;
+}
+
 export interface WorkerSession {
   session: string;
   createdAt: number | null;
   uptimeSeconds: number | null;
   attached: boolean;
   windows: number;
+  windowItems: WorkerWindow[];
   status: string;
   recentOutput?: string;
 }
 
+export interface WorkerActionResponse {
+  queued: boolean;
+  messageId: string;
+}
+
 export interface SystemStatus {
   root: string;
+  rootSource: 'env' | 'auto';
+  queuePath: string;
+  queuePathExists: boolean;
+  isTmpRoot: boolean;
   counts: Record<string, number>;
   totalQueueItems: number;
   agents: string[];
   workers: { total: number; attached: number; tmuxAvailable: boolean };
   recentActivity: Array<{
     id?: string;
+    state?: 'pending' | 'processing' | 'processed' | 'dead' | 'logged';
+    agent?: string | null;
     kind?: string;
-    from?: string;
-    to?: string;
+    from?: string | null;
+    to?: string | null;
     body?: string;
-    createdAt?: string;
-    createdAtMs?: number;
+    createdAt?: string | null;
+    createdAtMs?: number | null;
   }>;
   serverTime: number;
 }
@@ -157,8 +179,17 @@ export const api = {
     ),
   listWorkers: () =>
     request<{ items: WorkerSession[]; total: number; tmuxAvailable: boolean }>('/api/workers'),
-  getWorker: (session: string, lines = 200) =>
-    request<WorkerSession>(`/api/workers/${encodeURIComponent(session)}?lines=${lines}`),
+  getWorker: (session: string, lines = WORKER_TERMINAL_LINES, window?: number) => {
+    const qs = new URLSearchParams({ lines: String(lines) });
+    if (window !== undefined) qs.set('window', String(window));
+    return request<WorkerSession>(`/api/workers/${encodeURIComponent(session)}?${qs.toString()}`);
+  },
+  requestWorkerAction: (session: string, action: 'close-session' | 'close-window', options?: { window?: number; reason?: string }) =>
+    request<WorkerActionResponse>(`/api/workers/${encodeURIComponent(session)}/actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...options }),
+    }),
   liveness: {
     heartbeats: (timeoutSeconds?: number) => {
       const qs = timeoutSeconds ? `?timeoutSeconds=${timeoutSeconds}` : '';
@@ -177,7 +208,8 @@ function wsBase(): string {
   return `${proto}://${window.location.host}`;
 }
 
-export function workerSocketUrl(session: string): string {
+export function workerSocketUrl(session: string, window?: number): string {
+  if (window !== undefined) return `${wsBase()}/ws/workers/${encodeURIComponent(session)}/windows/${window}`;
   return `${wsBase()}/ws/workers/${encodeURIComponent(session)}`;
 }
 

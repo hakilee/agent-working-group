@@ -1,3 +1,7 @@
 .agent-working-group/
 __pycache__/
 *.py[cod]
+
+# Generated packaging artifacts
+uv.lock
+src/*.egg-info/

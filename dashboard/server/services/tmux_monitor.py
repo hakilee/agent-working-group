@@ -28,6 +28,15 @@ CAPTURE_LINES = 200
 
 
 @dataclass
+class Window:
+    index: int
+    name: str
+    active: bool
+    panes: int
+    flags: str
+
+
+@dataclass
 class Session:
     name: str
     created_at: int  # unix seconds
@@ -95,11 +104,37 @@ class TmuxBackend:
         sessions.sort(key=lambda s: s.name)
         return sessions
 
-    def capture(self, session: str, lines: int = CAPTURE_LINES) -> str:
+    def list_windows(self, session: str) -> list[Window]:
+        if not self.available:
+            return []
+        fmt = "#{window_index}\t#{window_name}\t#{window_active}\t#{window_panes}\t#{window_flags}"
+        out = self._run("list-windows", "-t", session, "-F", fmt)
+        windows: list[Window] = []
+        for line in out.splitlines():
+            parts = line.split("\t")
+            if len(parts) < 5:
+                continue
+            try:
+                windows.append(
+                    Window(
+                        index=int(parts[0]),
+                        name=parts[1],
+                        active=parts[2] == "1",
+                        panes=int(parts[3] or 0),
+                        flags=parts[4],
+                    )
+                )
+            except ValueError:
+                continue
+        windows.sort(key=lambda w: w.index)
+        return windows
+
+    def capture(self, session: str, lines: int = CAPTURE_LINES, window: Optional[int] = None) -> str:
         if not self.available:
             return ""
+        target = f"{session}:{window}" if window is not None else session
         # -p: print to stdout, -J: join wrapped lines, -S -N: last N lines
-        return self._run("capture-pane", "-pJ", "-t", session, "-S", f"-{lines}")
+        return self._run("capture-pane", "-pJ", "-t", target, "-S", f"-{lines}")
 
 
 class PollingTmuxMonitor:
@@ -123,9 +158,10 @@ class PollingTmuxMonitor:
     def list_sessions(self) -> list[Session]:
         return self.backend.list_sessions()
 
-    def snapshot(self, session: str) -> str:
-        text = self.backend.capture(session, self.capture_lines)
-        self._last_capture[session] = text
+    def snapshot(self, target: str) -> str:
+        session, window = split_target(target)
+        text = self.backend.capture(session, self.capture_lines, window=window)
+        self._last_capture[target] = text
         return text
 
     async def subscribe(self, session: str) -> asyncio.Queue:
@@ -137,7 +173,8 @@ class PollingTmuxMonitor:
         snapshot = self._last_capture.get(session)
         if snapshot is None:
             snapshot = await asyncio.to_thread(self.snapshot, session)
-        await queue.put({"type": "snapshot", "session": session, "data": snapshot, "ts": time.time()})
+        base_session, window = split_target(session)
+        await queue.put({"type": "snapshot", "session": base_session, "window": window, "data": snapshot, "ts": time.time()})
         return queue
 
     async def unsubscribe(self, session: str, queue: asyncio.Queue) -> None:
@@ -183,19 +220,21 @@ class PollingTmuxMonitor:
     async def _tick(self) -> None:
         async with self._lock:
             watched = list(self._subscribers.keys())
-        for session in watched:
+        for target in watched:
+            session, window = split_target(target)
             text = await asyncio.to_thread(
-                self.backend.capture, session, self.capture_lines
+                self.backend.capture, session, self.capture_lines, window
             )
-            previous = self._last_capture.get(session, "")
+            previous = self._last_capture.get(target, "")
             if text == previous:
                 continue
-            self._last_capture[session] = text
+            self._last_capture[target] = text
             await self._broadcast(
-                session,
+                target,
                 {
                     "type": "update",
                     "session": session,
+                    "window": window,
                     "data": text,
                     "ts": time.time(),
                 },
@@ -214,3 +253,17 @@ class PollingTmuxMonitor:
                     queue.put_nowait(payload)
                 except (asyncio.QueueEmpty, asyncio.QueueFull):
                     pass
+
+
+def make_target(session: str, window: Optional[int] = None) -> str:
+    return f"{session}:{window}" if window is not None else session
+
+
+def split_target(target: str) -> tuple[str, Optional[int]]:
+    if ":" not in target:
+        return target, None
+    session, raw_window = target.rsplit(":", 1)
+    try:
+        return session, int(raw_window)
+    except ValueError:
+        return target, None

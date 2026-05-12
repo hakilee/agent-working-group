@@ -1,0 +1,10 @@
+export const DASHBOARD_POLL_INTERVAL_MS = 5_000;
+export const WORKER_POLL_INTERVAL_MS = 4_000;
+export const QUEUE_LIST_LIMIT = 500;
+export const WORKER_TERMINAL_LINES = 200;
+export const WORKER_SOCKET_INITIAL_RETRY_MS = 1_000;
+export const WORKER_SOCKET_MAX_RETRY_MS = 15_000;
+export const OVERVIEW_AGENT_LIMIT = 12;
+export const QUEUE_CARD_PREVIEW_LENGTH = 132;
+export const SECONDS_PER_MINUTE = 60;
+export const SECONDS_PER_HOUR = 3_600;

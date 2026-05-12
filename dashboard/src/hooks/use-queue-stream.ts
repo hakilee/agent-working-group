@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { queueStreamUrl, type AgentSummary } from '../api/client';
-import { useWebSocket } from './useWebSocket';
+import { useWebSocket } from './use-web-socket';
 
 export interface QueueStreamFrame {
   type: 'queues';

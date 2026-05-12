@@ -35,9 +35,28 @@ STATE_TO_PUBLIC = {
 PUBLIC_TO_STATE = {v: k for k, v in STATE_TO_PUBLIC.items()}
 
 
+def _root_candidates() -> list[Path]:
+    anchors = [Path.cwd(), Path(__file__).resolve()]
+    candidates: list[Path] = []
+    for anchor in anchors:
+        for parent in [anchor, *anchor.parents]:
+            candidates.extend([parent / ".agent-working-group", parent])
+    return candidates
+
+
+def _looks_like_awg_root(path: Path) -> bool:
+    return (path / "queues").is_dir()
+
+
 def default_root() -> Path:
-    """Resolve the AWG root directory. Honors AWG_ROOT, defaults to /tmp/awg-ops."""
-    return Path(os.environ.get("AWG_ROOT", "/tmp/awg-ops")).expanduser()
+    """Resolve the AWG root directory, preferring the local repo queue over /tmp."""
+    raw = os.environ.get("AWG_ROOT")
+    if raw:
+        return Path(raw).expanduser()
+    for candidate in _root_candidates():
+        if _looks_like_awg_root(candidate):
+            return candidate.expanduser()
+    return Path("/tmp/awg-ops").expanduser()
 
 
 @dataclass
