@@ -7,6 +7,7 @@ import QueueList from './pages/queue-list';
 import Settings from './pages/settings';
 import WorkerTerminal from './pages/worker-terminal';
 import Workers from './pages/workers';
+import Workshop from './pages/workshop';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/queue/:id" element={<QueueDetail />} />
           <Route path="/workers" element={<Workers />} />
           <Route path="/workers/:session" element={<WorkerTerminal />} />
+          <Route path="/workshop" element={<Workshop />} />
           <Route path="/liveness" element={<Liveness />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
