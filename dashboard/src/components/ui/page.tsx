@@ -1,12 +1,7 @@
-import { motion } from 'motion/react';
 import type { ReactNode } from 'react';
 
 export function Page({ children }: { children: ReactNode }) {
-  return (
-    <motion.div className="page" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.14, ease: 'easeOut' }}>
-      {children}
-    </motion.div>
-  );
+  return <div className="page page-transition">{children}</div>;
 }
 
 export function PageHeader({

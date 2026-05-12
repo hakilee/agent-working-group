@@ -19,7 +19,7 @@ export default function WorkerCard({ worker }: { worker: WorkerSession }) {
     <button type="button" onClick={() => navigate(`/workers/${encodeURIComponent(worker.session)}`)} className="card-button">
       <div className="row-meta justify-between">
         <strong className="title-md break-all">{worker.session}</strong>
-        <StatusPill status={worker.attached ? 'fresh' : 'stale'} />
+        <StatusPill status={worker.status}>{worker.attached ? 'attached' : 'running'}</StatusPill>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2">
         {stats.map(([label, value]) => <Stat key={label} label={label} value={value} />)}

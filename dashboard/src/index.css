@@ -41,7 +41,7 @@
 }
 
 @layer components {
-  .page { @apply mx-auto grid w-full max-w-[1240px] gap-4; }
+  .page { view-transition-name: dashboard-page; transition: opacity .14s ease-out, transform .14s ease-out; @apply mx-auto grid w-full max-w-[1240px] gap-4; }
   .panel { @apply border border-ops-line bg-ops-panel shadow-[0_10px_28px_rgb(31_39_34/.08)] backdrop-blur-xl dark:border-white/15 dark:bg-[#1e2722]/85 dark:shadow-black/20; }
   .panel-pad { @apply p-3 md:p-4; }
   .page-header { @apply flex flex-wrap items-end justify-between gap-3; }
@@ -65,4 +65,29 @@
   .empty { @apply border border-dashed border-black/25 bg-ops-panel p-4 text-center text-xs text-ops-muted dark:border-white/25 dark:bg-[#1e2722]/85 dark:text-[#839087]; }
   .alert { @apply border border-rose-500 bg-rose-50/80 p-3 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-200; }
   .code-block { @apply overflow-auto whitespace-pre-wrap break-words border border-ops-line bg-white/75 p-3 text-[11px] leading-5 text-ops-ink dark:border-white/15 dark:bg-black/25 dark:text-[#eef3ec]; }
+}
+
+@starting-style {
+  .page { opacity: 0; transform: translateY(6px); }
+}
+
+@keyframes dashboard-page-enter {
+  from { opacity: .84; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dashboard-page-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: .92; transform: translateY(-2px); }
+}
+
+@view-transition { navigation: auto; }
+
+::view-transition-new(dashboard-page) { animation: dashboard-page-enter .14s ease-out both; }
+::view-transition-old(dashboard-page) { animation: dashboard-page-exit .10s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .page { transition: none; }
+  ::view-transition-old(dashboard-page),
+  ::view-transition-new(dashboard-page) { animation: none; }
 }

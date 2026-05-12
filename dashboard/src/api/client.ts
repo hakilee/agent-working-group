@@ -42,8 +42,8 @@ export interface SystemStatus {
   recentActivity: Array<{
     id?: string;
     kind?: string;
-    from?: string;
-    to?: string;
+    from?: string | null;
+    to?: string | null;
     body?: string;
     createdAt?: string;
     createdAtMs?: number;
