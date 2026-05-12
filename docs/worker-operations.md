@@ -174,7 +174,7 @@ For code work, keep the Codex worker path explicit and bounded. Do not apply thi
 5. Inspect the summary and log evidence. The summary points to `logFile` when available; otherwise use the tmux wrapper `log` command.
 6. Reconcile queue state only after evidence review. Use safe reviewed-item operations, not direct queue JSON edits, and do not assume a summary or log is enough to ack, retry, or delete work.
 
-This sequence does not create an always-on daemon, does not auto-dispatch work, and does not change queue ack/retry policy.
+This sequence does not create an always-on daemon, does not auto-dispatch work, and does not change queue ack/retry policy. If the run is part of implementation-mode repository work, pair the tmux session with the conservative completion watcher described in [Reliable AWG Runtime](reliable-awg-runtime.md) and emit only the watcher-specific `AWG_TMUX_DONE:<watchId>` marker after evidence is complete.
 
 ## Codex Worker Stale Recovery
 
@@ -196,7 +196,7 @@ Codex worker jobs should target a clean Git worktree. `scripts/awg-codex-executo
 
 The Codex worker loop writes one JSON summary per run under `LOG_DIR/run-summaries`. The file includes worker, lead, start and stop timestamps, duration, stop reason, task count, and log location. This is an inspection artifact only; it does not change queue acknowledgement or retry behavior.
 
-Status reports `latest_summary=PATH` when a summary exists, or `latest_summary=none` before the first summary. Use this as a pointer from session status to run evidence; do not treat summary contents as worker control state. Summary files, logs, and status pointers are not authority for `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, `prune`, deletion, routing, or direct queue JSON edits. Before any reviewed-item mutation, re-read live queue state, compare expected metadata such as kind, sender, recipient, and createdAt, and fail closed on drift without moving the message.
+Status reports `latest_summary=PATH` when a summary exists, or `latest_summary=none` before the first summary. Use this as a pointer from session status to run evidence; do not treat summary contents as worker control state. Summary files, logs, watcher status files, and status pointers are not authority for `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, `prune`, deletion, routing, or direct queue JSON edits. Before any reviewed-item mutation, re-read live queue state, compare expected metadata such as kind, sender, recipient, and createdAt, and fail closed on drift without moving the message.
 
 ## Codex Worker Branch and Worktree Prep
 

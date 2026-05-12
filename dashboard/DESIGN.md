@@ -2,7 +2,7 @@
 
 ## Direction
 
-The dashboard is an operations surface for Agent Working Group: calm, dense enough for senior operators, and clear under incident pressure. It should feel like a control room rather than a marketing landing page.
+The dashboard is an operations surface for Agent Working Group: calm, dense enough for senior operators, and clear under incident pressure. It should feel like a control room rather than a marketing landing page. In production it is expected to run behind the local FastAPI service supervised by the repository launchd helper, with `/api/status` serving as the health boundary.
 
 ## Principles
 
@@ -29,6 +29,7 @@ The dashboard is an operations surface for Agent Working Group: calm, dense enou
 - Worker card: session identity, liveness status, uptime/windows/status metrics.
 - Detail pages: structured key-value metadata followed by code blocks for body/refs/raw payload.
 - Liveness rows: status pill, agent/session identity, age/timeout metadata.
+- Status health: surface root safety, queue-path availability, tmux availability, and watcher freshness without requiring operators to inspect server logs first.
 
 ## Accessibility Notes
 

@@ -1,6 +1,6 @@
 # Reliable AWG Runtime
 
-This document defines the reliability baseline for AWG implementation work.
+This document defines the reliability baseline for AWG implementation work. It covers coding or documentation changes that need durable coordination across queues, tmux sessions, PRs, and dashboard operations.
 
 ## Operating Model
 
@@ -26,8 +26,10 @@ own reviewer after compaction or context drift.
   work reaches main only through PRs.
 - **Persist active state.** Long-running work records its branch, tmux sessions,
   PR URL, and latest status under `.agent-working-group/runtime/work-state/`.
+  Corrupt state must fail closed and be backed up before any rewrite.
 - **Decouple completion detection.** tmux completion is detected by a watcher
   process that writes durable files, not by main-session cron/systemEvents.
+  The safe default requires a new run-scoped marker in pane output.
 - **Supervise the dashboard.** The dashboard is a production surface and must be
   managed by a process supervisor with restart-on-failure, not ad-hoc `nohup`.
 
@@ -54,10 +56,14 @@ own reviewer after compaction or context drift.
    scripts/awg-work-state.sh start --id WORK_ID --title "..." --branch BRANCH --repo OWNER/REPO
    ```
 4. Run code work in tmux and start the watcher. The safe default requires a new
-   explicit marker such as `AWG_TMUX_DONE:WORK_ID` in pane output; it no longer
-   treats generic historical `PASS`, `FAIL`, `DONE`, or prompt text as complete.
+   explicit marker in pane output. The watcher records its current `watchId` in
+   `status.json` as `expectedCompletionMarker`, for example
+   `AWG_TMUX_DONE:20260512T150000Z-12345`. It does not treat generic historical
+   `PASS`, `FAIL`, `DONE`, `completed`, or prompt text as complete.
    ```bash
    scripts/tmux-completion-watcher.sh --sessions SESSION --state-id WORK_ID
+   cat .agent-working-group/runtime/tmux-results/status.json
+   # emit the expectedCompletionMarker in the watched tmux pane when the worker is truly done
    ```
 5. Request worker QA through the AWG queue and record PASS/FAIL evidence.
 6. Create the PR and stop:
@@ -65,6 +71,28 @@ own reviewer after compaction or context drift.
    scripts/awg-pr-create-and-stop.sh --work-id WORK_ID --repo OWNER/REPO --title "..." --body-file /tmp/body.md
    ```
 7. Wait for the GitHub webhook/mention to start review mode.
+
+## tmux Completion Watcher
+
+The watcher is intentionally conservative:
+
+- Default completion regex is `AWG_TMUX_DONE(:|=)<watchId>`.
+- Existing pane content is captured as a baseline at watcher start, so old markers or old PASS output do not complete the current watch.
+- Done markers are stored as `completed/<safe-session>.<watchId>.done`, preventing stale marker reuse when session names repeat.
+- Sessions missing at startup fail with exit code `2` unless `--allow-missing-sessions` is explicitly supplied.
+- Prompt/process-exit completion is opt-in with `--allow-prompt-complete`.
+- Captured output filenames use sanitized session names.
+
+## Work State
+
+`scripts/awg-work-state.sh` stores active work in `active.json` and appends an event log to `events.jsonl`. Updates hold an exclusive `.active.lock` and write through unique temp files before atomic replacement. If `active.json` is corrupt or is not a JSON object, the script exits non-zero; JSON syntax corruption is copied to an `active.corrupt-YYYYMMDDTHHMMSSZ` file when possible.
+
+Use `report` before deciding that a task has no active state:
+
+```bash
+scripts/awg-work-state.sh report
+scripts/awg-work-state.sh report --id WORK_ID
+```
 
 ## Branch Protection
 
@@ -94,7 +122,7 @@ being enabled.
 
 ## Dashboard Supervision
 
-Install the macOS LaunchAgent on the host that serves `awg.haklee.me`:
+Install the macOS LaunchAgent on the host that serves the dashboard:
 
 ```bash
 scripts/install-dashboard-launchd.sh
@@ -102,6 +130,12 @@ scripts/awg-dashboard-healthcheck.sh --url http://127.0.0.1:8000/api/status
 ```
 
 The LaunchAgent runs `scripts/awg-dashboard-start.sh` with `RunAtLoad` and
-`KeepAlive`, writing logs to `.agent-working-group/log/dashboard/`. Manual starts
-remain available for debugging, but production use should rely on launchd so a
-crash or reboot does not leave Cloudflare pointing at a dead local origin.
+`KeepAlive`, writing logs to `.agent-working-group/log/dashboard/`. It sets
+`DASHBOARD_ROOT` to the selected AWG root and includes a configurable `PATH` so
+local tools such as `tmux` remain visible under launchd. Manual starts remain
+available for debugging, but production use should rely on launchd so a crash or
+reboot does not leave the public route pointing at a dead local origin.
+
+The healthcheck exits non-zero when the status endpoint is unreachable, reports
+`isTmpRoot: true`, or reports a missing queue path. Run it after installation,
+after host reboot, and before declaring dashboard incidents resolved.

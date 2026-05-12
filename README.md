@@ -1,5 +1,7 @@
 # Agent Working Group
 
+[English](README.md) | [&#54620;&#44397;&#50612;](README.ko.md)
+
 Agent Working Group is a tiny file-backed coordination layer for small teams of agents and local operators. It gives a lead agent and one or more worker agents a shared mailbox protocol: send instructions, receive prioritized messages, acknowledge work, retry stale messages, and inspect the queue without running a server.
 
 The package is designed around a practical working pattern: a lead decomposes work, workers validate or implement bounded tasks, messages preserve accountability, and queue state makes collaboration inspectable.
@@ -16,6 +18,7 @@ The package is designed around a practical working pattern: a lead decomposes wo
 - **Safe scheduling:** observers can inspect and recover queues without consuming work.
 - **Queue reconciliation policy:** old inbox items require evidence before any future reconciliation action.
 - **Explicit queue hooks:** local argv-list adapters can be dispatched around sent or pending messages without becoming queue authority.
+- **Reliable implementation runtime:** optional helpers persist active work state, watch tmux sessions conservatively, protect the main branch, and supervise the dashboard.
 
 ## Installation
 
@@ -174,10 +177,10 @@ Queue routing uses role names (`lead`, `worker`, `reviewer`), not personal agent
 Use this flow for every enhancement:
 
 1. Define the operational problem and expected behavior.
-2. Implement the smallest generic change in `src/agent_working_group/`.
-3. Update `README.md` and protocol/API docs in English.
+2. Implement the smallest generic change in `src/agent_working_group/`, `scripts/`, `dashboard/`, or docs that solves the scoped problem.
+3. Update `README.md`, protocol/API docs, runtime docs, or script docs in English when behavior changes.
 4. Add or update tests in `tests/`.
-5. Run the test suite from the project root.
+5. Run the smallest meaningful verification from the project root, then broader tests when the change affects shared behavior.
 6. Review the public API and docs for clarity.
 7. Only then report the enhancement as complete.
 
@@ -215,9 +218,9 @@ This is intentionally simple and local-first. It does not require a broker, data
 
 For a clean-clone operator setup, see [Operator Runbook](docs/operator-runbook.md). It distinguishes the workflow that ships with this repository from environment-specific choices such as agent identities, notification surfaces, credentials, and private artifact locations. For a runnable queue lifecycle demo, see [Examples](examples/README.md).
 
-For queue-first planning, handoff, review, and closure patterns, see [Queue-First Workflow](docs/queue-first-workflow.md). Substantive specs should go through AWG queue messages; external chat or issue trackers should only announce that a queue item was added.
+For queue-first planning, handoff, review, and closure patterns, see [Queue-First Workflow](docs/queue-first-workflow.md). Substantive specs should go through AWG queue messages; external chat or issue trackers should only announce that a queue item was added. For implementation-mode reliability, PR boundaries, active work state, tmux completion watching, branch protection, and dashboard supervision, see [Reliable AWG Runtime](docs/reliable-awg-runtime.md).
 
-For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message, work-item, and cross-surface traceability, see the `refs.correlationId`, `refs.workId`, `refs.parentId`, `refs.sourceChannel`, `refs.reportTarget`, `refs.repo`, and `refs.workspace` conventions in [Working-Group Queue Protocol](docs/protocol.md). `awg send` can set them with optional `--correlation-id`, `--work-id`, `--parent-id`, `--source-channel`, `--report-target`, `--repo`, and `--workspace` flags. `awg recv`, `peek`, `pending`, and `status` can opt into `--report-target` filtering so a channel-bound worker leaves non-matching messages pending and advances to matching work. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
+For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message, work-item, and cross-surface traceability, see the `refs.correlationId`, `refs.workId`, `refs.parentId`, `refs.sourceChannel`, `refs.reportTarget`, `refs.repo`, and `refs.workspace` conventions in [Working-Group Queue Protocol](docs/protocol.md). `awg send` can set them with optional `--correlation-id`, `--work-id`, `--parent-id`, `--source-channel`, `--report-target`, `--repo`, and `--workspace` flags. `awg recv`, `peek`, `pending`, and `status` can opt into `--report-target` filtering so a channel-bound worker leaves non-matching messages pending and advances to matching work. message.id remains the canonical message identity, and `processing/` remains the only durable active claim-like queue state.
 
 For filesystem containment rules used by helper code, see [Path Safety](docs/path-safety.md). Path helpers should resolve canonical paths, fail closed, and reject symlink or traversal escapes.
 

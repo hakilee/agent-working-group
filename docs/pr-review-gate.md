@@ -2,7 +2,7 @@
 
 Use this workflow for every non-trivial pull request before merge. The review request is queue-first: the lead creates an AWG `instruction` for the reviewer with the PR, scope, checks, and expected output. Chat should only announce that the queue item was added.
 
-Pre-PR implementation QA is useful evidence, but it is not a substitute for the PR-specific gate unless the close report records an explicit skip reason. The PR gate is about the opened pull request object: PR number, title, diff, checks, public-safe evidence comment, and merge readiness.
+Pre-PR implementation QA is useful evidence, but it is not a substitute for the PR-specific gate unless the close report records an explicit skip reason. The PR gate is about the opened pull request object: PR number, title, diff, checks, public-safe evidence comment, and merge readiness. In the reliable runtime model, implementation mode creates or updates the PR and stops; this PR review gate starts later from an explicit PR/issue trigger, webhook mention, or operator request.
 
 ## Flow
 
@@ -13,6 +13,8 @@ Pre-PR implementation QA is useful evidence, but it is not a substitute for the 
 5. Lead posts a concise public-safe summary to the pull request using the [PR Review Result Comment Template](templates/pr-review-result-comment.md).
 6. Lead records `PR review gate: fulfilled` with the PR evidence comment URL in the close report.
 7. Lead merges only after `PASS` or after an accepted conditional resolution has been fixed and rechecked.
+
+Do not continue automatically from implementation mode into merge. The handoff into review mode is deliberate and should be visible as a queue item or operator-triggered workflow.
 
 ## Lead Responsibilities
 
@@ -52,7 +54,7 @@ Do not include private agent names, local paths, private chat references, creden
 - `CONDITIONAL PASS`: merge is blocked until listed conditions are fixed or explicitly accepted and documented.
 - `FAIL`: merge is blocked. Fix blockers and request review again.
 
-Never auto-merge or auto-approve from this workflow. Review comments are evidence, not an automatic approval mechanism. A missing evidence comment should fail closed unless the operator intentionally records a skip reason.
+Never auto-merge or auto-approve from this workflow. Review comments are evidence, not an automatic approval mechanism. A missing evidence comment should fail closed unless the operator intentionally records a skip reason. If the host rejects a formal review action for permission reasons, record the failure and use a public-safe comment plus queue evidence instead of silently skipping review.
 
 ## Helper Script
 

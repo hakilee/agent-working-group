@@ -10,7 +10,7 @@ The protocol does not require fixed names. Common roles are:
 - **Worker:** receives instructions, reports progress, asks questions, produces deliverables, and acknowledges completed work.
 - **Observer:** receives final reports or audit events.
 
-Agents are identified by queue names such as `lead`, `worker`, `reviewer`, or `observer`.
+Agents are identified by queue names such as `lead`, `worker`, `reviewer`, or `observer`. Prefer role-based queue names in `from` and `to` fields. Personal agent names, chat handles, or human names belong in message body attribution or external notifications, not queue routing.
 
 ## Message Lifecycle
 
@@ -42,7 +42,7 @@ blocker > question > answer > instruction > status > note
 
 ## Recommended Instruction Shape
 
-Substantive instructions should be queue-first: put the full task spec, constraints, exit criteria, and requested output in the AWG queue message. Chat should only announce that a queue item exists. See [Queue-First Workflow](queue-first-workflow.md), [Task Spec Template](templates/task-spec.md), [Output And Publish Gate](output-publish-gate.md), and [PR Review Gate](pr-review-gate.md).
+Substantive instructions should be queue-first: put the full task spec, constraints, exit criteria, and requested output in the AWG queue message. Chat should only announce that a queue item exists. For repository implementation work, the implementation workflow should stop at PR creation/update; PR review is a separate queue-first workflow. See [Queue-First Workflow](queue-first-workflow.md), [Task Spec Template](templates/task-spec.md), [Output And Publish Gate](output-publish-gate.md), [PR Review Gate](pr-review-gate.md), and [Reliable AWG Runtime](reliable-awg-runtime.md).
 
 ```text
 [ROLE]
