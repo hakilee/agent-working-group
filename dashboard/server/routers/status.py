@@ -41,19 +41,48 @@ def system_status(request: Request) -> dict:
         )
 
     root = reader.root
+    queue_path_exists = reader.queues_dir().is_dir()
+    is_tmp_root = str(root).startswith("/tmp/")
+    tmux_available = monitor.backend.available
+    dist_dir = getattr(request.app.state, "dashboard_dist_dir", None)
+    dist_exists = dist_dir.is_dir() if dist_dir is not None else None
+    index_exists = (dist_dir / "index.html").is_file() if dist_dir is not None else None
+    assets_exists = (dist_dir / "assets").is_dir() if dist_dir is not None else None
+    issues = []
+    if not queue_path_exists:
+        issues.append("queue path is missing")
+    if is_tmp_root:
+        issues.append("dashboard is using a temporary AWG root")
+    if not tmux_available:
+        issues.append("tmux is unavailable to the dashboard process")
+    if dist_exists is False:
+        issues.append("dashboard dist directory is missing")
+    elif index_exists is False:
+        issues.append("dashboard dist index.html is missing")
+    if dist_exists and assets_exists is False:
+        issues.append("dashboard dist assets directory is missing")
+
     return {
         "root": str(root),
         "rootSource": "env" if (os.environ.get("DASHBOARD_ROOT") or os.environ.get("AWG_ROOT")) else "auto",
         "queuePath": str(reader.queues_dir()),
-        "queuePathExists": reader.queues_dir().is_dir(),
-        "isTmpRoot": str(root).startswith("/tmp/"),
+        "queuePathExists": queue_path_exists,
+        "isTmpRoot": is_tmp_root,
+        "distPath": str(dist_dir) if dist_dir is not None else None,
+        "distPathExists": dist_exists,
+        "staticAssetsExist": assets_exists,
+        "readiness": {
+            "ok": not issues,
+            "level": "ok" if not issues else "degraded",
+            "issues": issues,
+        },
         "counts": counts,
         "totalQueueItems": sum(counts.values()),
         "agents": reader.agents(),
         "workers": {
             "total": len(sessions),
             "attached": sum(1 for s in sessions if s.attached),
-            "tmuxAvailable": monitor.backend.available,
+            "tmuxAvailable": tmux_available,
         },
         "recentActivity": activity,
         "serverTime": time.time(),

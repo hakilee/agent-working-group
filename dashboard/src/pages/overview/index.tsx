@@ -20,6 +20,7 @@ function getVisibleAgents(status: SystemStatus): string[] {
 }
 
 function getRootStatus(status: SystemStatus): 'processed' | 'stale' | 'dead' {
+  if (status.readiness?.level === 'degraded') return status.queuePathExists ? 'stale' : 'dead';
   if (!status.queuePathExists) return 'dead';
   return status.isTmpRoot ? 'stale' : 'processed';
 }
@@ -29,8 +30,9 @@ function RootSummary({ status }: { status: SystemStatus }) {
     <div className="relative z-10 flex flex-wrap items-center gap-1.5 self-end pt-4">
       <Badge className="max-w-full normal-case tracking-normal">{status.root}</Badge>
       <StatusPill status={getRootStatus(status)} className="normal-case tracking-normal">
-        {status.rootSource} root{status.isTmpRoot ? ' / tmp' : ''}
+        {status.readiness?.level ?? status.rootSource} root{status.isTmpRoot ? ' / tmp' : ''}
       </StatusPill>
+      {status.readiness?.issues?.length ? <StatusPill status="stale" className="normal-case tracking-normal">{status.readiness.issues.length} issue{status.readiness.issues.length === 1 ? '' : 's'}</StatusPill> : null}
       <StatusPill status="processed" className="normal-case tracking-normal">{status.totalQueueItems} queue items</StatusPill>
     </div>
   );

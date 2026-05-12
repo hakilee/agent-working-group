@@ -72,14 +72,14 @@ export default function Liveness() {
   }, []);
 
   useEffect(() => {
-    if (!stream) return;
+    if (!stream.data) return;
 
     setSnapshot((previous) => ({
-      ...(stream.heartbeats ? applyHeartbeatStream(previous, stream.heartbeats) : previous),
-      ...(stream.timeouts ? { timeouts: stream.timeouts.items } : {}),
-      ...(stream.contracts ? { contracts: stream.contracts.items } : {}),
+      ...(stream.data?.heartbeats ? applyHeartbeatStream(previous, stream.data.heartbeats) : previous),
+      ...(stream.data?.timeouts ? { timeouts: stream.data.timeouts.items } : {}),
+      ...(stream.data?.contracts ? { contracts: stream.data.contracts.items } : {}),
     }));
-  }, [stream]);
+  }, [stream.data]);
 
   return (
     <Page>
@@ -90,6 +90,7 @@ export default function Liveness() {
           ))}
         </div>
       </PageHeader>
+      {stream.error && !error && <div role="status" className="border border-amber-500/60 bg-amber-50/80 p-3 text-xs text-amber-800 dark:border-amber-300/30 dark:bg-amber-950/30 dark:text-amber-100">Live updates are reconnecting. Polling remains active.</div>}
       {error && <div role="alert" className="border border-rose-500 bg-rose-50/80 p-3 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">{error}</div>}
       <Section title="Heartbeats" count={snapshot.heartbeats.length}>
         {snapshot.heartbeats.length ? (

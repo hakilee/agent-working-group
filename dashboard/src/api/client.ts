@@ -1,4 +1,4 @@
-import { WORKER_TERMINAL_LINES } from '../dashboard-rules';
+import { API_REQUEST_TIMEOUT_MS, WORKER_TERMINAL_LINES } from '../dashboard-rules';
 
 export interface QueueSummary {
   id: string;
@@ -49,10 +49,18 @@ export interface SystemStatus {
   queuePath: string;
   queuePathExists: boolean;
   isTmpRoot: boolean;
+  distPath?: string | null;
+  distPathExists?: boolean | null;
+  staticAssetsExist?: boolean | null;
   counts: Record<string, number>;
   totalQueueItems: number;
   agents: string[];
   workers: { total: number; attached: number; tmuxAvailable: boolean };
+  readiness?: {
+    ok: boolean;
+    level: 'ok' | 'degraded';
+    issues: string[];
+  };
   recentActivity: Array<{
     id?: string;
     state?: 'pending' | 'processing' | 'processed' | 'dead' | 'logged';
@@ -134,18 +142,47 @@ export interface HealthInfo {
   version: string;
   uptimeSeconds: number;
   awgRoot: string;
+  queuePath?: string;
+  queuePathExists?: boolean;
+  isTmpRoot?: boolean;
+  tmuxAvailable?: boolean;
+  distPath?: string;
+  distPathExists?: boolean;
+  staticAssetsExist?: boolean;
+  issues?: string[];
   counts: Record<string, number>;
   totalQueueItems: number;
   serverTime: number;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { ...init, headers: { Accept: 'application/json', ...(init?.headers ?? {}) } });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API ${path} failed: ${res.status} ${text}`);
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(path, {
+      ...init,
+      signal: init?.signal ?? controller.signal,
+      headers: { Accept: 'application/json', ...(init?.headers ?? {}) },
+    });
+    if (!res.ok) {
+      let detail = '';
+      try {
+        const payload = await res.json();
+        detail = typeof payload?.detail === 'string' ? payload.detail : JSON.stringify(payload);
+      } catch {
+        detail = await res.text().catch(() => '');
+      }
+      throw new Error(`API ${path} failed: ${res.status}${detail ? ` ${detail.slice(0, 240)}` : ''}`);
+    }
+    return res.json() as Promise<T>;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error(`API ${path} timed out after ${API_REQUEST_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    window.clearTimeout(timeout);
   }
-  return res.json() as Promise<T>;
 }
 
 export const api = {

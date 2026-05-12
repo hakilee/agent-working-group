@@ -54,25 +54,26 @@ export default function QueueList() {
   }, [loadQueue]);
 
   useEffect(() => {
-    if (!stream) return;
+    if (!stream.data) return;
     void loadQueue()
       .then((data) => {
         setItems(data.items);
         setError(null);
       })
       .catch((e) => setError(String(e)));
-  }, [stream, loadQueue]);
+  }, [stream.data, loadQueue]);
 
   return (
     <Page>
       <PageHeader eyebrow="Queue" title="Work items">
         <QueueFilters activeFilter={filter} onChange={setFilter} />
       </PageHeader>
+      {stream.error && !error && <LiveNotice retryInMs={stream.retryInMs} />}
       {error && <div className="border border-rose-500 bg-rose-50/80 p-3 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">{error}</div>}
       {loading && <Empty>Loading queue...</Empty>}
       {!loading && !error && !items.length && <Empty>No queue items.</Empty>}
       {!loading && !!items.length && (
-        <ul className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+        <ul className="grid auto-rows-fr gap-3 lg:grid-cols-2 2xl:grid-cols-3">
           {items.map((item) => <QueueCard key={`${item.agent}/${item.filename}`} item={item} open={() => navigate(`/queue/${encodeURIComponent(item.id)}`)} />)}
         </ul>
       )}
@@ -97,14 +98,14 @@ function QueueFilters({ activeFilter, onChange }: { activeFilter: Filter; onChan
 
 function QueueCard({ item, open }: { item: QueueSummary; open: () => void }) {
   return (
-    <li>
-      <button type="button" className="w-full border border-ops-line bg-ops-panel p-3 text-left text-inherit transition hover:border-black/25 hover:bg-white/95 dark:border-white/15 dark:bg-[#1e2722]/85 dark:hover:border-white/30 dark:hover:bg-[#243029]" onClick={open}>
-        <div className="flex flex-wrap items-center gap-1.5">
+    <li className="h-full">
+      <button type="button" className="flex h-full min-h-40 w-full flex-col border border-ops-line bg-ops-panel p-3 text-left text-inherit transition hover:border-black/25 hover:bg-white/95 dark:border-white/15 dark:bg-[#1e2722]/85 dark:hover:border-white/30 dark:hover:bg-[#243029]" onClick={open}>
+        <div className="flex flex-wrap items-start gap-1.5">
           <Badge>{item.kind}</Badge>
           <StatusPill status={item.state} />
-          <time className="ml-auto text-[10px] text-ops-muted dark:text-[#839087]">{item.createdAt ?? '-'}</time>
+          <time className="ml-auto max-w-full text-[10px] text-ops-muted dark:text-[#839087]">{item.createdAt ?? '-'}</time>
         </div>
-        <p className="mt-3 line-clamp-3 text-xs leading-5 text-ops-ink dark:text-[#eef3ec]">{getQueuePreview(item.body)}</p>
+        <p className="mt-3 line-clamp-3 flex-1 text-xs leading-5 text-ops-ink dark:text-[#eef3ec]">{getQueuePreview(item.body)}</p>
         <div className="mt-4 flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 text-[10px] text-ops-muted dark:text-[#839087]">
             {formatRouteParticipant(item.from)} <IconArrowRight size={12} stroke={1.8} /> {formatRouteParticipant(item.to)}
@@ -113,6 +114,14 @@ function QueueCard({ item, open }: { item: QueueSummary; open: () => void }) {
         </div>
       </button>
     </li>
+  );
+}
+
+function LiveNotice({ retryInMs }: { retryInMs: number | null }) {
+  return (
+    <div className="border border-amber-500/60 bg-amber-50/80 p-3 text-xs text-amber-800 dark:border-amber-300/30 dark:bg-amber-950/30 dark:text-amber-100">
+      Live updates are reconnecting{retryInMs ? ` in ${Math.ceil(retryInMs / 1000)}s` : ''}. Manual API refresh remains active.
+    </div>
   );
 }
 
