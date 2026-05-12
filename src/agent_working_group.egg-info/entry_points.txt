@@ -1,2 +1,0 @@
-[console_scripts]
-awg = agent_working_group.cli:main
