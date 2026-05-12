@@ -79,13 +79,13 @@ function MobileSidebar() {
     <Collapsible.Root open={open} onOpenChange={setOpen} className="relative z-40 border-b border-ops-line bg-white/70 p-3 backdrop-blur-2xl dark:border-white/15 dark:bg-[#202a25]/75 md:hidden">
       <div className="flex items-center justify-between gap-3">
         <Brand />
-        <Collapsible.Trigger className="action-btn min-h-9" aria-label="Toggle dashboard navigation">
+        <Collapsible.Trigger className="inline-flex min-h-9 items-center gap-1.5 border border-transparent bg-[#ebe6da] px-2.5 py-1.5 text-xs font-bold text-ops-ink transition hover:border-ops-line hover:bg-emerald-50 dark:bg-white/10 dark:text-[#eef3ec] dark:hover:border-white/15 dark:hover:bg-emerald-400/15" aria-label="Toggle dashboard navigation">
           <IconMenu2 size={17} stroke={1.9} />
           <span>Menu</span>
           <IconChevronDown size={15} stroke={1.9} className={cn('transition-transform duration-150', open && 'rotate-180')} />
         </Collapsible.Trigger>
       </div>
-      <Collapsible.Panel keepMounted className="mobile-nav-panel absolute left-0 right-0 top-full border-b border-ops-line bg-ops-panel p-3 shadow-[0_18px_50px_rgb(31_39_34/.18)] backdrop-blur-2xl data-[closed]:hidden dark:border-white/15 dark:bg-[#1e2722]/95 dark:shadow-black/35">
+      <Collapsible.Panel keepMounted className="absolute left-0 right-0 top-full origin-top-right border-b border-ops-line bg-ops-panel p-3 shadow-[0_18px_50px_rgb(31_39_34/.18)] backdrop-blur-2xl transition-[opacity,transform] duration-150 data-[closed]:hidden data-[ending-style]:-translate-y-1 data-[ending-style]:scale-[.99] data-[ending-style]:opacity-0 data-[starting-style]:-translate-y-1 data-[starting-style]:scale-[.99] data-[starting-style]:opacity-0 dark:border-white/15 dark:bg-[#1e2722]/95 dark:shadow-black/35">
         <div className="grid gap-1">
           <NavGroups onSelect={() => setOpen(false)} />
         </div>

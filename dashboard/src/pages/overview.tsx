@@ -12,10 +12,6 @@ import { DASHBOARD_POLL_INTERVAL_MS, OVERVIEW_AGENT_LIMIT } from '../dashboard-r
 const STATS = [['pending', 'Pending'], ['processing', 'Processing'], ['processed', 'Completed'], ['dead', 'Failed']] as const;
 type ActivityEntry = SystemStatus['recentActivity'][number];
 
-function countItemsNeedingAttention(status: SystemStatus): number {
-  return (status.counts.dead ?? 0) + (status.counts.processing ?? 0);
-}
-
 function getVisibleAgents(status: SystemStatus): string[] {
   return status.agents.slice(0, OVERVIEW_AGENT_LIMIT);
 }
@@ -27,8 +23,8 @@ function getRootStatus(status: SystemStatus): 'processed' | 'stale' | 'dead' {
 
 function RootSummary({ status }: { status: SystemStatus }) {
   return (
-    <div className="row-meta relative z-10 self-end pt-4">
-      <span className="pill pill-neutral max-w-full normal-case tracking-normal">{status.root}</span>
+    <div className="relative z-10 flex flex-wrap items-center gap-1.5 self-end pt-4">
+      <span className="inline-flex max-w-full items-center gap-1 whitespace-nowrap border border-transparent bg-[#ebe6da] px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-ops-ink dark:bg-white/10 dark:text-[#eef3ec]">{status.root}</span>
       <StatusPill status={getRootStatus(status)} className="normal-case tracking-normal">
         {status.rootSource} root{status.isTmpRoot ? ' / tmp' : ''}
       </StatusPill>
@@ -43,12 +39,12 @@ function ActivityDialog({ entry, onClose }: { entry: ActivityEntry; onClose: () 
       <dl className="grid gap-2 text-xs">
         {[["id", entry.id], ["kind", entry.kind], ["from", entry.from], ["to", entry.to]].map(([label, value]) => (
           <div key={label} className="grid grid-cols-[80px_1fr] gap-2 border-b border-ops-line pb-2 last:border-b-0 dark:border-white/15">
-            <dt className="caption uppercase">{label}</dt>
+            <dt className="text-[10px] uppercase text-ops-muted dark:text-[#839087]">{label}</dt>
             <dd className="break-all text-ops-ink dark:text-[#eef3ec]">{value ?? '-'}</dd>
           </div>
         ))}
       </dl>
-      <pre className="code-block max-h-[46dvh]">{entry.body || '(empty)'}</pre>
+      <pre className="max-h-[46dvh] overflow-auto whitespace-pre-wrap break-words border border-ops-line bg-white/75 p-3 font-mono text-[11px] leading-5 text-ops-ink dark:border-white/15 dark:bg-black/25 dark:text-[#eef3ec]">{entry.body || '(empty)'}</pre>
     </AppDialog>
   );
 }
@@ -56,18 +52,17 @@ function ActivityDialog({ entry, onClose }: { entry: ActivityEntry; onClose: () 
 function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> }) {
   const status = use(statusPromise);
   const navigate = useNavigate();
-  const itemsNeedingAttention = countItemsNeedingAttention(status);
   const visibleAgents = useMemo(() => getVisibleAgents(status), [status]);
   const [selectedActivity, setSelectedActivity] = useState<ActivityEntry | null>(null);
 
   return (
     <Page>
-      <section className="panel relative grid min-h-40 overflow-hidden p-4">
+      <section className="relative grid min-h-40 overflow-hidden border border-ops-line bg-ops-panel p-4 shadow-[0_10px_28px_rgb(31_39_34/.08)] backdrop-blur-xl dark:border-white/15 dark:bg-[#1e2722]/85 dark:shadow-black/20">
         <div className="absolute -bottom-24 left-1/3 h-40 w-3/4 -rotate-6 bg-gradient-to-r from-emerald-500/14 via-orange-400/16 to-blue-500/14 blur-sm" />
         <div className="relative z-10 self-start">
-          <div className="eyebrow">Agent Working Group</div>
-          <h1 className="title-xl mt-3">Operations control plane</h1>
-          <p className="body mt-2 max-w-2xl">Queue health, worker liveness, and execution flow in one operational surface.</p>
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-ops-green dark:text-emerald-300">Agent Working Group</div>
+          <h1 className="mt-3 text-xl font-bold leading-tight tracking-[-.035em] text-ops-ink dark:text-[#eef3ec] md:text-2xl">Operations control plane</h1>
+          <p className="mt-2 max-w-2xl text-xs leading-5 text-ops-body dark:text-[#b3beb5]">Queue health, worker liveness, and execution flow in one operational surface.</p>
         </div>
         <RootSummary status={status} />
       </section>
@@ -78,17 +73,30 @@ function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> 
       </section>
 
       <section className="grid items-start gap-3 xl:grid-cols-[1.4fr_.6fr]">
-        <div className="panel overflow-hidden">
-          <div className="page-header p-3 md:p-4">
-            <div className="page-title-stack"><div className="eyebrow">Live Log</div><h2 className="title-lg">Recent activity</h2></div>
-            <button type="button" className="action-btn" onClick={() => navigate('/queue')}>Browse queue <IconArrowRight size={15} stroke={1.8} /></button>
+        <div className="overflow-hidden border border-ops-line bg-ops-panel shadow-[0_10px_28px_rgb(31_39_34/.08)] backdrop-blur-xl dark:border-white/15 dark:bg-[#1e2722]/85 dark:shadow-black/20">
+          <div className="flex flex-wrap items-end justify-between gap-3 p-3 md:p-4">
+            <div className="grid gap-1.5">
+              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-ops-green dark:text-emerald-300">Live Log</div>
+              <h2 className="text-lg font-bold leading-tight tracking-[-.03em] text-ops-ink dark:text-[#eef3ec] md:text-xl">Recent activity</h2>
+            </div>
+            <button type="button" className="inline-flex items-center gap-1.5 border border-transparent bg-[#ebe6da] px-2.5 py-1.5 text-xs font-bold text-ops-ink transition hover:border-ops-line hover:bg-emerald-50 dark:bg-white/10 dark:text-[#eef3ec] dark:hover:border-white/15 dark:hover:bg-emerald-400/15" onClick={() => navigate('/queue')}>
+              Browse queue <IconArrowRight size={15} stroke={1.8} />
+            </button>
           </div>
-          {status.recentActivity.length ? <ul>{status.recentActivity.map((entry, index) => <ActivityItem key={`${entry.id ?? index}-${entry.createdAtMs ?? index}`} entry={entry} onOpen={() => setSelectedActivity(entry)} />)}</ul> : <div className="empty m-5">No recent activity in the queue log.</div>}
+          {status.recentActivity.length ? (
+            <ul>{status.recentActivity.map((entry, index) => <ActivityItem key={`${entry.id ?? index}-${entry.createdAtMs ?? index}`} entry={entry} onOpen={() => setSelectedActivity(entry)} />)}</ul>
+          ) : (
+            <div className="m-5 border border-dashed border-black/25 bg-ops-panel p-4 text-center text-xs text-ops-muted dark:border-white/25 dark:bg-[#1e2722]/85 dark:text-[#839087]">No recent activity in the queue log.</div>
+          )}
         </div>
-        <aside className="panel panel-pad">
-          <div className="eyebrow">Registered Agents</div>
-          <h2 className="title-md mt-2">Routing surface</h2>
-          <div className="row-meta mt-3">{visibleAgents.length ? visibleAgents.map((agent) => <span key={agent} className="pill pill-neutral normal-case tracking-normal">{agent}</span>) : <span className="caption">No agents registered.</span>}</div>
+        <aside className="border border-ops-line bg-ops-panel p-3 shadow-[0_10px_28px_rgb(31_39_34/.08)] backdrop-blur-xl dark:border-white/15 dark:bg-[#1e2722]/85 dark:shadow-black/20 md:p-4">
+          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-ops-green dark:text-emerald-300">Registered Agents</div>
+          <h2 className="mt-2 text-sm font-bold tracking-[-.01em] text-ops-ink dark:text-[#eef3ec]">Routing surface</h2>
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {visibleAgents.length ? visibleAgents.map((agent) => (
+              <span key={agent} className="inline-flex items-center gap-1 whitespace-nowrap border border-transparent bg-[#ebe6da] px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-ops-ink dark:bg-white/10 dark:text-[#eef3ec]">{agent}</span>
+            )) : <span className="text-[10px] text-ops-muted dark:text-[#839087]">No agents registered.</span>}
+          </div>
         </aside>
       </section>
       {selectedActivity && <ActivityDialog entry={selectedActivity} onClose={() => setSelectedActivity(null)} />}
@@ -100,7 +108,7 @@ function OverviewLoading() {
   return (
     <Page>
       <div className="grid min-h-40 place-items-center" aria-label="Loading dashboard">
-        <div className="spinner" aria-hidden="true" />
+        <div className="size-5 animate-spin border-2 border-ops-line border-t-ops-green dark:border-white/15 dark:border-t-emerald-300 [border-radius:9999px]" aria-hidden="true" />
       </div>
     </Page>
   );
