@@ -15,19 +15,24 @@ def system_status(request: Request) -> dict:
     counts = reader.counts()
     sessions = monitor.list_sessions()
     recent = reader.recent_log(limit=20)
+    current_items = {item.id: item for item in reader.iter_items()}
 
-    activity = [
-        {
-            "id": entry.get("id"),
-            "kind": entry.get("kind"),
-            "from": entry.get("from"),
-            "to": entry.get("to"),
-            "body": (entry.get("body") or "")[:200],
-            "createdAt": entry.get("createdAt"),
-            "createdAtMs": entry.get("createdAtMs"),
-        }
-        for entry in recent
-    ]
+    activity = []
+    for entry in recent:
+        current = current_items.get(str(entry.get("id")))
+        activity.append(
+            {
+                "id": entry.get("id"),
+                "state": current.state if current else "logged",
+                "agent": current.agent if current else entry.get("to"),
+                "kind": entry.get("kind"),
+                "from": entry.get("from"),
+                "to": entry.get("to"),
+                "body": (entry.get("body") or "")[:200],
+                "createdAt": entry.get("createdAt"),
+                "createdAtMs": entry.get("createdAtMs"),
+            }
+        )
 
     root = reader.root
     return {

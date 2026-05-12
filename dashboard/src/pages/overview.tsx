@@ -6,7 +6,9 @@ import ActivityItem from '../components/activity-item';
 import StatsCard from '../components/stats-card';
 import StatusPill from '../components/status-pill';
 import { AppDialog } from '../components/ui/app-dialog';
+import { Button } from '../components/ui/button';
 import { Page } from '../components/ui/page';
+import { Text } from '../components/ui/typography';
 import { DASHBOARD_POLL_INTERVAL_MS, OVERVIEW_AGENT_LIMIT } from '../dashboard-rules';
 
 const STATS = [['pending', 'Pending'], ['processing', 'Processing'], ['processed', 'Completed'], ['dead', 'Failed']] as const;
@@ -60,9 +62,9 @@ function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> 
       <section className="relative grid min-h-40 overflow-hidden border border-ops-line bg-ops-panel p-4 shadow-[0_10px_28px_rgb(31_39_34/.08)] backdrop-blur-xl dark:border-white/15 dark:bg-[#1e2722]/85 dark:shadow-black/20">
         <div className="absolute -bottom-24 left-1/3 h-40 w-3/4 -rotate-6 bg-gradient-to-r from-emerald-500/14 via-orange-400/16 to-blue-500/14 blur-sm" />
         <div className="relative z-10 self-start">
-          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-ops-green dark:text-emerald-300">Agent Working Group</div>
-          <h1 className="mt-3 text-xl font-bold leading-tight tracking-[-.035em] text-ops-ink dark:text-[#eef3ec] md:text-2xl">Operations control plane</h1>
-          <p className="mt-2 max-w-2xl text-xs leading-5 text-ops-body dark:text-[#b3beb5]">Queue health, worker liveness, and execution flow in one operational surface.</p>
+          <Text variant="eyebrow">Agent Working Group</Text>
+          <Text as="h1" variant="title-lg" className="mt-3">Operations control plane</Text>
+          <Text as="p" variant="body" className="mt-2 max-w-2xl">Queue health, worker liveness, and execution flow in one operational surface.</Text>
         </div>
         <RootSummary status={status} />
       </section>
@@ -76,12 +78,12 @@ function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> 
         <div className="overflow-hidden border border-ops-line bg-ops-panel shadow-[0_10px_28px_rgb(31_39_34/.08)] backdrop-blur-xl dark:border-white/15 dark:bg-[#1e2722]/85 dark:shadow-black/20">
           <div className="flex flex-wrap items-end justify-between gap-3 p-3 md:p-4">
             <div className="grid gap-1.5">
-              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-ops-green dark:text-emerald-300">Live Log</div>
-              <h2 className="text-lg font-bold leading-tight tracking-[-.03em] text-ops-ink dark:text-[#eef3ec] md:text-xl">Recent activity</h2>
+              <Text variant="eyebrow">Live Log</Text>
+              <Text as="h2" variant="title-md">Recent activity</Text>
             </div>
-            <button type="button" className="inline-flex items-center gap-1.5 border border-transparent bg-[#ebe6da] px-2.5 py-1.5 text-xs font-bold text-ops-ink transition hover:border-ops-line hover:bg-emerald-50 dark:bg-white/10 dark:text-[#eef3ec] dark:hover:border-white/15 dark:hover:bg-emerald-400/15" onClick={() => navigate('/queue')}>
+            <Button type="button" size="small" onClick={() => navigate('/queue')}>
               Browse queue <IconArrowRight size={15} stroke={1.8} />
-            </button>
+            </Button>
           </div>
           {status.recentActivity.length ? (
             <ul>{status.recentActivity.map((entry, index) => <ActivityItem key={`${entry.id ?? index}-${entry.createdAtMs ?? index}`} entry={entry} onOpen={() => setSelectedActivity(entry)} />)}</ul>
@@ -90,8 +92,8 @@ function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> 
           )}
         </div>
         <aside className="border border-ops-line bg-ops-panel p-3 shadow-[0_10px_28px_rgb(31_39_34/.08)] backdrop-blur-xl dark:border-white/15 dark:bg-[#1e2722]/85 dark:shadow-black/20 md:p-4">
-          <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-ops-green dark:text-emerald-300">Registered Agents</div>
-          <h2 className="mt-2 text-sm font-bold tracking-[-.01em] text-ops-ink dark:text-[#eef3ec]">Routing surface</h2>
+          <Text variant="eyebrow">Registered Agents</Text>
+          <Text as="h2" variant="title-sm" className="mt-2">Routing surface</Text>
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {visibleAgents.length ? visibleAgents.map((agent) => (
               <span key={agent} className="inline-flex items-center gap-1 whitespace-nowrap border border-transparent bg-[#ebe6da] px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-ops-ink dark:bg-white/10 dark:text-[#eef3ec]">{agent}</span>

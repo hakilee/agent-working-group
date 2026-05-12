@@ -127,6 +127,21 @@ class DashboardServerTests(unittest.TestCase):
         self.assertEqual(status["counts"]["pending"], 1)
         self.assertEqual(status["totalQueueItems"], 1)
         self.assertEqual(status["agents"], ["lead", "worker"])
+        self.assertEqual(status["recentActivity"][0]["state"], "pending")
+        self.assertEqual(status["recentActivity"][0]["agent"], "worker")
+
+    def test_recent_activity_badges_follow_queue_lifecycle(self):
+        queue, reader, _ = self.make_reader()
+        processed_id = queue.send("lead", "worker", "note", "default receive")
+        queue.receive("worker")
+        processing_id = queue.send("lead", "worker", "instruction", "durable work")
+        queue.receive("worker", require_ack=True)
+
+        status = system_status(make_request(reader))
+        states = {entry["id"]: entry["state"] for entry in status["recentActivity"]}
+
+        self.assertEqual(states[processed_id], "processed")
+        self.assertEqual(states[processing_id], "processing")
 
     def test_workers_list_and_detail_match_frontend_contract(self):
         created = int(time.time()) - 65

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, workerSocketUrl, type WorkerSession } from '../api/client';
 import StatusPill from '../components/status-pill';
+import { Button } from '../components/ui/button';
 import { Page } from '../components/ui/page';
 import { WORKER_SOCKET_INITIAL_RETRY_MS, WORKER_SOCKET_MAX_RETRY_MS } from '../dashboard-rules';
 
@@ -114,23 +115,23 @@ export default function WorkerTerminal() {
 
   return (
     <Page>
-      <button type="button" onClick={() => navigate('/workers')} className="inline-flex w-fit items-center gap-1.5 border border-transparent bg-[#ebe6da] px-2.5 py-1.5 text-xs font-bold text-ops-ink transition hover:border-ops-line hover:bg-emerald-50 dark:bg-white/10 dark:text-[#eef3ec] dark:hover:border-white/15 dark:hover:bg-emerald-400/15">
+      <Button type="button" onClick={() => navigate('/workers')} size="small" className="w-fit">
         <IconArrowLeft size={15} stroke={1.8} />Workers
-      </button>
+      </Button>
       <header className="flex flex-wrap items-end justify-between gap-3 border border-ops-line bg-ops-panel p-3 shadow-[0_10px_28px_rgb(31_39_34/.08)] backdrop-blur-xl dark:border-white/15 dark:bg-[#1e2722]/85 dark:shadow-black/20 md:p-4">
         <div>
           <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-ops-green dark:text-emerald-300">Worker Terminal</div>
           <h1 className="break-all text-lg font-bold leading-tight tracking-[-.03em] text-ops-ink dark:text-[#eef3ec] md:text-xl">{session}{windowIndex !== undefined ? `:${windowIndex}` : ''}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusPill status={connected ? 'streaming' : 'disconnected'} />
-          <button type="button" disabled={actionPending} onClick={() => requestAction('close-session')} className="inline-flex items-center gap-1.5 border border-rose-500/40 bg-rose-50/70 px-2.5 py-1.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-rose-950/30 dark:text-rose-200 dark:hover:bg-rose-900/40">
+          <StatusPill status={connected ? 'streaming' : 'disconnected'} size="small" />
+          <Button type="button" disabled={actionPending} onClick={() => requestAction('close-session')} size="small" tone="danger">
             <IconPower size={14} stroke={1.8} />Queue close session
-          </button>
+          </Button>
           {windowIndex !== undefined && (
-            <button type="button" disabled={actionPending} onClick={() => requestAction('close-window')} className="inline-flex items-center gap-1.5 border border-amber-500/40 bg-amber-50/70 px-2.5 py-1.5 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-950/30 dark:text-amber-100 dark:hover:bg-amber-900/40">
+            <Button type="button" disabled={actionPending} onClick={() => requestAction('close-window')} size="small" tone="warning">
               <IconX size={14} stroke={1.8} />Queue close window
-            </button>
+            </Button>
           )}
         </div>
       </header>

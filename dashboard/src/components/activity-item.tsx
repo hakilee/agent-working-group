@@ -14,7 +14,8 @@ export default function ActivityItem({ entry, onOpen }: { entry: Entry; onOpen: 
       >
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            <StatusPill status={entry.kind ?? 'message'} />
+            <StatusPill status={entry.state ?? 'processed'} />
+            <StatusPill status={entry.kind ?? 'message'} className="normal-case tracking-normal" />
             <span className="inline-flex items-center gap-1 text-[10px] text-ops-muted dark:text-[#839087]">
               {entry.from ?? '?'} <IconArrowRight size={12} stroke={1.8} /> {entry.to ?? '?'}
             </span>

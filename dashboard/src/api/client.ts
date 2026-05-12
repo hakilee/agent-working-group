@@ -55,12 +55,14 @@ export interface SystemStatus {
   workers: { total: number; attached: number; tmuxAvailable: boolean };
   recentActivity: Array<{
     id?: string;
+    state?: 'pending' | 'processing' | 'processed' | 'dead' | 'logged';
+    agent?: string | null;
     kind?: string;
     from?: string | null;
     to?: string | null;
     body?: string;
-    createdAt?: string;
-    createdAtMs?: number;
+    createdAt?: string | null;
+    createdAtMs?: number | null;
   }>;
   serverTime: number;
 }
