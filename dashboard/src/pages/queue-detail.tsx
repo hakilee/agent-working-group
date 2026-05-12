@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, type QueueDetail } from '../api/client';
-import StatusPill from '../components/StatusPill';
+import StatusPill from '../components/status-pill';
 import { formatNullable, formatRouteParticipant } from '../format';
 
 type DetailRow = [label: string, value: string];

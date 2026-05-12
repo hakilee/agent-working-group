@@ -5,7 +5,7 @@ import {
   type HeartbeatList,
   type TimeoutList,
 } from '../api/client';
-import { useWebSocket } from './useWebSocket';
+import { useWebSocket } from './use-web-socket';
 
 export interface LivenessStreamFrame {
   type: 'liveness';

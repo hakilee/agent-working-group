@@ -1,12 +1,12 @@
 import { Route, Routes } from 'react-router-dom';
-import Sidebar from './components/Sidebar';
-import Liveness from './pages/Liveness';
-import Overview from './pages/Overview';
-import QueueDetail from './pages/QueueDetail';
-import QueueList from './pages/QueueList';
-import Settings from './pages/Settings';
-import WorkerTerminal from './pages/WorkerTerminal';
-import Workers from './pages/Workers';
+import Sidebar from './components/sidebar';
+import Liveness from './pages/liveness';
+import Overview from './pages/overview';
+import QueueDetail from './pages/queue-detail';
+import QueueList from './pages/queue-list';
+import Settings from './pages/settings';
+import WorkerTerminal from './pages/worker-terminal';
+import Workers from './pages/workers';
 
 export default function App() {
   return (

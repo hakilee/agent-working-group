@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api, type ContractBreach, type HeartbeatEntry, type HeartbeatList, type TimeoutItem } from '../api/client';
-import StatusPill from '../components/StatusPill';
-import { DASHBOARD_POLL_INTERVAL_MS } from '../dashboardRules';
-import { useLivenessStream } from '../hooks/useLivenessStream';
+import StatusPill from '../components/status-pill';
+import { DASHBOARD_POLL_INTERVAL_MS } from '../dashboard-rules';
+import { useLivenessStream } from '../hooks/use-liveness-stream';
 
 type Snapshot = {
   heartbeats: HeartbeatEntry[];

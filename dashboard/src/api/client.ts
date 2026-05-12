@@ -1,4 +1,4 @@
-import { WORKER_TERMINAL_LINES } from '../dashboardRules';
+import { WORKER_TERMINAL_LINES } from '../dashboard-rules';
 
 export interface QueueSummary {
   id: string;
@@ -31,6 +31,10 @@ export interface WorkerSession {
 
 export interface SystemStatus {
   root: string;
+  rootSource: 'env' | 'auto';
+  queuePath: string;
+  queuePathExists: boolean;
+  isTmpRoot: boolean;
   counts: Record<string, number>;
   totalQueueItems: number;
   agents: string[];

@@ -1,4 +1,4 @@
-import { SECONDS_PER_HOUR, SECONDS_PER_MINUTE } from './dashboardRules';
+import { SECONDS_PER_HOUR, SECONDS_PER_MINUTE } from './dashboard-rules';
 
 export function formatNullable(value: unknown, fallback = '—'): string {
   return value == null || value === '' ? fallback : String(value);

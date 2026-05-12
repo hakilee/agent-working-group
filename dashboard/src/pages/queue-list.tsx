@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type QueueSummary } from '../api/client';
-import StatusPill from '../components/StatusPill';
-import { QUEUE_CARD_PREVIEW_LENGTH, QUEUE_LIST_LIMIT } from '../dashboardRules';
+import StatusPill from '../components/status-pill';
+import { QUEUE_CARD_PREVIEW_LENGTH, QUEUE_LIST_LIMIT } from '../dashboard-rules';
 import { formatRouteParticipant } from '../format';
-import { useQueueStream } from '../hooks/useQueueStream';
+import { useQueueStream } from '../hooks/use-queue-stream';
 import { cn } from '../lib/cn';
 
 const FILTERS = ['all', 'pending', 'processing', 'processed', 'dead'] as const;

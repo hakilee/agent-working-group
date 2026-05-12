@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { WORKER_SOCKET_INITIAL_RETRY_MS, WORKER_SOCKET_MAX_RETRY_MS } from '../dashboardRules';
+import { WORKER_SOCKET_INITIAL_RETRY_MS, WORKER_SOCKET_MAX_RETRY_MS } from '../dashboard-rules';
 
 export interface UseWebSocketState<T> {
   data: T | null;

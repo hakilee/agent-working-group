@@ -18,10 +18,14 @@ function readStored(): ThemeMode {
   return value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
 }
 
-function apply(mode: ThemeMode): void {
+function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
+  return mode === 'system' ? (osPrefersDark() ? 'dark' : 'light') : mode;
+}
+
+function apply(mode: ThemeMode, resolved = resolveTheme(mode)): void {
   const root = document.documentElement;
-  if (mode === 'system') root.removeAttribute('data-theme');
-  else root.setAttribute('data-theme', mode);
+  root.setAttribute('data-theme', resolved);
+  root.setAttribute('data-theme-mode', mode);
 }
 
 // Apply once on module load so the page mounts in the right theme before
@@ -48,9 +52,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(() => readStored());
   const [osDark, setOsDark] = useState<boolean>(() => osPrefersDark());
 
+  const resolved: 'light' | 'dark' =
+    mode === 'system' ? (osDark ? 'dark' : 'light') : mode;
+
   useEffect(() => {
-    apply(mode);
-  }, [mode]);
+    apply(mode, resolved);
+  }, [mode, resolved]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
@@ -64,9 +71,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, next);
     setModeState(next);
   }, []);
-
-  const resolved: 'light' | 'dark' =
-    mode === 'system' ? (osDark ? 'dark' : 'light') : mode;
 
   const value = useMemo(() => ({ mode, resolved, setMode }), [mode, resolved, setMode]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

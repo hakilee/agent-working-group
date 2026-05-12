@@ -1,4 +1,5 @@
 
+import os
 import time
 
 from fastapi import APIRouter, Request
@@ -28,8 +29,13 @@ def system_status(request: Request) -> dict:
         for entry in recent
     ]
 
+    root = reader.root
     return {
-        "root": str(reader.root),
+        "root": str(root),
+        "rootSource": "env" if (os.environ.get("DASHBOARD_ROOT") or os.environ.get("AWG_ROOT")) else "auto",
+        "queuePath": str(reader.queues_dir()),
+        "queuePathExists": reader.queues_dir().is_dir(),
+        "isTmpRoot": str(root).startswith("/tmp/"),
         "counts": counts,
         "totalQueueItems": sum(counts.values()),
         "agents": reader.agents(),

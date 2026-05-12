@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, workerSocketUrl, type WorkerSession } from '../api/client';
-import StatusPill from '../components/StatusPill';
-import { WORKER_SOCKET_INITIAL_RETRY_MS, WORKER_SOCKET_MAX_RETRY_MS } from '../dashboardRules';
+import StatusPill from '../components/status-pill';
+import { WORKER_SOCKET_INITIAL_RETRY_MS, WORKER_SOCKET_MAX_RETRY_MS } from '../dashboard-rules';
 
 type WorkerSocketMessage = { type: 'snapshot' | 'update'; data: string } | { type: 'ping'; ts: number };
 

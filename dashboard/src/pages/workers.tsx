@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api, type WorkerSession } from '../api/client';
-import StatusPill from '../components/StatusPill';
-import WorkerCard from '../components/WorkerCard';
-import { WORKER_POLL_INTERVAL_MS } from '../dashboardRules';
+import StatusPill from '../components/status-pill';
+import WorkerCard from '../components/worker-card';
+import { WORKER_POLL_INTERVAL_MS } from '../dashboard-rules';
 
 type WorkerSnapshot = { workers: WorkerSession[]; tmuxAvailable: boolean };
 

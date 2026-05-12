@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import type { WorkerSession } from '../api/client';
 import { formatUptime } from '../format';
-import StatusPill from './StatusPill';
+import StatusPill from './status-pill';
 
 function workerStats(worker: WorkerSession): Array<[string, string]> {
   return [
