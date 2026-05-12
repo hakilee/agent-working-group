@@ -95,6 +95,16 @@ function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> 
   );
 }
 
+function OverviewLoading() {
+  return (
+    <Page>
+      <div className="grid min-h-40 place-items-center" aria-label="Loading dashboard">
+        <div className="spinner" aria-hidden="true" />
+      </div>
+    </Page>
+  );
+}
+
 export default function Overview() {
   const [statusPromise, setStatusPromise] = useState(() => api.status());
 
@@ -107,7 +117,7 @@ export default function Overview() {
   }, []);
 
   return (
-    <Suspense fallback={<div className="page"><div className="panel panel-pad"><div className="eyebrow">Loading</div><h1 className="title-lg">Preparing dashboard...</h1></div></div>}>
+    <Suspense fallback={<OverviewLoading />}>
       <OverviewBody statusPromise={statusPromise} />
     </Suspense>
   );
