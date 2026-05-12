@@ -4,7 +4,7 @@
 
 Agent Working Group(AWG)은 작은 에이전트 팀과 로컬 운영자를 위한 파일 기반 협업 계층입니다. 리드 에이전트와 하나 이상의 워커 에이전트가 공유 mailbox protocol을 사용해 지시를 보내고, 우선순위 메시지를 받고, 작업을 ack하고, stale 메시지를 retry하며, 서버 없이 큐 상태를 점검할 수 있게 합니다.
 
-이 패키지는 실무형 작업 패턴을 중심으로 설계되었습니다. 리드는 작업을 쪼개고, 워커는 제한된 작업을 검증하거나 구현하며, 메시지는 책임 추적성을 보존하고, 큐 상태는 협업을 inspectable하게 만듭니다.
+이 패키지는 현장에서 바로 쓰기 좋은 협업 흐름을 기준으로 설계되었습니다. 리드는 작업을 나누고, 워커는 제한된 범위의 작업을 검증하거나 구현하며, 메시지는 책임 추적성을 남기고, 큐 상태는 협업 과정을 눈으로 확인할 수 있게 합니다.
 
 ## 핵심 아이디어
 
@@ -158,7 +158,7 @@ awg log --tz=Asia/Seoul
 
 ## Lead / Worker 운영 루프
 
-실용적인 two-agent loop:
+간단한 two-agent loop:
 
 1. Lead가 worker에게 `instruction` 하나를 보냅니다.
 2. Worker는 `--require-ack`로 받고 작업을 시작한 뒤 `status`를 보냅니다.
@@ -176,7 +176,7 @@ awg log --tz=Asia/Seoul
 모든 enhancement에는 이 흐름을 사용하세요.
 
 1. 운영 문제와 기대 동작을 정의합니다.
-2. scoped problem을 해결하는 가장 작은 generic change를 `src/agent_working_group/`, `scripts/`, `dashboard/`, 또는 docs에 구현합니다.
+2. 범위가 정해진 문제를 해결하는 가장 작은 공통 변경을 `src/agent_working_group/`, `scripts/`, `dashboard/`, 또는 docs에 구현합니다.
 3. 동작이 바뀌면 `README.md`, protocol/API docs, runtime docs, 또는 script docs를 영어로 업데이트합니다.
 4. `tests/`에 테스트를 추가하거나 갱신합니다.
 5. 저장소 루트에서 가장 작은 의미 있는 verification을 먼저 실행하고, shared behavior에 영향이 있으면 더 넓은 테스트를 실행합니다.
