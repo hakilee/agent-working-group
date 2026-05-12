@@ -1,3 +1,4 @@
+import { IconArrowRight } from '@tabler/icons-react';
 import { Suspense, startTransition, use, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type SystemStatus } from '../api/client';
@@ -80,7 +81,7 @@ function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> 
         <div className="panel overflow-hidden">
           <div className="page-header p-3 md:p-4">
             <div className="page-title-stack"><div className="eyebrow">Live Log</div><h2 className="title-lg">Recent activity</h2></div>
-            <button type="button" className="action-btn" onClick={() => navigate('/queue')}>Browse queue -&gt;</button>
+            <button type="button" className="action-btn" onClick={() => navigate('/queue')}>Browse queue <IconArrowRight size={15} stroke={1.8} /></button>
           </div>
           {status.recentActivity.length ? <ul>{status.recentActivity.map((entry, index) => <ActivityItem key={`${entry.id ?? index}-${entry.createdAtMs ?? index}`} entry={entry} onOpen={() => setSelectedActivity(entry)} />)}</ul> : <div className="empty m-5">No recent activity in the queue log.</div>}
         </div>
