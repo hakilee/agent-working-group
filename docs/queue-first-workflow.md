@@ -14,7 +14,7 @@ Split queues by repository or workstream when tasks are substantial, concurrent,
 
 ## When To Use The Queue
 
-Use an `instruction` message for any work that has scope, constraints, exit criteria, or expected artifacts. This includes implementation tasks, review requests, QA checklist requests, release checks, and closure reports.
+Use an `instruction` message for any work that has scope, constraints, exit criteria, or expected artifacts. This includes implementation tasks, documentation updates, review requests, QA checklist requests, release checks, and closure reports.
 
 Use chat or another delivery surface only to say that an AWG queue item was added, with a short message id and one-line summary. Do not rely on chat-only long specs for work that another planner, worker, or reviewer must execute. If missed wake-ups are likely, use the read-only [Queue Notifier](queue-notifier.md) instead of relying on memory.
 
@@ -109,6 +109,8 @@ A useful review result includes:
 
 AWG's general gate is the output or publish boundary, not a pull request. Before closing substantive work, record the final output, appropriate evidence, review or owner signoff, the closure or delivery decision, and remaining risk. Use the lightest gate that fits the work: PR gate for GitHub PRs, artifact gate for local files, office/admin gate for reports or handoffs, external-send gate for outbound messages, queue-mutation gate for reconciliation, and worker-execution gate for tmux or Codex runs.
 
+For implementation-mode code or repository documentation changes, the publish boundary is normally PR creation/update; review and merge should happen in a separate review-mode workflow. See [Reliable AWG Runtime](reliable-awg-runtime.md) for the branch protection, active work-state, tmux watcher, and dashboard supervision baseline.
+
 Do not impose PR, branch, clean-worktree, Codex, or tmux rules on non-coding local work unless the task scope actually needs them. Conversely, when work is published through a non-trivial PR, the PR-specific gate remains required.
 
 ## Close Reports
@@ -117,7 +119,7 @@ Close reports should include completed artifacts, verification evidence, queue m
 
 If the next safe follow-up is clear, create the next queue item instead of stopping at a chat-only "done" message.
 
-If old inbox messages remain after closure, do not bulk consume them. Use the evidence-first policy in [Queue Inbox Reconciliation](queue-reconciliation.md): observe one queue at a time, link items to completed artifacts, merged pull requests, or close reports, and leave unknown items in place.
+If old inbox messages remain after closure, do not bulk consume them. Use the evidence-first policy in [Queue Inbox Reconciliation](queue-reconciliation.md): observe one queue at a time, link items to completed artifacts, merged pull requests, or close reports, and leave unknown items in place. When review or QA results arrive through chat first, backfill the substantive result into the queue before closing the workflow.
 
 For commits, pull request titles, and squash merge titles, follow the target repository's documented rule first. If no explicit rule exists, use Conventional Commits. See [Repository Rules](repository-rules.md).
 

@@ -86,6 +86,8 @@ Expected result: `0`.
 
 If a scheduled job must call `recv`, document the attached processor, its log path, its stop condition, and how it calls `ack`, `retry`, or `nack`. Treat that scheduler as a worker decision, not as an observer. See [Worker Operations](worker-operations.md#operating-decision) before enabling it.
 
+Do not use cron/systemEvent reminders as the completion detector for tmux-driven implementation work. Use `scripts/tmux-completion-watcher.sh` from [Reliable AWG Runtime](reliable-awg-runtime.md) so completion state is tied to a run-scoped marker and durable status files.
+
 
 ## Queue Notification Scheduling
 

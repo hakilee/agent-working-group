@@ -8,6 +8,7 @@ This runbook describes the workflow that ships with Agent Working Group from a c
 - File-backed queues under an operator-selected `AWG_ROOT`.
 - Message lifecycle commands: `send`, `recv`, `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, inspection commands, pruning, and cleanup.
 - Worker helper scripts for bounded local loops and tmux sessions.
+- Reliability helpers for PR-only implementation flow, active work state, tmux completion watching, local Git guards, GitHub branch protection, and dashboard supervision.
 - Public workflow docs, safety policies, review templates, and reconciliation guidance.
 
 ## What Operators Must Provide
@@ -112,6 +113,8 @@ For code or documentation changes:
 7. Publish only after evidence is captured.
 8. Write a close report with merged change, tests, queue messages handled, and remaining risks.
 
+For long-running implementation work, follow [Reliable AWG Runtime](reliable-awg-runtime.md): work from a branch, persist active work state, use the conservative tmux completion watcher for tmux-driven work, create or update the PR, then stop implementation mode. Start review mode only from a separate PR/issue trigger or explicit operator request.
+
 Keep public pull request comments generic and repository-relative. Do not include private local paths, credentials, runtime deployment details, or notification-surface details.
 
 ## Artifacts
@@ -134,6 +137,7 @@ Use accurate timestamped Markdown filenames such as `YYYYMMDDHHMM-short-descript
 - [Working-Group Queue Protocol](protocol.md)
 - [Python API Reference](api.md)
 - [Worker Operations](worker-operations.md)
+- [Reliable AWG Runtime](reliable-awg-runtime.md)
 - [PR Review Gate](pr-review-gate.md)
 - [Artifact Retention](artifact-retention.md)
 - [Queue Inbox Reconciliation](queue-reconciliation.md)
