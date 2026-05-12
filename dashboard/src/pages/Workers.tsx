@@ -10,7 +10,7 @@ export default function Workers() {
     <div className="page">
       <header className="page-header"><div><div className="eyebrow">Workers</div><h1 className="title-xl">Runtime sessions</h1></div><StatusPill status={tmuxAvailable ? 'processed' : 'stale'}>tmux {tmuxAvailable ? 'available' : 'not detected'}</StatusPill></header>
       {error && <div className="alert">{error}</div>}
-      {loading ? <div className="empty">Loading workers…</div> : workers.length ? <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">{workers.map((w) => <WorkerCard key={w.session} worker={w} />)}</div> : <div className="empty">No tmux sessions matching <code>awg-*</code>.</div>}
+      {loading ? <div className="empty">Loading workers…</div> : workers.length ? <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">{workers.map((w) => <WorkerCard key={w.session} worker={w} />)}</div> : <div className="empty">No tmux sessions matching <code>awg-*</code>.</div>}
     </div>
   );
 }

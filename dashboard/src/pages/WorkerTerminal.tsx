@@ -22,7 +22,7 @@ export default function WorkerTerminal() {
     <div className="page">
       <button type="button" onClick={() => navigate('/workers')} className="action-btn">← Workers</button>
       <header className="page-header panel panel-pad"><div><div className="eyebrow">Worker Terminal</div><h1 className="title-lg break-all">{session}</h1></div><StatusPill status={connected ? 'streaming' : 'disconnected'} /></header>
-      {worker && <section className="panel panel-pad grid gap-4 sm:grid-cols-3">{[['status', worker.status], ['windows', worker.windows], ['attached', worker.attached ? 'yes' : 'no']].map(([k, v]) => <div key={k}><div className="eyebrow text-ops-muted dark:text-[#839087]">{k}</div><div className="mt-1 text-sm text-ops-ink dark:text-[#eef3ec]">{String(v)}</div></div>)}</section>}
+      {worker && <section className="panel panel-pad grid gap-2 sm:grid-cols-3">{[['status', worker.status], ['windows', worker.windows], ['attached', worker.attached ? 'yes' : 'no']].map(([k, v]) => <div key={k}><div className="eyebrow text-ops-muted dark:text-[#839087]">{k}</div><div className="mt-1 text-xs text-ops-ink dark:text-[#eef3ec]">{String(v)}</div></div>)}</section>}
       {error && <div role="alert" className="alert">{error}</div>}
       <pre ref={preRef} className="code-block max-h-[620px] bg-[#0e1512] text-[#dcebe0]">{output || '(no output yet)'}</pre>
     </div>

@@ -13,7 +13,7 @@ export default function WorkerCard({ worker }: { worker: WorkerSession }) {
         <strong className="title-md break-all">{worker.session}</strong>
         <StatusPill status={worker.attached ? 'fresh' : 'stale'} />
       </div>
-      <div className="mt-5 grid grid-cols-3 gap-3">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         {stats.map(([label, value]) => <Stat key={label} label={label} value={String(value)} />)}
       </div>
     </button>
@@ -21,5 +21,5 @@ export default function WorkerCard({ worker }: { worker: WorkerSession }) {
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
-  return <div><div className="eyebrow text-ops-muted dark:text-[#839087]">{label}</div><div className="mt-1 break-words text-sm text-ops-ink dark:text-[#eef3ec]">{value}</div></div>;
+  return <div><div className="eyebrow text-ops-muted dark:text-[#839087]">{label}</div><div className="mt-1 break-words text-xs text-ops-ink dark:text-[#eef3ec]">{value}</div></div>;
 }

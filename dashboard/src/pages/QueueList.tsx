@@ -18,12 +18,12 @@ export default function QueueList() {
     <div className="page">
       <header className="page-header">
         <div><div className="eyebrow">Queue</div><h1 className="title-xl">Work items</h1></div>
-        <div className="row-meta" aria-label="Queue filters">{FILTERS.map((f) => <button key={f} type="button" className={cn('rounded-xl border border-ops-line px-3 py-2 text-sm font-bold transition dark:border-white/15', filter === f ? 'bg-ops-green text-white' : 'text-ops-body hover:bg-black/5 dark:text-[#b3beb5] dark:hover:bg-white/10')} onClick={() => setFilter(f)}>{f}</button>)}</div>
+        <div className="row-meta" aria-label="Queue filters">{FILTERS.map((f) => <button key={f} type="button" className={cn('border border-ops-line px-2 py-1.5 text-xs font-bold transition dark:border-white/15', filter === f ? 'bg-ops-green text-white' : 'text-ops-body hover:bg-black/5 dark:text-[#b3beb5] dark:hover:bg-white/10')} onClick={() => setFilter(f)}>{f}</button>)}</div>
       </header>
       {error && <div className="alert">{error}</div>}
       {loading && <div className="empty">Loading queue…</div>}
       {!loading && !error && !items.length && <div className="empty">No queue items.</div>}
-      {!loading && !!items.length && <ul className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">{items.map((item) => <QueueCard key={`${item.agent}/${item.filename}`} item={item} open={() => navigate(`/queue/${encodeURIComponent(item.id)}`)} />)}</ul>}
+      {!loading && !!items.length && <ul className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">{items.map((item) => <QueueCard key={`${item.agent}/${item.filename}`} item={item} open={() => navigate(`/queue/${encodeURIComponent(item.id)}`)} />)}</ul>}
     </div>
   );
 }

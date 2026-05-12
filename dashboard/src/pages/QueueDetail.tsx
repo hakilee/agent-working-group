@@ -27,9 +27,9 @@ export default function QueueDetailPage() {
 }
 
 function KV({ label, value }: { label: string; value: string }) {
-  return <div className="grid gap-1 border-b border-ops-line py-3 last:border-b-0 dark:border-white/15 md:grid-cols-[140px_1fr]"><div className="eyebrow text-ops-muted dark:text-[#839087]">{label}</div><div className="break-words text-sm text-ops-ink dark:text-[#eef3ec]">{value}</div></div>;
+  return <div className="grid gap-1 border-b border-ops-line py-2 last:border-b-0 dark:border-white/15 md:grid-cols-[120px_1fr]"><div className="eyebrow text-ops-muted dark:text-[#839087]">{label}</div><div className="break-words text-xs text-ops-ink dark:text-[#eef3ec]">{value}</div></div>;
 }
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="grid gap-3"><h2 className="title-md">{title}</h2><pre className="code-block">{children}</pre></section>;
+  return <section className="grid gap-2"><h2 className="title-md">{title}</h2><pre className="code-block">{children}</pre></section>;
 }
