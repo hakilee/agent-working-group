@@ -3,146 +3,35 @@ import { api, type ContractBreach, type HeartbeatEntry, type HeartbeatList, type
 import StatusPill from '../components/StatusPill';
 import { useLivenessStream } from '../hooks/useLivenessStream';
 
-const POLL_INTERVAL_MS = 5000;
-
-interface Snapshot {
-  heartbeats: HeartbeatEntry[];
-  heartbeatCounts: Record<string, number>;
-  timeouts: TimeoutItem[];
-  contracts: ContractBreach[];
-}
-
-const EMPTY: Snapshot = {
-  heartbeats: [],
-  heartbeatCounts: { fresh: 0, stale: 0, missing: 0 },
-  timeouts: [],
-  contracts: [],
-};
-
-function applyHeartbeats(prev: Snapshot, hb: HeartbeatList): Snapshot {
-  return { ...prev, heartbeats: hb.items, heartbeatCounts: { ...prev.heartbeatCounts, ...hb.counts } };
-}
+type Snapshot = { heartbeats: HeartbeatEntry[]; heartbeatCounts: Record<string, number>; timeouts: TimeoutItem[]; contracts: ContractBreach[] };
+const EMPTY: Snapshot = { heartbeats: [], heartbeatCounts: { fresh: 0, stale: 0, missing: 0 }, timeouts: [], contracts: [] };
+const applyHeartbeats = (p: Snapshot, hb: HeartbeatList): Snapshot => ({ ...p, heartbeats: hb.items, heartbeatCounts: { ...p.heartbeatCounts, ...hb.counts } });
 
 export default function Liveness() {
-  const [snap, setSnap] = useState<Snapshot>(EMPTY);
-  const [error, setError] = useState<string | null>(null);
+  const [snap, setSnap] = useState<Snapshot>(EMPTY), [error, setError] = useState<string | null>(null);
   const stream = useLivenessStream();
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = () => {
-      Promise.all([api.liveness.heartbeats(), api.liveness.timeouts(), api.liveness.contracts()])
-        .then(([hb, tm, ct]) => {
-          if (cancelled) return;
-          setSnap({ heartbeats: hb.items, heartbeatCounts: hb.counts, timeouts: tm.items, contracts: ct.items });
-          setError(null);
-        })
-        .catch((err) => !cancelled && setError(String(err)));
-    };
-    load();
-    const id = window.setInterval(load, POLL_INTERVAL_MS);
-    return () => { cancelled = true; window.clearInterval(id); };
-  }, []);
-
-  useEffect(() => {
-    if (!stream) return;
-    setSnap((prev) => {
-      let next = prev;
-      if (stream.heartbeats) next = applyHeartbeats(next, stream.heartbeats);
-      if (stream.timeouts) next = { ...next, timeouts: stream.timeouts.items };
-      if (stream.contracts) next = { ...next, contracts: stream.contracts.items };
-      return next;
-    });
-  }, [stream]);
-
+  useEffect(() => { let off = false; const load = () => Promise.all([api.liveness.heartbeats(), api.liveness.timeouts(), api.liveness.contracts()]).then(([hb, tm, ct]) => !off && (setSnap({ heartbeats: hb.items, heartbeatCounts: hb.counts, timeouts: tm.items, contracts: ct.items }), setError(null))).catch((e) => !off && setError(String(e))); load(); const id = window.setInterval(load, 5000); return () => { off = true; window.clearInterval(id); }; }, []);
+  useEffect(() => { if (stream) setSnap((p) => ({ ...(stream.heartbeats ? applyHeartbeats(p, stream.heartbeats) : p), ...(stream.timeouts ? { timeouts: stream.timeouts.items } : {}), ...(stream.contracts ? { contracts: stream.contracts.items } : {}) })); }, [stream]);
   return (
     <div className="page">
-      <header className="page-header">
-        <div>
-          <div className="eyebrow">Liveness</div>
-          <h1 className="title-xl">Reliability checks</h1>
-        </div>
-        <div className="row-meta">
-          {(['fresh', 'stale', 'missing'] as const).map((k) => (
-            <span key={k} className={`pill ${k === 'fresh' ? 'pill-processed' : k === 'stale' ? 'pill-stale' : 'pill-dead'}`}>
-              {k} {snap.heartbeatCounts[k] ?? 0}
-            </span>
-          ))}
-        </div>
-      </header>
-
+      <header className="page-header"><div><div className="eyebrow">Liveness</div><h1 className="title-xl">Reliability checks</h1></div><div className="row-meta">{(['fresh', 'stale', 'missing'] as const).map((k) => <StatusPill key={k} status={k}>{k} {snap.heartbeatCounts[k] ?? 0}</StatusPill>)}</div></header>
       {error && <div role="alert" className="alert">{error}</div>}
-
-      <Section title="Heartbeats" count={snap.heartbeats.length}>
-        {snap.heartbeats.length === 0 ? <div className="empty">No heartbeat files found.</div> : (
-          <ul className="panel row-list">
-            {snap.heartbeats.map((hb) => (
-              <li className="row-item" key={`${hb.agent}/${hb.session}`}>
-                <div className="row-main">
-                  <div className="row-meta">
-                    <StatusPill status={hb.status} />
-                    <strong className="mono" style={{ color: 'var(--color-ink)' }}>{hb.agent}</strong>
-                    <span className="mono caption">{hb.session || 'no-session'}</span>
-                  </div>
-                  <p className="caption mono">age {hb.ageSeconds ?? '—'}s / timeout {hb.timeoutSeconds}s</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="Processing timeouts" count={snap.timeouts.length}>
-        {snap.timeouts.length === 0 ? <div className="empty">No stale processing items.</div> : (
-          <ul className="panel row-list">
-            {snap.timeouts.map((item) => <TimeoutRow key={`${item.agent}/${item.messageId}/${item.file}`} item={item} />)}
-          </ul>
-        )}
-      </Section>
-
-      <Section title="Response contract breaches" count={snap.contracts.length}>
-        {snap.contracts.length === 0 ? <div className="empty">No breached response contracts.</div> : (
-          <ul className="panel row-list">
-            {snap.contracts.map((item) => <ContractRow key={`${item.agent}/${item.messageId}/${item.location}`} item={item} />)}
-          </ul>
-        )}
-      </Section>
+      <Section title="Heartbeats" count={snap.heartbeats.length}>{snap.heartbeats.length ? <ul className="panel overflow-hidden">{snap.heartbeats.map((hb) => <HeartbeatRow key={`${hb.agent}/${hb.session}`} hb={hb} />)}</ul> : <div className="empty">No heartbeat files found.</div>}</Section>
+      <Section title="Processing timeouts" count={snap.timeouts.length}>{snap.timeouts.length ? <ul className="panel overflow-hidden">{snap.timeouts.map((i) => <TimeoutRow key={`${i.agent}/${i.messageId}/${i.file}`} item={i} />)}</ul> : <div className="empty">No stale processing items.</div>}</Section>
+      <Section title="Response contract breaches" count={snap.contracts.length}>{snap.contracts.length ? <ul className="panel overflow-hidden">{snap.contracts.map((i) => <ContractRow key={`${i.agent}/${i.messageId}/${i.location}`} item={i} />)}</ul> : <div className="empty">No breached response contracts.</div>}</Section>
     </div>
   );
 }
 
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
-  return (
-    <section className="grid">
-      <div className="page-header">
-        <h2 className="title-lg">{title}</h2>
-        <span className="pill pill-neutral">{count}</span>
-      </div>
-      {children}
-    </section>
-  );
+  return <section className="grid gap-3"><div className="page-header"><h2 className="title-lg">{title}</h2><span className="pill pill-neutral">{count}</span></div>{children}</section>;
 }
-
+function HeartbeatRow({ hb }: { hb: HeartbeatEntry }) {
+  return <li className="row-item"><div className="min-w-0 flex-1"><div className="row-meta"><StatusPill status={hb.status} /><strong className="break-all text-ops-ink dark:text-[#eef3ec]">{hb.agent}</strong><span className="caption">{hb.session || 'no-session'}</span></div><p className="caption mt-1">age {hb.ageSeconds ?? '—'}s / timeout {hb.timeoutSeconds}s</p></div></li>;
+}
 function TimeoutRow({ item }: { item: TimeoutItem }) {
-  return (
-    <li className="row-item">
-      <StatusPill status="stale" />
-      <div className="row-main">
-        <div className="mono" style={{ color: 'var(--color-ink)' }}>{item.agent} / {item.messageId}</div>
-        <p className="caption mono">age {item.ageSeconds}s / timeout {item.timeoutSeconds}s / {item.timestampSource}</p>
-      </div>
-    </li>
-  );
+  return <li className="row-item"><StatusPill status="stale" /><div className="min-w-0 flex-1"><div className="break-all text-ops-ink dark:text-[#eef3ec]">{item.agent} / {item.messageId}</div><p className="caption mt-1">age {item.ageSeconds}s / timeout {item.timeoutSeconds}s / {item.timestampSource}</p></div></li>;
 }
-
 function ContractRow({ item }: { item: ContractBreach }) {
-  return (
-    <li className="row-item">
-      <StatusPill status="missing" />
-      <div className="row-main">
-        <div className="mono" style={{ color: 'var(--color-ink)' }}>{item.agent} / {item.messageId}</div>
-        <p className="caption mono">expected {item.expectedSeconds}s / actual {item.actualSeconds}s / {item.location}</p>
-      </div>
-    </li>
-  );
+  return <li className="row-item"><StatusPill status="missing" /><div className="min-w-0 flex-1"><div className="break-all text-ops-ink dark:text-[#eef3ec]">{item.agent} / {item.messageId}</div><p className="caption mt-1">expected {item.expectedSeconds}s / actual {item.actualSeconds}s / {item.location}</p></div></li>;
 }

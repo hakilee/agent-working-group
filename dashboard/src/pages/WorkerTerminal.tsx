@@ -3,106 +3,28 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, workerSocketUrl, type WorkerSession } from '../api/client';
 import StatusPill from '../components/StatusPill';
 
-type WSMessage =
-  | { type: 'snapshot' | 'update'; session: string; data: string; ts: number }
-  | { type: 'ping'; ts: number };
-
-const RECONNECT_INITIAL_MS = 1000;
-const RECONNECT_MAX_MS = 15000;
+type WSMessage = { type: 'snapshot' | 'update'; data: string } | { type: 'ping'; ts: number };
 
 export default function WorkerTerminal() {
   const { session = '' } = useParams<{ session: string }>();
   const navigate = useNavigate();
-  const [worker, setWorker] = useState<WorkerSession | null>(null);
-  const [output, setOutput] = useState('');
-  const [connected, setConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [worker, setWorker] = useState<WorkerSession | null>(null), [output, setOutput] = useState(''), [connected, setConnected] = useState(false), [error, setError] = useState<string | null>(null);
   const preRef = useRef<HTMLPreElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getWorker(session)
-      .then((data) => {
-        if (cancelled) return;
-        setWorker(data);
-        if (data.recentOutput) setOutput(data.recentOutput);
-      })
-      .catch((err) => !cancelled && setError(String(err)));
-    return () => { cancelled = true; };
-  }, [session]);
-
+  useEffect(() => { let off = false; api.getWorker(session).then((d) => !off && (setWorker(d), d.recentOutput && setOutput(d.recentOutput))).catch((e) => !off && setError(String(e))); return () => { off = true; }; }, [session]);
   useEffect(() => {
     if (!session) return;
-    let ws: WebSocket | null = null;
-    let retryMs = RECONNECT_INITIAL_MS;
-    let retryTimer: number | undefined;
-    let cancelled = false;
-
-    const connect = () => {
-      if (cancelled) return;
-      ws = new WebSocket(workerSocketUrl(session));
-      ws.onopen = () => { setConnected(true); retryMs = RECONNECT_INITIAL_MS; };
-      ws.onclose = () => {
-        setConnected(false);
-        if (cancelled) return;
-        retryTimer = window.setTimeout(connect, retryMs);
-        retryMs = Math.min(retryMs * 2, RECONNECT_MAX_MS);
-      };
-      ws.onerror = () => ws?.close();
-      ws.onmessage = (ev) => {
-        try {
-          const msg = JSON.parse(ev.data) as WSMessage;
-          if (msg.type === 'snapshot' || msg.type === 'update') setOutput(msg.data);
-        } catch {
-          /* ignore malformed stream frames */
-        }
-      };
-    };
-
-    connect();
-    return () => {
-      cancelled = true;
-      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
-      ws?.close();
-    };
+    let ws: WebSocket | null = null, timer: number | undefined, retry = 1000, off = false;
+    const connect = () => { if (off) return; ws = new WebSocket(workerSocketUrl(session)); ws.onopen = () => (setConnected(true), retry = 1000); ws.onclose = () => { setConnected(false); if (!off) timer = window.setTimeout(connect, retry), retry = Math.min(retry * 2, 15000); }; ws.onerror = () => ws?.close(); ws.onmessage = (ev) => { try { const msg = JSON.parse(ev.data) as WSMessage; if (msg.type === 'snapshot' || msg.type === 'update') setOutput(msg.data); } catch { /* ignore malformed frames */ } }; };
+    connect(); return () => { off = true; if (timer) window.clearTimeout(timer); ws?.close(); };
   }, [session]);
-
-  useEffect(() => {
-    if (!preRef.current) return;
-    preRef.current.scrollTop = preRef.current.scrollHeight;
-  }, [output]);
-
+  useEffect(() => { if (preRef.current) preRef.current.scrollTop = preRef.current.scrollHeight; }, [output]);
   return (
     <div className="page">
       <button type="button" onClick={() => navigate('/workers')} className="action-btn">← Workers</button>
-      <header className="page-header panel panel-pad">
-        <div>
-          <div className="eyebrow">Worker Terminal</div>
-          <h1 className="title-lg mono">{session}</h1>
-        </div>
-        <StatusPill status={connected ? 'streaming' : 'disconnected'} tone={connected ? 'success' : 'neutral'} />
-      </header>
-
-      {worker && (
-        <section className="panel panel-pad grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-          <Detail label="status" value={worker.status} />
-          <Detail label="windows" value={String(worker.windows)} />
-          <Detail label="attached" value={worker.attached ? 'yes' : 'no'} />
-        </section>
-      )}
-
+      <header className="page-header panel panel-pad"><div><div className="eyebrow">Worker Terminal</div><h1 className="title-lg break-all">{session}</h1></div><StatusPill status={connected ? 'streaming' : 'disconnected'} /></header>
+      {worker && <section className="panel panel-pad grid gap-4 sm:grid-cols-3">{[['status', worker.status], ['windows', worker.windows], ['attached', worker.attached ? 'yes' : 'no']].map(([k, v]) => <div key={k}><div className="eyebrow text-ops-muted dark:text-[#839087]">{k}</div><div className="mt-1 text-sm text-ops-ink dark:text-[#eef3ec]">{String(v)}</div></div>)}</section>}
       {error && <div role="alert" className="alert">{error}</div>}
-      <pre ref={preRef} className="code-block terminal">{output || '(no output yet)'}</pre>
-    </div>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="kpi-label">{label}</div>
-      <div className="mono body" style={{ color: 'var(--color-ink)', marginTop: 4 }}>{value}</div>
+      <pre ref={preRef} className="code-block max-h-[620px] bg-[#0e1512] text-[#dcebe0]">{output || '(no output yet)'}</pre>
     </div>
   );
 }

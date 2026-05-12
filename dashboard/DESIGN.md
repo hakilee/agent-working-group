@@ -10,7 +10,7 @@ The dashboard is an operations surface for Agent Working Group: calm, dense enou
 - Use strong information hierarchy: oversized page titles, compact mono metadata, and high-contrast status pills.
 - Keep visual effects purposeful: atmospheric background, glass panels, and tight hover elevation only where they improve orientation.
 - Mobile remains operational: navigation wraps, cards become single-column, and details avoid horizontal overflow.
-- Avoid vendor-inspired naming. Tokens describe product intent, not another brand.
+- Avoid vendor-inspired naming. Tailwind 4 theme tokens describe product intent, not another brand.
 
 ## Visual Language
 
@@ -18,7 +18,7 @@ The dashboard is an operations surface for Agent Working Group: calm, dense enou
 - Primary accent: operational green for healthy/active states and focused actions.
 - Secondary accents: amber for waiting/stale, red for errors, blue for streaming/processing context.
 - Surfaces: translucent panels with hairline borders and soft shadows.
-- Typography: IBM Plex Sans for interface hierarchy; IBM Plex Mono for IDs, routes, timestamps, sessions, and terminal output.
+- Typography: Geist Mono is the dashboard voice across interface hierarchy, IDs, routes, timestamps, sessions, and terminal output.
 
 ## Components
 
