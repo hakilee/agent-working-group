@@ -1,6 +1,6 @@
 import { IconArrowLeft, IconPower, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { api, workerSocketUrl, type WorkerSession } from '../api/client';
 import StatusPill from '../components/status-pill';
 import { Button } from '../components/ui/button';

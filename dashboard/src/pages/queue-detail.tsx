@@ -1,6 +1,6 @@
 import { IconArrowLeft } from '@tabler/icons-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { api, type QueueDetail } from '../api/client';
 import StatusPill from '../components/status-pill';
 import { Page } from '../components/ui/page';

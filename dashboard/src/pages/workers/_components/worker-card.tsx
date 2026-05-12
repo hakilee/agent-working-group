@@ -1,8 +1,8 @@
 import { IconChevronRight } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
-import type { WorkerSession, WorkerWindow } from '../api/client';
-import { formatUptime } from '../format';
-import StatusPill from './status-pill';
+import { useNavigate } from 'react-router';
+import type { WorkerSession, WorkerWindow } from '../../../api/client';
+import { formatUptime } from '../../../format';
+import StatusPill from '../../../components/status-pill';
 
 function workerStats(worker: WorkerSession): Array<[string, string]> {
   return [

@@ -1,7 +1,7 @@
 import { Radio } from '@base-ui/react/radio';
 import { RadioGroup } from '@base-ui/react/radio-group';
-import { cn } from '../lib/cn';
-import { useTheme, type ThemeMode } from '../theme';
+import { cn } from '../../../lib/cn';
+import { useTheme, type ThemeMode } from '../../../theme';
 
 const OPTIONS: Array<{ value: ThemeMode; label: string; hint: string }> = [
   { value: 'system', label: 'System', hint: 'Follow OS preference' },

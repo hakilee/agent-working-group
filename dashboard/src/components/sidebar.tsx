@@ -9,7 +9,7 @@ import {
   IconUsersGroup,
 } from '@tabler/icons-react';
 import { useEffect, useState, type ComponentType } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router';
 import { cn } from '../lib/cn';
 
 type NavIcon = ComponentType<{ size?: number; stroke?: number; className?: string }>;

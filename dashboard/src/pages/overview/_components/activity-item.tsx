@@ -1,6 +1,7 @@
 import { IconArrowRight } from '@tabler/icons-react';
-import type { SystemStatus } from '../api/client';
-import StatusPill from './status-pill';
+import type { SystemStatus } from '../../../api/client';
+import StatusPill from '../../../components/status-pill';
+import { Badge } from '../../../components/ui/badge';
 
 type Entry = SystemStatus['recentActivity'][number];
 
@@ -15,7 +16,7 @@ export default function ActivityItem({ entry, onOpen }: { entry: Entry; onOpen: 
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
             <StatusPill status={entry.state ?? 'processed'} />
-            <StatusPill status={entry.kind ?? 'message'} className="normal-case tracking-normal" />
+            <Badge className="normal-case tracking-normal">{entry.kind ?? 'message'}</Badge>
             <span className="inline-flex items-center gap-1 text-[10px] text-ops-muted dark:text-[#839087]">
               {entry.from ?? '?'} <IconArrowRight size={12} stroke={1.8} /> {entry.to ?? '?'}
             </span>

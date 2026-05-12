@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router';
 import Sidebar from './components/sidebar';
 import Liveness from './pages/liveness';
 import Overview from './pages/overview';

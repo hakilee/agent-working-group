@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { api, type WorkerSession } from '../api/client';
-import StatusPill from '../components/status-pill';
-import { Page, PageHeader } from '../components/ui/page';
-import WorkerCard from '../components/worker-card';
-import { WORKER_POLL_INTERVAL_MS } from '../dashboard-rules';
+import { api, type WorkerSession } from '../../api/client';
+import StatusPill from '../../components/status-pill';
+import { Page, PageHeader } from '../../components/ui/page';
+import WorkerCard from './_components/worker-card';
+import { WORKER_POLL_INTERVAL_MS } from '../../dashboard-rules';
 
 type WorkerSnapshot = { workers: WorkerSession[]; tmuxAvailable: boolean };
 

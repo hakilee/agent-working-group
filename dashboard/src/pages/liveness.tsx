@@ -1,11 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, type ContractBreach, type HeartbeatEntry, type HeartbeatList, type TimeoutItem } from '../api/client';
 import StatusPill from '../components/status-pill';
+import { Badge } from '../components/ui/badge';
 import { Page, PageHeader } from '../components/ui/page';
 import { DASHBOARD_POLL_INTERVAL_MS } from '../dashboard-rules';
 import { useLivenessStream } from '../hooks/use-liveness-stream';
-
-const neutralPillClass = 'inline-flex items-center gap-1 whitespace-nowrap border border-transparent bg-[#ebe6da] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[.06em] text-ops-ink dark:bg-white/10 dark:text-[#eef3ec]';
 
 type Snapshot = {
   heartbeats: HeartbeatEntry[];
@@ -122,7 +121,7 @@ function Section({ title, count, children }: { title: string; count: number; chi
     <section className="grid gap-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-lg font-bold leading-tight tracking-[-.03em] text-ops-ink dark:text-[#eef3ec] md:text-xl">{title}</h2>
-        <span className={neutralPillClass}>{count}</span>
+        <Badge>{count}</Badge>
       </div>
       {children}
     </section>

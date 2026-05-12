@@ -1,5 +1,5 @@
-import ThemeToggle from '../components/theme-toggle';
-import { Page, PageHeader } from '../components/ui/page';
+import ThemeToggle from './_components/theme-toggle';
+import { Page, PageHeader } from '../../components/ui/page';
 
 export default function Settings() {
   return (

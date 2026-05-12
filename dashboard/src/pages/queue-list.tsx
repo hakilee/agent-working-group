@@ -1,8 +1,9 @@
 import { IconArrowRight } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { api, type QueueSummary } from '../api/client';
 import StatusPill from '../components/status-pill';
+import { Badge } from '../components/ui/badge';
 import { Page, PageHeader } from '../components/ui/page';
 import { QUEUE_CARD_PREVIEW_LENGTH, QUEUE_LIST_LIMIT } from '../dashboard-rules';
 import { formatRouteParticipant } from '../format';
@@ -11,8 +12,6 @@ import { cn } from '../lib/cn';
 
 const FILTERS = ['all', 'pending', 'processing', 'processed', 'dead'] as const;
 type Filter = (typeof FILTERS)[number];
-
-const neutralPillClass = 'inline-flex items-center gap-1 whitespace-nowrap border border-transparent bg-[#ebe6da] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[.06em] text-ops-ink dark:bg-white/10 dark:text-[#eef3ec]';
 
 function filterToQueueState(filter: Filter): QueueSummary['state'] | undefined {
   return filter === 'all' ? undefined : filter;
@@ -101,7 +100,7 @@ function QueueCard({ item, open }: { item: QueueSummary; open: () => void }) {
     <li>
       <button type="button" className="w-full border border-ops-line bg-ops-panel p-3 text-left text-inherit transition hover:border-black/25 hover:bg-white/95 dark:border-white/15 dark:bg-[#1e2722]/85 dark:hover:border-white/30 dark:hover:bg-[#243029]" onClick={open}>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={neutralPillClass}>{item.kind}</span>
+          <Badge>{item.kind}</Badge>
           <StatusPill status={item.state} />
           <time className="ml-auto text-[10px] text-ops-muted dark:text-[#839087]">{item.createdAt ?? '-'}</time>
         </div>

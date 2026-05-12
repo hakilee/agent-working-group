@@ -7,17 +7,10 @@ export interface UseWebSocketState<T> {
   error: string | null;
 }
 
-/**
- * Connect to a WebSocket URL and decode each JSON frame into `T`. Ignores
- * `{ type: "ping" }` heartbeats so consumers never see them as data.
- * Auto-reconnects with exponential backoff on close/error.
- */
 export function useWebSocket<T>(url: string | null): UseWebSocketState<T> {
   const [data, setData] = useState<T | null>(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Track latest values inside refs so the effect's cleanup can read them
-  // without re-running for every state change.
   const cancelledRef = useRef(false);
 
   useEffect(() => {
@@ -47,7 +40,6 @@ export function useWebSocket<T>(url: string | null): UseWebSocketState<T> {
         retryMs = Math.min(retryMs * 2, WORKER_SOCKET_MAX_RETRY_MS);
       };
       ws.onerror = () => {
-        // onerror is always followed by onclose; let the close handler retry.
         ws?.close();
       };
       ws.onmessage = (ev) => {

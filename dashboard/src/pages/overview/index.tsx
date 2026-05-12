@@ -1,15 +1,16 @@
 import { IconArrowRight } from '@tabler/icons-react';
 import { Suspense, startTransition, use, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api, type SystemStatus } from '../api/client';
-import ActivityItem from '../components/activity-item';
-import StatsCard from '../components/stats-card';
-import StatusPill from '../components/status-pill';
-import { AppDialog } from '../components/ui/app-dialog';
-import { Button } from '../components/ui/button';
-import { Page } from '../components/ui/page';
-import { Text } from '../components/ui/typography';
-import { DASHBOARD_POLL_INTERVAL_MS, OVERVIEW_AGENT_LIMIT } from '../dashboard-rules';
+import { useNavigate } from 'react-router';
+import { api, type SystemStatus } from '../../api/client';
+import ActivityItem from './_components/activity-item';
+import StatsCard from './_components/stats-card';
+import StatusPill from '../../components/status-pill';
+import { Badge } from '../../components/ui/badge';
+import { AppDialog } from '../../components/ui/app-dialog';
+import { Button } from '../../components/ui/button';
+import { Page } from '../../components/ui/page';
+import { Text } from '../../components/ui/typography';
+import { DASHBOARD_POLL_INTERVAL_MS, OVERVIEW_AGENT_LIMIT } from '../../dashboard-rules';
 
 const STATS = [['pending', 'Pending'], ['processing', 'Processing'], ['processed', 'Completed'], ['dead', 'Failed']] as const;
 type ActivityEntry = SystemStatus['recentActivity'][number];
@@ -26,7 +27,7 @@ function getRootStatus(status: SystemStatus): 'processed' | 'stale' | 'dead' {
 function RootSummary({ status }: { status: SystemStatus }) {
   return (
     <div className="relative z-10 flex flex-wrap items-center gap-1.5 self-end pt-4">
-      <span className="inline-flex max-w-full items-center gap-1 whitespace-nowrap border border-transparent bg-[#ebe6da] px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-ops-ink dark:bg-white/10 dark:text-[#eef3ec]">{status.root}</span>
+      <Badge className="max-w-full normal-case tracking-normal">{status.root}</Badge>
       <StatusPill status={getRootStatus(status)} className="normal-case tracking-normal">
         {status.rootSource} root{status.isTmpRoot ? ' / tmp' : ''}
       </StatusPill>
@@ -96,7 +97,7 @@ function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> 
           <Text as="h2" variant="title-sm" className="mt-2">Routing surface</Text>
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {visibleAgents.length ? visibleAgents.map((agent) => (
-              <span key={agent} className="inline-flex items-center gap-1 whitespace-nowrap border border-transparent bg-[#ebe6da] px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-ops-ink dark:bg-white/10 dark:text-[#eef3ec]">{agent}</span>
+              <Badge key={agent} className="normal-case tracking-normal">{agent}</Badge>
             )) : <span className="text-[10px] text-ops-muted dark:text-[#839087]">No agents registered.</span>}
           </div>
         </aside>
