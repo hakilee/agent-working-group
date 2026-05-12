@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './app';
+import ErrorBoundary from './components/error-boundary';
 import { ThemeProvider } from './theme';
 import './index.css';
 
@@ -11,9 +12,11 @@ if (!container) throw new Error('root element missing');
 createRoot(container).render(
   <StrictMode>
     <ThemeProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ErrorBoundary>
     </ThemeProvider>
   </StrictMode>,
 );
