@@ -5,57 +5,15 @@ type Entry = SystemStatus['recentActivity'][number];
 
 export default function ActivityItem({ entry }: { entry: Entry }) {
   return (
-    <li
-      style={{
-        listStyle: 'none',
-        padding: 'var(--space-sm) var(--space-base)',
-        borderBottom: '1px solid var(--color-hairline-soft)',
-        display: 'flex',
-        gap: 'var(--space-base)',
-      }}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-xs)',
-            flexWrap: 'wrap',
-          }}
-        >
-          <StatusPill status={entry.kind ?? 'msg'} tone="neutral" />
-          <span className="t-code" style={{ color: 'var(--color-ink)' }}>
-            {entry.from ?? '?'}
-          </span>
-          <span className="t-body-sm" style={{ color: 'var(--color-muted)' }}>
-            →
-          </span>
-          <span className="t-code" style={{ color: 'var(--color-ink)' }}>
-            {entry.to ?? '?'}
-          </span>
+    <li className="row-item">
+      <div className="row-main">
+        <div className="row-meta">
+          <StatusPill status={entry.kind ?? 'message'} />
+          <span className="mono caption">{entry.from ?? '?'} → {entry.to ?? '?'}</span>
         </div>
-        <div
-          className="t-body-md"
-          style={{
-            color: 'var(--color-body)',
-            marginTop: 'var(--space-xxs)',
-            wordBreak: 'break-word',
-          }}
-        >
-          {entry.body}
-        </div>
+        <p className="body">{entry.body}</p>
       </div>
-      <div
-        className="t-caption"
-        style={{
-          color: 'var(--color-muted)',
-          flexShrink: 0,
-          whiteSpace: 'nowrap',
-          fontFamily: 'var(--font-mono)',
-        }}
-      >
-        {entry.createdAt ?? '—'}
-      </div>
+      <time className="mono caption">{entry.createdAt ?? '—'}</time>
     </li>
   );
 }

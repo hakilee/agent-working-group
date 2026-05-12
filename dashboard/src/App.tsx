@@ -9,25 +9,9 @@ import Liveness from './pages/Liveness';
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        minHeight: '100%',
-        background: 'var(--color-canvas)',
-      }}
-    >
+    <div className="app-shell">
       <Sidebar />
-      <main
-        style={{
-          flex: 1,
-          minWidth: 0,
-          padding: 'var(--space-xl) var(--space-xl)',
-          maxWidth: 1200,
-          width: '100%',
-        }}
-      >
-        {children}
-      </main>
+      <main className="main">{children}</main>
     </div>
   );
 }

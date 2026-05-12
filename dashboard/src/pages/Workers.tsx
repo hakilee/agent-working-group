@@ -24,87 +24,29 @@ export default function Workers() {
     };
     fetchWorkers();
     const id = window.setInterval(fetchWorkers, 4000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
+    return () => { cancelled = true; window.clearInterval(id); };
   }, []);
 
   return (
-    <>
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: 'var(--space-base)',
-          marginBottom: 'var(--space-xl)',
-          flexWrap: 'wrap',
-        }}
-      >
-        <h1 className="t-display-lg" style={{ color: 'var(--color-ink)' }}>
-          Workers
-        </h1>
-        <span
-          className="t-caption-uppercase"
-          style={{ color: 'var(--color-muted)' }}
-        >
-          tmux {tmuxAvailable ? 'available' : 'not detected'}
-        </span>
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <div className="eyebrow">Workers</div>
+          <h1 className="title-xl">Runtime sessions</h1>
+        </div>
+        <span className={tmuxAvailable ? 'pill pill-processed' : 'pill pill-stale'}>tmux {tmuxAvailable ? 'available' : 'not detected'}</span>
       </header>
 
-      {error && (
-        <div
-          role="alert"
-          className="t-body-sm"
-          style={{
-            background: 'var(--color-surface-card)',
-            border: '1px solid var(--color-error)',
-            color: 'var(--color-error)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-base) var(--space-lg)',
-            marginBottom: 'var(--space-base)',
-          }}
-        >
-          {error}
-        </div>
-      )}
-
+      {error && <div className="alert">{error}</div>}
       {loading ? (
-        <p className="t-body-md" style={{ color: 'var(--color-muted)' }}>
-          loading…
-        </p>
+        <div className="empty">Loading workers…</div>
       ) : workers.length === 0 ? (
-        <div
-          className="t-body-md"
-          style={{
-            background: 'var(--color-surface-card)',
-            border: '1px dashed var(--color-hairline-strong)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-xl)',
-            textAlign: 'center',
-            color: 'var(--color-muted)',
-          }}
-        >
-          No tmux sessions matching{' '}
-          <code className="t-code" style={{ color: 'var(--color-ink)' }}>
-            awg-*
-          </code>
-          .
-        </div>
+        <div className="empty">No tmux sessions matching <code className="mono">awg-*</code>.</div>
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 'var(--space-base)',
-          }}
-        >
-          {workers.map((worker) => (
-            <WorkerCard key={worker.session} worker={worker} />
-          ))}
+        <div className="grid worker-grid">
+          {workers.map((worker) => <WorkerCard key={worker.session} worker={worker} />)}
         </div>
       )}
-    </>
+    </div>
   );
 }

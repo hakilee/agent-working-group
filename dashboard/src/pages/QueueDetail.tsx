@@ -3,64 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, type QueueDetail } from '../api/client';
 import StatusPill from '../components/StatusPill';
 
-function KVRow({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: React.ReactNode;
-  mono?: boolean;
-}) {
+function KVRow({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        gap: 'var(--space-base)',
-        padding: 'var(--space-sm) 0',
-        borderBottom: '1px solid var(--color-hairline-soft)',
-      }}
-    >
-      <div
-        className="t-body-sm"
-        style={{
-          color: 'var(--color-muted)',
-          width: 120,
-          flexShrink: 0,
-          fontWeight: 500,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        className={mono ? 't-code' : 't-body-md'}
-        style={{ color: 'var(--color-ink)', minWidth: 0, wordBreak: 'break-word' }}
-      >
-        {value}
-      </div>
+    <div className="kv">
+      <div className="kpi-label">{label}</div>
+      <div className={mono ? 'mono body' : 'body'} style={{ color: 'var(--color-ink)', minWidth: 0, wordBreak: 'break-word' }}>{value}</div>
     </div>
   );
 }
 
 function CodeBlock({ children }: { children: React.ReactNode }) {
-  return (
-    <pre
-      className="t-code"
-      style={{
-        background: 'var(--color-surface-card)',
-        border: '1px solid var(--color-hairline)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 'var(--space-md)',
-        color: 'var(--color-ink)',
-        margin: 0,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        overflow: 'auto',
-      }}
-    >
-      {children}
-    </pre>
-  );
+  return <pre className="code-block">{children}</pre>;
 }
 
 export default function QueueDetailPage() {
@@ -75,74 +28,27 @@ export default function QueueDetailPage() {
       .getQueueItem(id)
       .then((data) => !cancelled && setItem(data))
       .catch((err) => !cancelled && setError(String(err)));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [id]);
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="t-button"
-        style={{
-          color: 'var(--color-ink)',
-          marginBottom: 'var(--space-base)',
-        }}
-      >
-        ← Back
-      </button>
+    <div className="page">
+      <button type="button" onClick={() => navigate(-1)} className="action-btn">← Back</button>
 
-      {error && (
-        <div
-          role="alert"
-          className="t-body-sm"
-          style={{
-            background: 'var(--color-surface-card)',
-            border: '1px solid var(--color-error)',
-            color: 'var(--color-error)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-base) var(--space-lg)',
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {!error && !item && (
-        <p className="t-body-md" style={{ color: 'var(--color-muted)' }}>
-          loading…
-        </p>
-      )}
+      {error && <div role="alert" className="alert">{error}</div>}
+      {!error && !item && <div className="empty">Loading message…</div>}
 
       {item && (
         <>
-          <header
-            style={{
-              display: 'flex',
-              alignItems: 'baseline',
-              justifyContent: 'space-between',
-              gap: 'var(--space-base)',
-              marginBottom: 'var(--space-lg)',
-              flexWrap: 'wrap',
-            }}
-          >
-            <h1 className="t-display-md" style={{ color: 'var(--color-ink)' }}>
-              {item.kind}
-            </h1>
+          <header className="page-header panel panel-pad">
+            <div>
+              <div className="eyebrow">Queue Detail</div>
+              <h1 className="title-lg">{item.kind}</h1>
+            </div>
             <StatusPill status={item.state} />
           </header>
 
-          <section
-            style={{
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-hairline)',
-              borderRadius: 'var(--radius-lg)',
-              padding: 'var(--space-lg)',
-              marginBottom: 'var(--space-lg)',
-            }}
-          >
+          <section className="panel panel-pad">
             <KVRow label="id" value={item.id} mono />
             <KVRow label="agent" value={item.agent} mono />
             <KVRow label="from" value={item.from ?? '?'} mono />
@@ -152,48 +58,20 @@ export default function QueueDetailPage() {
             <KVRow label="created" value={item.createdAt ?? '—'} mono />
           </section>
 
-          <section style={{ marginBottom: 'var(--space-lg)' }}>
-            <h2
-              className="t-title-md"
-              style={{
-                color: 'var(--color-ink)',
-                marginBottom: 'var(--space-xs)',
-              }}
-            >
-              Body
-            </h2>
-            <CodeBlock>{item.body || '(empty)'}</CodeBlock>
-          </section>
-
-          {Object.keys(item.refs ?? {}).length > 0 && (
-            <section style={{ marginBottom: 'var(--space-lg)' }}>
-              <h2
-                className="t-title-md"
-                style={{
-                  color: 'var(--color-ink)',
-                  marginBottom: 'var(--space-xs)',
-                }}
-              >
-                Refs
-              </h2>
-              <CodeBlock>{JSON.stringify(item.refs, null, 2)}</CodeBlock>
-            </section>
-          )}
-
-          <section>
-            <h2
-              className="t-title-md"
-              style={{
-                color: 'var(--color-ink)',
-                marginBottom: 'var(--space-xs)',
-              }}
-            >
-              Raw message
-            </h2>
-            <CodeBlock>{JSON.stringify(item.message, null, 2)}</CodeBlock>
-          </section>
+          <Section title="Body"><CodeBlock>{item.body || '(empty)'}</CodeBlock></Section>
+          {Object.keys(item.refs ?? {}).length > 0 && <Section title="Refs"><CodeBlock>{JSON.stringify(item.refs, null, 2)}</CodeBlock></Section>}
+          <Section title="Raw message"><CodeBlock>{JSON.stringify(item.message, null, 2)}</CodeBlock></Section>
         </>
       )}
-    </>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="grid">
+      <h2 className="title-md">{title}</h2>
+      {children}
+    </section>
   );
 }

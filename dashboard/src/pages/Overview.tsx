@@ -1,4 +1,4 @@
-import { Suspense, startTransition, use, useEffect, useState } from 'react';
+import { Suspense, startTransition, use, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type SystemStatus } from '../api/client';
 import StatsCard from '../components/StatsCard';
@@ -11,170 +11,76 @@ const STATS: Array<{ key: string; label: string }> = [
   { key: 'dead', label: 'Failed' },
 ];
 
-function PageHeader({ subtitle }: { subtitle?: string }) {
-  return (
-    <header style={{ marginBottom: 'var(--space-xl)' }}>
-      <h1 className="t-display-lg" style={{ color: 'var(--color-ink)' }}>
-        Overview
-      </h1>
-      {subtitle && (
-        <p
-          className="t-body-md"
-          style={{ color: 'var(--color-muted)', marginTop: 'var(--space-xs)' }}
-        >
-          {subtitle}
-        </p>
-      )}
-    </header>
-  );
-}
-
 function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> }) {
   const status = use(statusPromise);
   const navigate = useNavigate();
-  return (
-    <>
-      <PageHeader subtitle={status.root} />
+  const risk = (status.counts.dead ?? 0) + (status.counts.processing ?? 0);
+  const activeAgents = useMemo(() => status.agents.slice(0, 12), [status.agents]);
 
-      <section
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 'var(--space-base)',
-          marginBottom: 'var(--space-xl)',
-        }}
-      >
-        {STATS.map((s) => (
-          <StatsCard
-            key={s.key}
-            label={s.label}
-            value={status.counts[s.key] ?? 0}
-          />
-        ))}
-        <StatsCard
-          label="Workers"
-          value={status.workers.total}
-          hint={`${status.workers.attached} attached`}
-        />
+  return (
+    <div className="page">
+      <section className="panel hero-card">
+        <div>
+          <div className="eyebrow">Agent Working Group</div>
+          <h1 className="title-xl" style={{ marginTop: 12 }}>Operations control plane</h1>
+          <p className="body" style={{ maxWidth: 680, marginTop: 18 }}>
+            Queue health, worker liveness, and execution flow in one operational surface.
+          </p>
+        </div>
+        <div className="row-meta" style={{ marginTop: 28 }}>
+          <span className="pill pill-neutral mono">{status.root}</span>
+          <span className="pill pill-processed">{status.totalQueueItems} queue items</span>
+          <span className={risk ? 'pill pill-stale' : 'pill pill-processed'}>{risk ? `${risk} needs attention` : 'stable'}</span>
+        </div>
       </section>
 
-      <section style={{ marginBottom: 'var(--space-xl)' }}>
-        <h2
-          className="t-display-md"
-          style={{ color: 'var(--color-ink)', marginBottom: 'var(--space-base)' }}
-        >
-          Agents
-        </h2>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 'var(--space-xs)',
-            background: 'var(--color-surface-card)',
-            border: '1px solid var(--color-hairline)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-lg)',
-          }}
-        >
-          {status.agents.length ? (
-            status.agents.map((agent) => (
-              <span
-                key={agent}
-                className="t-caption-uppercase"
-                style={{
-                  background: 'var(--color-surface-strong)',
-                  color: 'var(--color-ink)',
-                  padding: '4px 10px',
-                  borderRadius: 'var(--radius-pill)',
-                  fontFamily: 'var(--font-mono)',
-                  letterSpacing: 0,
-                  textTransform: 'none',
-                  fontSize: 12,
-                }}
-              >
-                {agent}
-              </span>
-            ))
+      <section className="grid stats-grid">
+        {STATS.map((s) => <StatsCard key={s.key} label={s.label} value={status.counts[s.key] ?? 0} />)}
+        <StatsCard label="Workers" value={status.workers.total} hint={`${status.workers.attached} attached`} />
+      </section>
+
+      <section className="grid content-grid">
+        <div className="panel row-list">
+          <div className="panel-pad page-header">
+            <div>
+              <div className="eyebrow">Live Log</div>
+              <h2 className="title-lg">Recent activity</h2>
+            </div>
+            <button type="button" className="action-btn" onClick={() => navigate('/queue')}>Browse queue →</button>
+          </div>
+          {status.recentActivity.length === 0 ? (
+            <div className="empty" style={{ margin: 18 }}>No recent activity in the queue log.</div>
           ) : (
-            <span
-              className="t-body-sm"
-              style={{ color: 'var(--color-muted)' }}
-            >
-              no agents registered
-            </span>
+            <ul>
+              {status.recentActivity.map((entry, idx) => (
+                <ActivityItem key={`${entry.id ?? idx}-${entry.createdAtMs ?? idx}`} entry={entry} />
+              ))}
+            </ul>
           )}
         </div>
-      </section>
 
-      <section>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            marginBottom: 'var(--space-base)',
-          }}
-        >
-          <h2 className="t-display-md" style={{ color: 'var(--color-ink)' }}>
-            Recent activity
-          </h2>
-          <button
-            type="button"
-            className="t-button"
-            onClick={() => navigate('/queue')}
-            style={{
-              color: 'var(--color-ink)',
-              textDecoration: 'underline',
-              textUnderlineOffset: 4,
-            }}
-          >
-            Browse queue →
-          </button>
-        </div>
-        {status.recentActivity.length === 0 ? (
-          <div
-            style={{
-              background: 'var(--color-surface-card)',
-              border: '1px dashed var(--color-hairline-strong)',
-              borderRadius: 'var(--radius-lg)',
-              padding: 'var(--space-xl)',
-              textAlign: 'center',
-              color: 'var(--color-muted)',
-            }}
-            className="t-body-md"
-          >
-            No recent activity in the queue log.
+        <aside className="panel panel-pad">
+          <div className="eyebrow">Registered Agents</div>
+          <h2 className="title-md" style={{ marginTop: 8 }}>Routing surface</h2>
+          <div className="row-meta" style={{ marginTop: 18 }}>
+            {activeAgents.length ? activeAgents.map((agent) => (
+              <span key={agent} className="pill pill-neutral mono" style={{ textTransform: 'none', letterSpacing: 0 }}>{agent}</span>
+            )) : <span className="caption">No agents registered.</span>}
           </div>
-        ) : (
-          <ul
-            style={{
-              background: 'var(--color-surface-card)',
-              border: '1px solid var(--color-hairline)',
-              borderRadius: 'var(--radius-lg)',
-              overflow: 'hidden',
-            }}
-          >
-            {status.recentActivity.map((entry, idx) => (
-              <ActivityItem
-                key={`${entry.id ?? idx}-${entry.createdAtMs ?? idx}`}
-                entry={entry}
-              />
-            ))}
-          </ul>
-        )}
+        </aside>
       </section>
-    </>
+    </div>
   );
 }
 
 function Fallback() {
   return (
-    <>
-      <PageHeader />
-      <p className="t-body-md" style={{ color: 'var(--color-muted)' }}>
-        Loading overview…
-      </p>
-    </>
+    <div className="page">
+      <div className="panel panel-pad">
+        <div className="eyebrow">Loading</div>
+        <h1 className="title-lg">Preparing dashboard…</h1>
+      </div>
+    </div>
   );
 }
 
