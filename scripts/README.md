@@ -55,6 +55,7 @@ Read-only observers, notifiers, and safe wrappers around the AWG CLI.
 - [awg-queue-notifier-dispatch.sh](awg-queue-notifier-dispatch.sh) — Build provider-neutral delivery payloads from read-only queue notifier output.
 - [awg-queue-notifier-sample-run.sh](awg-queue-notifier-sample-run.sh) — Manual no-install notifier dispatch tick for operators (prints provider-neutral payloads).
 - [awg-queue-reconciliation-report.sh](awg-queue-reconciliation-report.sh) — Read-only reconciliation report for one AWG role queue (observes; never mutates).
+- [awg-reconcile-ack-pending.sh](awg-reconcile-ack-pending.sh) — Evidence-gated wrapper for acknowledging one reviewed inbox item.
 - [awg-worker-state-report.sh](awg-worker-state-report.sh) — Read-only advisory worker-state report for one AWG role queue.
 - [awg-safe-poll.sh](awg-safe-poll.sh) — Safe polling wrapper around `awg status` with optional requeue-stale.
 

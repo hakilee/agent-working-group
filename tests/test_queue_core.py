@@ -602,6 +602,96 @@ class QueueCoreTests(QueueTestCase):
             self.assertNotRegex(content.lower(), platform_pattern)
             self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
 
+    def test_reconcile_ack_pending_wrapper_requires_evidence_and_audits(self):
+            project_root = Path(__file__).resolve().parents[1]
+            script = project_root / "scripts" / "awg-reconcile-ack-pending.sh"
+            queue, root = self.with_queue()
+            message_id = queue.send("lead", "worker", "instruction", "completed elsewhere")
+
+            wrapper_dir = Path(tempfile.mkdtemp())
+            self.addCleanup(shutil.rmtree, wrapper_dir, ignore_errors=True)
+            wrapper = wrapper_dir / "awg"
+            wrapper.write_text(
+                "#!/usr/bin/env bash\n"
+                f"PYTHONPATH={project_root / 'src'} python3 -m agent_working_group.cli \"$@\"\n",
+                encoding="utf-8",
+            )
+            wrapper.chmod(0o755)
+            audit_dir = Path(tempfile.mkdtemp())
+            self.addCleanup(shutil.rmtree, audit_dir, ignore_errors=True)
+            env = os.environ.copy()
+            env.update({"AWG_CLI": "awg", "AWG_ROOT": str(root), "PATH": f"{wrapper_dir}{os.pathsep}{env.get('PATH', '')}"})
+
+            missing_evidence = subprocess.run(
+                [str(script), "--role", "worker", "--id", message_id, "--decision", "done"],
+                cwd=project_root,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(missing_evidence.returncode, 0)
+            self.assertIn("--evidence", missing_evidence.stderr)
+            self.assertEqual(queue.status("worker")["pending"], 1)
+
+            dry_run = subprocess.run(
+                [
+                    str(script),
+                    "--role", "worker",
+                    "--id", message_id,
+                    "--evidence", "PR #1",
+                    "--decision", "completed by reviewed artifact",
+                    "--audit-dir", str(audit_dir),
+                    "--dry-run",
+                ],
+                cwd=project_root,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            self.assertIn("dry-run", dry_run.stdout)
+            self.assertEqual(queue.status("worker")["pending"], 1)
+
+            result = subprocess.run(
+                [
+                    str(script),
+                    "--role", "worker",
+                    "--id", message_id,
+                    "--evidence", "PR #1",
+                    "--decision", "completed by reviewed artifact",
+                    "--operator", "test-operator",
+                    "--audit-dir", str(audit_dir),
+                ],
+                cwd=project_root,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            self.assertIn("acked role=worker", result.stdout)
+            self.assertEqual(queue.status("worker")["pending"], 0)
+            self.assertEqual(queue.status("worker")["processed"], 1)
+            audits = list(audit_dir.glob("*.md"))
+            self.assertEqual(len(audits), 1)
+            audit = audits[0].read_text(encoding="utf-8")
+            self.assertIn("Queue Reconciliation Action Audit", audit)
+            self.assertIn("completed by reviewed artifact", audit)
+            self.assertIn("ack-pending succeeded", audit)
+            self.assertIn("kind: instruction", audit)
+            self.assertIn("from: lead", audit)
+            self.assertIn("to: worker", audit)
+
+            script_content = script.read_text(encoding="utf-8")
+            self.assertIn("--expect-kind", script_content)
+            self.assertIn("--expect-from", script_content)
+            self.assertIn("--expect-to", script_content)
+            self.assertIn("--expect-created-at", script_content)
+            self.assertNotIn("run_awg recv", script_content)
+            self.assertNotRegex(script_content, r"\beval\b|bash\s+-c|sh\s+-c")
+            self.assertNotRegex(script_content, r"\bcurl\b|wget|http://|https://")
+
     def test_receive_with_report_target_skips_unmatched_messages(self):
             queue, _ = self.with_queue()
             first = queue.send(

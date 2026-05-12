@@ -117,6 +117,18 @@ awg ack-pending --as <role> --id <message-id> \
   --expect-created-at <createdAt>
 ```
 
+Prefer the audit wrapper for operator closeout because it re-reads the live inbox item, derives the drift-check metadata from that live item, requires an evidence reference and per-item decision, writes an audit record, and then calls `ack-pending` exactly once:
+
+```bash
+scripts/awg-reconcile-ack-pending.sh \
+  --role <role> \
+  --id <message-id> \
+  --evidence <pr-url-or-close-report> \
+  --decision "completed by <evidence>"
+```
+
+The wrapper is still a mutation tool. Use `--dry-run` first when validating inputs. It is not a classifier and it is not a bulk cleanup command.
+
 `ack-pending` is not for normal worker processing. It is an explicit reconciliation primitive for one reviewed inbox message at a time. The `--as` and `--id` flags are required. The `--expect-kind`, `--expect-from`, `--expect-to`, and `--expect-created-at` flags are optional drift checks; when provided, any mismatch fails closed without moving the message. The command only searches the target role inbox, stamps `refs.ackedAt`, and moves the matched message to `processed/`. It does not call `recv`, does not consume by priority order, does not support bulk mode, and does not execute or interpret the message body.
 
 Tools must not automatically classify messages as `superseded` or safe to mutate. Classification remains an operator decision based on evidence.

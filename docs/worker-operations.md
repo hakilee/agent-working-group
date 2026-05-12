@@ -52,6 +52,15 @@ Choose the worker mode before starting automation:
 
 Do not let a notification bridge become an implicit worker. A notifier may wake a recipient, but a worker owns queue consumption and acknowledgement.
 
+## Direct-Work Closeout
+
+When an operator or chat session handles a queued item directly instead of through a worker loop, the queue lifecycle still needs an explicit closeout step. Before reporting the task as done, either:
+
+- acknowledge the specific inbox item through `scripts/awg-reconcile-ack-pending.sh` with a PR, close report, or audit artifact as evidence, or
+- leave it pending intentionally and record why it still needs a worker or reviewer.
+
+Do not rely on chat replies, PR comments, or human memory to clear queue state. If work was completed outside `recv --require-ack`, the corresponding inbox item remains pending until a reviewed `ack-pending` reconciliation moves it to `processed/`.
+
 ## Bounded Default
 
 Bounded operation is the default when an operator chooses a worker. Do not run an always-on worker without an explicit operating decision.
