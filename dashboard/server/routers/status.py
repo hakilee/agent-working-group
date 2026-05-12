@@ -12,10 +12,16 @@ def system_status(request: Request) -> dict:
     reader = request.app.state.awg_reader
     monitor = request.app.state.tmux_monitor
 
-    counts = reader.counts()
+    # Single scan: iter_items once, derive both counts and lookup
+    all_items = reader.iter_items()
+    current_items = {item.id: item for item in all_items}
+    from services.awg_reader import STATE_TO_PUBLIC
+    counts = {public: 0 for public in STATE_TO_PUBLIC.values()}
+    for item in all_items:
+        counts[item.state] = counts.get(item.state, 0) + 1
+
     sessions = monitor.list_sessions()
     recent = reader.recent_log(limit=20)
-    current_items = {item.id: item for item in reader.iter_items()}
 
     activity = []
     for entry in recent:

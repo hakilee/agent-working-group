@@ -191,11 +191,10 @@ def build_parser() -> argparse.ArgumentParser:
     processing_mon.add_argument("--notify-channel", help="Optional notify channel id; emits payload when set.")
     processing_mon.add_argument("--notify-target", help="Optional notify target/handle attached to payload.")
 
-    response_mon = sub.add_parser(
+    sub.add_parser(
         "response-contract-monitor",
         help="Read-only TimeoutChecker scan for expectedResponseWithin breaches.",
     )
-    response_mon  # used by argparse only
 
     return parser
 
@@ -280,8 +279,11 @@ def main(argv=None) -> int:
                 expect_created_at=args.expect_created_at,
             ))
             return 0
-        if args.command in {"retry", "nack"}:
+        if args.command in {"retry"}:
             print(queue.retry(args.agent, args.id))
+            return 0
+        if args.command == "nack":
+            print(queue.nack(args.agent, args.id))
             return 0
         if args.command == "requeue-stale":
             print_json(queue.requeue_stale(args.agent, args.older_than_sec, args.max_retries))

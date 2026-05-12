@@ -3,8 +3,8 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import re
 import shutil
-import sys
 import time
 import uuid
 from contextlib import contextmanager
@@ -12,8 +12,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Iterable
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from .path_safety import PathSafetyError, require_contained_path
 
 
 class MessageKind(str, Enum):
@@ -121,6 +123,19 @@ class QueuePaths:
     dead: Path
 
 
+# Valid queue role name: lowercase alphanumeric, hyphens, underscores (no path traversal).
+_QUEUE_ROLE_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+
+
+def _validate_role(name: str, field: str = "agent") -> str:
+    """Validate a queue role name and return it, or raise PathSafetyError."""
+    if not _QUEUE_ROLE_RE.match(name):
+        raise PathSafetyError(
+            f"invalid {field}: {name!r} (must match {_QUEUE_ROLE_RE.pattern})"
+        )
+    return name
+
+
 class MessageQueue:
     """File-backed queue for a small group of cooperating agents."""
 
@@ -128,7 +143,9 @@ class MessageQueue:
         self.root = Path(root).expanduser() if root else default_root()
 
     def paths(self, agent: str) -> QueuePaths:
+        _validate_role(agent)
         base = self.root / "queues" / agent
+        require_contained_path(self.root, base)
         paths = QueuePaths(
             inbox=base / "inbox",
             processing=base / "processing",
@@ -148,9 +165,11 @@ class MessageQueue:
 
     @contextmanager
     def lock(self, agent: str):
+        _validate_role(agent)
         lock_dir = self.root / "tmp" / "locks"
         lock_dir.mkdir(parents=True, exist_ok=True)
         lock_path = lock_dir / f"{agent}.lock"
+        require_contained_path(lock_dir, lock_path)
         with lock_path.open("w", encoding="utf-8") as handle:
             fcntl.flock(handle, fcntl.LOCK_EX)
             try:
@@ -370,6 +389,20 @@ class MessageQueue:
             refs["retryCount"] = int(refs.get("retryCount", 0)) + 1
             write_json(path, message)
             shutil.move(str(path), str(paths.inbox / path.name))
+        return message_id
+
+    def nack(self, agent: str, message_id: str) -> str:
+        """Move a processing message to dead (dead-letter)."""
+        paths = self.paths(agent)
+        with self.lock(agent):
+            path = find_message_file(paths.processing, message_id)
+            if not path:
+                raise FileNotFoundError(f"message not in processing for nack: {message_id}")
+            message = read_json(path)
+            refs = message.setdefault("refs", {})
+            refs["nackedAt"] = utc_iso(now_ms())
+            write_json(path, message)
+            shutil.move(str(path), str(paths.dead / path.name))
         return message_id
 
     def requeue_stale(self, agent: str, older_than_sec: float = 300, max_retries: object = None) -> dict:

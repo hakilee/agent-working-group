@@ -1,6 +1,7 @@
 from typing import Optional
 
 import asyncio
+import os
 import re
 import time
 from pathlib import Path
@@ -162,7 +163,7 @@ def request_worker_action(
         correlation_id=f"dashboard-worker-action-{session_name}",
         work_id=f"dashboard-worker-action-{action_request.action}",
         source_channel="dashboard:workers",
-        report_target="discord:channel:1501958366841536683",
+        report_target=os.environ.get("DASHBOARD_REPORT_TARGET"),
         workspace=str(root.parent),
     )
     return {"queued": True, "messageId": message_id}

@@ -164,6 +164,10 @@ stdout = completed.stdout.strip()
 stderr = completed.stderr.strip()
 if completed.returncode != 0:
     detail = stderr.splitlines()[-1] if stderr else "codex exited nonzero"
+    combined = f"{stdout} {stderr}"
+    if "429" in combined or "rate limit" in combined or "rate_limit" in combined or "overloaded" in combined or "capacity" in combined:
+        emit("retry", f"codex rate limited (429): {detail[:240]}")
+        raise SystemExit(0)
     emit("failed", f"codex exited {completed.returncode}: {detail[:240]}")
     raise SystemExit(0)
 

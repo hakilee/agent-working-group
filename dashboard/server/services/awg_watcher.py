@@ -212,8 +212,6 @@ class AwgWatcher:
         if self._has_subscribers("liveness"):
             # Rebuild liveness every tick — timeout/contract status advances
             # with wall-clock time even when no file changes.
-            sig = await asyncio.to_thread(_heartbeats_signature, self.reader.root)
-            self._last_liveness_sig = sig
             payload = await asyncio.to_thread(
                 _build_liveness_payload,
                 self.reader,
