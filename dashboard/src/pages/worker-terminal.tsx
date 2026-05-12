@@ -125,11 +125,11 @@ export default function WorkerTerminal() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill status={connected ? 'streaming' : 'disconnected'} size="small" />
-          <Button type="button" disabled={actionPending} onClick={() => requestAction('close-session')} size="small" tone="danger">
+          <Button type="button" disabled={actionPending} onClick={() => requestAction('close-session')} size="small" variant="danger">
             <IconPower size={14} stroke={1.8} />Queue close session
           </Button>
           {windowIndex !== undefined && (
-            <Button type="button" disabled={actionPending} onClick={() => requestAction('close-window')} size="small" tone="warning">
+            <Button type="button" disabled={actionPending} onClick={() => requestAction('close-window')} size="small" variant="warning">
               <IconX size={14} stroke={1.8} />Queue close window
             </Button>
           )}
