@@ -5,6 +5,7 @@ import { api, type QueueDetail } from '../api/client';
 import StatusPill from '../components/status-pill';
 import { Page } from '../components/ui/page';
 import { formatNullable, formatRouteParticipant } from '../format';
+import { useQueueStream } from '../hooks/use-queue-stream';
 
 type DetailRow = [label: string, value: string];
 
@@ -33,28 +34,43 @@ export default function QueueDetailPage() {
   const navigate = useNavigate();
   const [item, setItem] = useState<QueueDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const stream = useQueueStream();
 
   useEffect(() => {
     let ignoreResult = false;
 
-    loadQueueDetail(id)
+    const refresh = () => {
+      loadQueueDetail(id)
+        .then((detail) => {
+          if (ignoreResult) return;
+          setItem(detail);
+          setError(null);
+        })
+        .catch((e) => {
+          if (!ignoreResult) setError(String(e));
+        });
+    };
+
+    refresh();
+    return () => { ignoreResult = true; };
+  }, [id]);
+
+  useEffect(() => {
+    if (!stream.data) return;
+    void loadQueueDetail(id)
       .then((detail) => {
-        if (ignoreResult) return;
         setItem(detail);
         setError(null);
       })
-      .catch((e) => {
-        if (!ignoreResult) setError(String(e));
-      });
-
-    return () => { ignoreResult = true; };
-  }, [id]);
+      .catch((e) => setError(String(e)));
+  }, [id, stream.data]);
 
   return (
     <Page>
       <button type="button" onClick={() => navigate(-1)} className="inline-flex w-fit items-center gap-1.5 border border-transparent bg-[#ebe6da] px-2.5 py-1.5 text-xs font-bold text-ops-ink transition hover:border-ops-line hover:bg-emerald-50 dark:bg-white/10 dark:text-[#eef3ec] dark:hover:border-white/15 dark:hover:bg-emerald-400/15">
         <IconArrowLeft size={15} stroke={1.8} />Back
       </button>
+      {stream.error && !error && <LiveNotice retryInMs={stream.retryInMs} />}
       {error && <div role="alert" className="border border-rose-500 bg-rose-50/80 p-3 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">{error}</div>}
       {!error && !item && <Empty>Loading message...</Empty>}
       {item && <>
@@ -91,6 +107,14 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="text-sm font-bold tracking-[-.01em] text-ops-ink dark:text-[#eef3ec]">{title}</h2>
       <pre className="overflow-auto whitespace-pre-wrap break-words border border-ops-line bg-white/75 p-3 font-mono text-[11px] leading-5 text-ops-ink dark:border-white/15 dark:bg-black/25 dark:text-[#eef3ec]">{children}</pre>
     </section>
+  );
+}
+
+function LiveNotice({ retryInMs }: { retryInMs: number | null }) {
+  return (
+    <div role="status" className="border border-amber-500/60 bg-amber-50/80 p-3 text-xs text-amber-800 dark:border-amber-300/30 dark:bg-amber-950/30 dark:text-amber-100">
+      Live updates are reconnecting{retryInMs ? ` in ${Math.ceil(retryInMs / 1000)}s` : ''}. The detail view will refresh on the next queue event.
+    </div>
   );
 }
 
