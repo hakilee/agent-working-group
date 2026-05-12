@@ -4,13 +4,24 @@ import { api, type SystemStatus } from '../api/client';
 import ActivityItem from '../components/ActivityItem';
 import StatsCard from '../components/StatsCard';
 import StatusPill from '../components/StatusPill';
+import { DASHBOARD_POLL_INTERVAL_MS, OVERVIEW_AGENT_LIMIT } from '../dashboardRules';
 
 const STATS = [['pending', 'Pending'], ['processing', 'Processing'], ['processed', 'Completed'], ['dead', 'Failed']] as const;
 
+function countItemsNeedingAttention(status: SystemStatus): number {
+  return (status.counts.dead ?? 0) + (status.counts.processing ?? 0);
+}
+
+function getVisibleAgents(status: SystemStatus): string[] {
+  return status.agents.slice(0, OVERVIEW_AGENT_LIMIT);
+}
+
 function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> }) {
-  const status = use(statusPromise), navigate = useNavigate();
-  const risk = (status.counts.dead ?? 0) + (status.counts.processing ?? 0);
-  const agents = useMemo(() => status.agents.slice(0, 12), [status.agents]);
+  const status = use(statusPromise);
+  const navigate = useNavigate();
+  const itemsNeedingAttention = countItemsNeedingAttention(status);
+  const visibleAgents = useMemo(() => getVisibleAgents(status), [status]);
+
   return (
     <div className="page">
       <section className="panel relative grid min-h-40 overflow-hidden p-4">
@@ -23,7 +34,7 @@ function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> 
         <div className="row-meta relative z-10 self-end pt-4">
           <span className="pill pill-neutral max-w-full normal-case tracking-normal">{status.root}</span>
           <StatusPill status="processed" className="normal-case tracking-normal">{status.totalQueueItems} queue items</StatusPill>
-          <StatusPill status={risk ? 'stale' : 'processed'}>{risk ? `${risk} needs attention` : 'stable'}</StatusPill>
+          <StatusPill status={itemsNeedingAttention ? 'stale' : 'processed'}>{itemsNeedingAttention ? `${itemsNeedingAttention} needs attention` : 'stable'}</StatusPill>
         </div>
       </section>
 
@@ -38,12 +49,12 @@ function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> 
             <div><div className="eyebrow">Live Log</div><h2 className="title-lg">Recent activity</h2></div>
             <button type="button" className="action-btn" onClick={() => navigate('/queue')}>Browse queue →</button>
           </div>
-          {status.recentActivity.length ? <ul>{status.recentActivity.map((e, i) => <ActivityItem key={`${e.id ?? i}-${e.createdAtMs ?? i}`} entry={e} />)}</ul> : <div className="empty m-5">No recent activity in the queue log.</div>}
+          {status.recentActivity.length ? <ul>{status.recentActivity.map((entry, index) => <ActivityItem key={`${entry.id ?? index}-${entry.createdAtMs ?? index}`} entry={entry} />)}</ul> : <div className="empty m-5">No recent activity in the queue log.</div>}
         </div>
         <aside className="panel panel-pad">
           <div className="eyebrow">Registered Agents</div>
           <h2 className="title-md mt-2">Routing surface</h2>
-          <div className="row-meta mt-3">{agents.length ? agents.map((a) => <span key={a} className="pill pill-neutral normal-case tracking-normal">{a}</span>) : <span className="caption">No agents registered.</span>}</div>
+          <div className="row-meta mt-3">{visibleAgents.length ? visibleAgents.map((agent) => <span key={agent} className="pill pill-neutral normal-case tracking-normal">{agent}</span>) : <span className="caption">No agents registered.</span>}</div>
         </aside>
       </section>
     </div>
@@ -51,7 +62,19 @@ function OverviewBody({ statusPromise }: { statusPromise: Promise<SystemStatus> 
 }
 
 export default function Overview() {
-  const [promise, setPromise] = useState(() => api.status());
-  useEffect(() => { const id = window.setInterval(() => startTransition(() => setPromise(api.status())), 5000); return () => window.clearInterval(id); }, []);
-  return <Suspense fallback={<div className="page"><div className="panel panel-pad"><div className="eyebrow">Loading</div><h1 className="title-lg">Preparing dashboard…</h1></div></div>}><OverviewBody statusPromise={promise} /></Suspense>;
+  const [statusPromise, setStatusPromise] = useState(() => api.status());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      startTransition(() => setStatusPromise(api.status()));
+    }, DASHBOARD_POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  return (
+    <Suspense fallback={<div className="page"><div className="panel panel-pad"><div className="eyebrow">Loading</div><h1 className="title-lg">Preparing dashboard…</h1></div></div>}>
+      <OverviewBody statusPromise={statusPromise} />
+    </Suspense>
+  );
 }

@@ -1,12 +1,20 @@
 import { useNavigate } from 'react-router-dom';
 import type { WorkerSession } from '../api/client';
+import { formatUptime } from '../format';
 import StatusPill from './StatusPill';
 
-const uptime = (s: number | null) => s == null ? '—' : s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m` : s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
+function workerStats(worker: WorkerSession): Array<[string, string]> {
+  return [
+    ['uptime', formatUptime(worker.uptimeSeconds)],
+    ['windows', String(worker.windows)],
+    ['status', worker.status],
+  ];
+}
 
 export default function WorkerCard({ worker }: { worker: WorkerSession }) {
   const navigate = useNavigate();
-  const stats = [['uptime', uptime(worker.uptimeSeconds)], ['windows', String(worker.windows)], ['status', worker.status]] as const;
+  const stats = workerStats(worker);
+
   return (
     <button type="button" onClick={() => navigate(`/workers/${encodeURIComponent(worker.session)}`)} className="card-button">
       <div className="row-meta justify-between">
@@ -14,7 +22,7 @@ export default function WorkerCard({ worker }: { worker: WorkerSession }) {
         <StatusPill status={worker.attached ? 'fresh' : 'stale'} />
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2">
-        {stats.map(([label, value]) => <Stat key={label} label={label} value={String(value)} />)}
+        {stats.map(([label, value]) => <Stat key={label} label={label} value={value} />)}
       </div>
     </button>
   );

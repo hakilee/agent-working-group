@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-
-const RECONNECT_INITIAL_MS = 1000;
-const RECONNECT_MAX_MS = 15000;
+import { WORKER_SOCKET_INITIAL_RETRY_MS, WORKER_SOCKET_MAX_RETRY_MS } from '../dashboardRules';
 
 export interface UseWebSocketState<T> {
   data: T | null;
@@ -12,7 +10,7 @@ export interface UseWebSocketState<T> {
 /**
  * Connect to a WebSocket URL and decode each JSON frame into `T`. Ignores
  * `{ type: "ping" }` heartbeats so consumers never see them as data.
- * Auto-reconnects with exponential backoff (1s → 15s) on close/error.
+ * Auto-reconnects with exponential backoff on close/error.
  */
 export function useWebSocket<T>(url: string | null): UseWebSocketState<T> {
   const [data, setData] = useState<T | null>(null);
@@ -26,7 +24,7 @@ export function useWebSocket<T>(url: string | null): UseWebSocketState<T> {
     if (!url) return;
     cancelledRef.current = false;
     let ws: WebSocket | null = null;
-    let retryMs = RECONNECT_INITIAL_MS;
+    let retryMs = WORKER_SOCKET_INITIAL_RETRY_MS;
     let retryTimer: number | undefined;
 
     const connect = () => {
@@ -40,13 +38,13 @@ export function useWebSocket<T>(url: string | null): UseWebSocketState<T> {
       ws.onopen = () => {
         setConnected(true);
         setError(null);
-        retryMs = RECONNECT_INITIAL_MS;
+        retryMs = WORKER_SOCKET_INITIAL_RETRY_MS;
       };
       ws.onclose = () => {
         setConnected(false);
         if (cancelledRef.current) return;
         retryTimer = window.setTimeout(connect, retryMs);
-        retryMs = Math.min(retryMs * 2, RECONNECT_MAX_MS);
+        retryMs = Math.min(retryMs * 2, WORKER_SOCKET_MAX_RETRY_MS);
       };
       ws.onerror = () => {
         // onerror is always followed by onclose; let the close handler retry.

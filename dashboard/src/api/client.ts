@@ -1,3 +1,5 @@
+import { WORKER_TERMINAL_LINES } from '../dashboardRules';
+
 export interface QueueSummary {
   id: string;
   agent: string;
@@ -157,7 +159,7 @@ export const api = {
     ),
   listWorkers: () =>
     request<{ items: WorkerSession[]; total: number; tmuxAvailable: boolean }>('/api/workers'),
-  getWorker: (session: string, lines = 200) =>
+  getWorker: (session: string, lines = WORKER_TERMINAL_LINES) =>
     request<WorkerSession>(`/api/workers/${encodeURIComponent(session)}?lines=${lines}`),
   liveness: {
     heartbeats: (timeoutSeconds?: number) => {
