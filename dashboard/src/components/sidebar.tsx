@@ -85,7 +85,7 @@ function MobileSidebar() {
           <IconChevronDown size={15} stroke={1.9} className={cn('transition-transform duration-150', open && 'rotate-180')} />
         </Collapsible.Trigger>
       </div>
-      <Collapsible.Panel keepMounted className="mobile-nav-panel absolute left-3 right-3 top-[calc(100%-1px)] border border-ops-line bg-ops-panel p-3 shadow-[0_18px_50px_rgb(31_39_34/.18)] backdrop-blur-2xl data-[closed]:hidden dark:border-white/15 dark:bg-[#1e2722]/95 dark:shadow-black/35">
+      <Collapsible.Panel keepMounted className="mobile-nav-panel absolute left-0 right-0 top-full border-b border-ops-line bg-ops-panel p-3 shadow-[0_18px_50px_rgb(31_39_34/.18)] backdrop-blur-2xl data-[closed]:hidden dark:border-white/15 dark:bg-[#1e2722]/95 dark:shadow-black/35">
         <div className="grid gap-1">
           <NavGroups onSelect={() => setOpen(false)} />
         </div>
