@@ -15,8 +15,7 @@ export interface LivenessStreamFrame {
   ts: number;
 }
 
-export function useLivenessStream(): LivenessStreamFrame | null {
+export function useLivenessStream() {
   const url = useMemo(() => livenessStreamUrl(), []);
-  const { data } = useWebSocket<LivenessStreamFrame>(url);
-  return data;
+  return useWebSocket<LivenessStreamFrame>(url);
 }

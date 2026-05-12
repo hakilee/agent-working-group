@@ -62,17 +62,16 @@ class FakeTmuxMonitor:
         return self.sessions
 
 
-def make_request(reader, monitor=None):
-    return SimpleNamespace(
-        app=SimpleNamespace(
-            state=SimpleNamespace(
-                awg_reader=reader,
-                tmux_monitor=monitor or FakeTmuxMonitor([]),
-                started_at=time.time(),
-                version="test",
-            )
-        )
+def make_request(reader, monitor=None, dist_dir=None):
+    state = SimpleNamespace(
+        awg_reader=reader,
+        tmux_monitor=monitor or FakeTmuxMonitor([]),
+        started_at=time.time(),
+        version="test",
     )
+    if dist_dir is not None:
+        state.dashboard_dist_dir = Path(dist_dir)
+    return SimpleNamespace(app=SimpleNamespace(state=state))
 
 
 class DashboardServerTests(unittest.TestCase):
@@ -124,11 +123,31 @@ class DashboardServerTests(unittest.TestCase):
         self.assertTrue(status["queuePathExists"])
         self.assertFalse(status["isTmpRoot"])
         self.assertEqual(status["workers"], {"total": 2, "attached": 1, "tmuxAvailable": True})
+        self.assertEqual(status["readiness"], {"ok": True, "level": "ok", "issues": []})
         self.assertEqual(status["counts"]["pending"], 1)
         self.assertEqual(status["totalQueueItems"], 1)
         self.assertEqual(status["agents"], ["lead", "worker"])
         self.assertEqual(status["recentActivity"][0]["state"], "pending")
         self.assertEqual(status["recentActivity"][0]["agent"], "worker")
+
+    def test_status_readiness_reports_missing_queue_root(self):
+        reader = AwgReader(Path("/tmp/nonexistent-awg-dashboard-readiness"))
+
+        status = system_status(make_request(reader))
+
+        self.assertFalse(status["queuePathExists"])
+        self.assertFalse(status["readiness"]["ok"])
+        self.assertEqual(status["readiness"]["level"], "degraded")
+        self.assertIn("queue path is missing", status["readiness"]["issues"])
+
+    def test_status_readiness_reports_missing_static_dist(self):
+        _, reader, root = self.make_reader()
+
+        status = system_status(make_request(reader, dist_dir=root / "missing-dist"))
+
+        self.assertFalse(status["distPathExists"])
+        self.assertFalse(status["readiness"]["ok"])
+        self.assertIn("dashboard dist directory is missing", status["readiness"]["issues"])
 
     def test_recent_activity_badges_follow_queue_lifecycle(self):
         queue, reader, _ = self.make_reader()

@@ -10,8 +10,7 @@ export interface QueueStreamFrame {
   ts: number;
 }
 
-export function useQueueStream(): QueueStreamFrame | null {
+export function useQueueStream() {
   const url = useMemo(() => queueStreamUrl(), []);
-  const { data } = useWebSocket<QueueStreamFrame>(url);
-  return data;
+  return useWebSocket<QueueStreamFrame>(url);
 }

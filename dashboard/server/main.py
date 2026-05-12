@@ -92,6 +92,7 @@ def create_app() -> FastAPI:
     app.state.allowed_origins = allowed_origins
     app.state.started_at = time.time()
     app.state.version = VERSION
+    app.state.dashboard_dist_dir = DIST_DIR
     logger.info("CORS allowed origins: %s", allowed_origins)
 
     app.add_middleware(
@@ -116,12 +117,41 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health")
     def health() -> dict:
-        counts = app.state.awg_reader.counts()
+        reader = app.state.awg_reader
+        counts = reader.counts()
+        queue_path_exists = reader.queues_dir().is_dir()
+        is_tmp_root = str(reader.root).startswith("/tmp/")
+        tmux_available = app.state.tmux_monitor.backend.available
+        dist_dir = app.state.dashboard_dist_dir
+        dist_exists = dist_dir.is_dir()
+        index_exists = (dist_dir / "index.html").is_file()
+        assets_exists = (dist_dir / "assets").is_dir()
+        issues = []
+        if not queue_path_exists:
+            issues.append("queue path is missing")
+        if is_tmp_root:
+            issues.append("dashboard is using a temporary AWG root")
+        if not tmux_available:
+            issues.append("tmux is unavailable to the dashboard process")
+        if not dist_exists:
+            issues.append("dashboard dist directory is missing")
+        elif not index_exists:
+            issues.append("dashboard dist index.html is missing")
+        if dist_exists and not assets_exists:
+            issues.append("dashboard dist assets directory is missing")
         return {
-            "ok": True,
+            "ok": not issues,
             "version": app.state.version,
             "uptimeSeconds": int(time.time() - app.state.started_at),
-            "awgRoot": str(app.state.awg_reader.root),
+            "awgRoot": str(reader.root),
+            "queuePath": str(reader.queues_dir()),
+            "queuePathExists": queue_path_exists,
+            "isTmpRoot": is_tmp_root,
+            "tmuxAvailable": tmux_available,
+            "distPath": str(dist_dir),
+            "distPathExists": dist_exists,
+            "staticAssetsExist": assets_exists,
+            "issues": issues,
             "counts": counts,
             "totalQueueItems": sum(counts.values()),
             "serverTime": time.time(),
