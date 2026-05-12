@@ -1,5 +1,7 @@
 # Agent Working Group
 
+[English](README.md) | [&#54620;&#44397;&#50612;](README.ko.md)
+
 Agent Working Group is a tiny file-backed coordination layer for small teams of agents and local operators. It gives a lead agent and one or more worker agents a shared mailbox protocol: send instructions, receive prioritized messages, acknowledge work, retry stale messages, and inspect the queue without running a server.
 
 The package is designed around a practical working pattern: a lead decomposes work, workers validate or implement bounded tasks, messages preserve accountability, and queue state makes collaboration inspectable.
