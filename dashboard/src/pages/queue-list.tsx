@@ -1,3 +1,4 @@
+import { IconArrowRight } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type QueueSummary } from '../api/client';
@@ -94,7 +95,7 @@ function QueueCard({ item, open }: { item: QueueSummary; open: () => void }) {
     <li><button type="button" className="card-button" onClick={open}>
       <div className="row-meta"><span className="pill pill-neutral">{item.kind}</span><StatusPill status={item.state} /><time className="caption ml-auto">{item.createdAt ?? '—'}</time></div>
       <p className="body mt-3 line-clamp-3 text-ops-ink dark:text-[#eef3ec]">{getQueuePreview(item.body)}</p>
-      <div className="row-meta mt-4"><span className="caption">{formatRouteParticipant(item.from)} → {formatRouteParticipant(item.to)}</span><span className="caption ml-auto">{item.agent}</span></div>
+      <div className="row-meta mt-4"><span className="caption inline-flex items-center gap-1">{formatRouteParticipant(item.from)} <IconArrowRight size={12} stroke={1.8} /> {formatRouteParticipant(item.to)}</span><span className="caption ml-auto">{item.agent}</span></div>
     </button></li>
   );
 }

@@ -4,7 +4,16 @@
 @import '@fontsource/geist-mono/latin-700.css';
 @import 'tailwindcss';
 
+@font-face {
+  font-family: 'LCT Ciburial';
+  src: url('./assets/fonts/lct-ciburial-regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
+  --font-sans: 'LCT Ciburial', 'Geist Mono', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-ops-ink: #17201b;
   --color-ops-body: #526057;
@@ -24,7 +33,7 @@
   [data-theme='dark'] { color-scheme: dark; }
   html, body, #root { min-height: 100%; }
   body {
-    @apply m-0 overflow-y-scroll bg-[#f3f0e8] font-mono text-[12px] text-ops-body antialiased dark:bg-[#111715] dark:text-[#b3beb5];
+    @apply m-0 overflow-y-scroll bg-[#f3f0e8] font-sans text-[12px] text-ops-body antialiased dark:bg-[#111715] dark:text-[#b3beb5];
     background-image:
       radial-gradient(circle at 10% 0%, rgb(200 116 56 / .12), transparent 26rem),
       radial-gradient(circle at 92% 12%, rgb(47 95 159 / .11), transparent 24rem),
@@ -66,6 +75,8 @@
   .alert { @apply border border-rose-500 bg-rose-50/80 p-3 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-200; }
   .code-block { @apply overflow-auto whitespace-pre-wrap break-words border border-ops-line bg-white/75 p-3 text-[11px] leading-5 text-ops-ink dark:border-white/15 dark:bg-black/25 dark:text-[#eef3ec]; }
   .spinner { @apply size-5 animate-spin border-2 border-ops-line border-t-ops-green dark:border-white/15 dark:border-t-emerald-300; border-radius: 9999px; }
+  .mobile-nav-panel { overflow: hidden; transition: height .16s ease-out, opacity .16s ease-out; }
+  .mobile-nav-panel[data-starting-style], .mobile-nav-panel[data-ending-style] { height: 0; opacity: 0; }
 }
 
 @starting-style {

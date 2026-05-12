@@ -1,3 +1,4 @@
+import { IconArrowLeft } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, workerSocketUrl, type WorkerSession } from '../api/client';
@@ -85,7 +86,7 @@ export default function WorkerTerminal() {
 
   return (
     <div className="page">
-      <button type="button" onClick={() => navigate('/workers')} className="action-btn">← Workers</button>
+      <button type="button" onClick={() => navigate('/workers')} className="action-btn"><IconArrowLeft size={15} stroke={1.8} />Workers</button>
       <header className="page-header panel panel-pad"><div><div className="eyebrow">Worker Terminal</div><h1 className="title-lg break-all">{session}</h1></div><StatusPill status={connected ? 'streaming' : 'disconnected'} /></header>
       {worker && <section className="panel panel-pad grid gap-2 sm:grid-cols-3">{[['status', worker.status], ['windows', worker.windows], ['attached', worker.attached ? 'yes' : 'no']].map(([label, value]) => <WorkerStat key={label} label={String(label)} value={String(value)} />)}</section>}
       {error && <div role="alert" className="alert">{error}</div>}

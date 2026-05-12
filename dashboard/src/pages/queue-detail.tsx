@@ -1,3 +1,4 @@
+import { IconArrowLeft } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, type QueueDetail } from '../api/client';
@@ -50,7 +51,7 @@ export default function QueueDetailPage() {
 
   return (
     <div className="page">
-      <button type="button" onClick={() => navigate(-1)} className="action-btn">← Back</button>
+      <button type="button" onClick={() => navigate(-1)} className="action-btn"><IconArrowLeft size={15} stroke={1.8} />Back</button>
       {error && <div role="alert" className="alert">{error}</div>}
       {!error && !item && <div className="empty">Loading message…</div>}
       {item && <>
