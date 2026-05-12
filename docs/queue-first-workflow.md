@@ -25,6 +25,20 @@ Use chat or another delivery surface only to say that an AWG queue item was adde
 - **Reviewer:** verifies output against the checklist, records findings in a file or queue status, and identifies blockers before closure.
 - **Observer:** watches status or stale processing messages without consuming the inbox.
 
+## Role Naming Convention
+
+Queue routing uses role names, not personal agent names. This keeps ownership clear regardless of which specific agent instance fills a role.
+
+Rules:
+- **Queue `from`/`to` fields must use role names:** `lead`, `worker`, `reviewer`, `codex-worker`, `observer`.
+- **Do not use personal agent names** (such as `matgukno`, `matdori`, or any other agent-specific name) as queue senders or recipients.
+- **Personal names are for chat mentions and human-readable attribution only**, not queue routing.
+- When creating queue items, always choose the role target intentionally.
+- Align request, answer, and ack handling to the role, not the person filling it.
+- If multiple workers share one role queue, include distinguishing metadata in `refs.workId` or `refs.correlationId` rather than creating person-named queues.
+
+This convention applies to all queue operations: `awg send`, `awg recv`, `awg ack`, `awg ack-pending`, and programmatic API calls.
+
 ## Planner Responsibilities
 
 Every substantive `instruction` should include:

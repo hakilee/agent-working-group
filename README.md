@@ -35,14 +35,14 @@ PYTHONPATH=src python3 -m agent_working_group.cli --help
 
 ```bash
 export AWG_ROOT=/tmp/awg-demo
-awg init --agent leader --agent worker
+awg init --agent lead --agent worker
 
-awg send --from=leader --to=worker --kind=instruction --body="Inspect the repository and report risks."
+awg send --from=lead --to=worker --kind=instruction --body="Inspect the repository and report risks."
 awg recv --as=worker --require-ack
 awg ack --as=worker --id=<message-id>
 
-awg send --from=worker --to=leader --kind=status --body="done: risk report written"
-awg recv --as=leader --timeout=30
+awg send --from=worker --to=lead --kind=status --body="done: risk report written"
+awg recv --as=lead --timeout=30
 ```
 
 
@@ -81,9 +81,9 @@ For the full Python surface, see [Python API Reference](docs/api.md).
 ## CLI Overview
 
 ```bash
-awg init --agent leader --agent worker
-awg send --from=leader --to=worker --kind=instruction --body="Do one clear task."
-awg send --from=leader --to=worker --kind=instruction --body="Notify then inspect." --dispatch-hooks
+awg init --agent lead --agent worker
+awg send --from=lead --to=worker --kind=instruction --body="Do one clear task."
+awg send --from=lead --to=worker --kind=instruction --body="Notify then inspect." --dispatch-hooks
 awg recv --as=worker --timeout=120 --require-ack
 awg ack --as=worker --id=<message-id>
 awg ack-pending --as=worker --id=<message-id> --expect-kind=instruction
@@ -111,7 +111,7 @@ Each message is a JSON object:
 {
   "id": "uuid-v4",
   "kind": "instruction",
-  "from": "leader",
+  "from": "lead",
   "to": "worker",
   "body": "Do one clear task.",
   "refs": {
@@ -166,6 +166,8 @@ A practical two-agent loop:
 6. Lead independently verifies key deliverables.
 7. Worker `ack`s the instruction when complete.
 8. Lead sends the next instruction or final report.
+
+Queue routing uses role names (`lead`, `worker`, `reviewer`), not personal agent names. See [Queue-First Workflow](docs/queue-first-workflow.md#role-naming-convention) for the full convention.
 
 ## Maintenance Flow
 

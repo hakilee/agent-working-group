@@ -10,7 +10,7 @@ The protocol does not require fixed names. Common roles are:
 - **Worker:** receives instructions, reports progress, asks questions, produces deliverables, and acknowledges completed work.
 - **Observer:** receives final reports or audit events.
 
-Agents are identified by queue names such as `leader`, `worker`, `reviewer`, or `observer`.
+Agents are identified by queue names such as `lead`, `worker`, `reviewer`, or `observer`.
 
 ## Message Lifecycle
 

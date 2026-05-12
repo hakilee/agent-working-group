@@ -34,10 +34,10 @@ set -euo pipefail
 worker_pending=$(awg pending --as=worker)
 
 awg status --as=worker --tz=UTC
-awg status --as=leader --tz=UTC
+awg status --as=lead --tz=UTC
 
 if [ "$worker_pending" -gt 0 ]; then
-  awg send --from=observer --to=leader --kind=note \
+  awg send --from=observer --to=lead --kind=note \
     --body="reminder: worker has $worker_pending pending messages"
 fi
 
