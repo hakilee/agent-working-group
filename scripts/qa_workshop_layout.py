@@ -31,7 +31,7 @@ def main() -> int:
     renderer = RENDERER.read_text(encoding="utf-8")
     failures: list[str] = []
 
-    require("WORKSHOP_ASSET_REV = 'office-garden-v3'" in textures,
+    require("WORKSHOP_ASSET_REV = 'office-garden-v4'" in textures,
             "asset cache-bust revision must identify the office/garden refactor", failures)
     require("'garden_bed'" in types and "'fountain_tower'" in types,
             "garden/fountain furniture kinds must be typed", failures)
