@@ -50,6 +50,7 @@ export interface ThreeSpriteManager {
     deskFront: THREE.Texture | null;
     deskSide: THREE.Texture | null;
     pcFront: THREE.Texture | null;
+    pcFrontOn: (THREE.Texture | null)[];
     pcBack: THREE.Texture | null;
     pcSide: THREE.Texture | null;
     chairFront: THREE.Texture | null;
@@ -96,6 +97,9 @@ export async function loadThreeSprites(): Promise<ThreeSpriteManager> {
     deskFront: '/assets/furniture/DESK/DESK_FRONT.png',
     deskSide: '/assets/furniture/DESK/DESK_SIDE.png',
     pcFront: '/assets/furniture/PC/PC_FRONT_OFF.png',
+    pcFrontOn1: '/assets/furniture/PC/PC_FRONT_ON_1.png',
+    pcFrontOn2: '/assets/furniture/PC/PC_FRONT_ON_2.png',
+    pcFrontOn3: '/assets/furniture/PC/PC_FRONT_ON_3.png',
     pcBack: '/assets/furniture/PC/PC_BACK.png',
     pcSide: '/assets/furniture/PC/PC_SIDE.png',
     chairFront: '/assets/furniture/WOODEN_CHAIR/WOODEN_CHAIR_FRONT.png',
@@ -134,10 +138,17 @@ export async function loadThreeSprites(): Promise<ThreeSpriteManager> {
   ]);
 
   const furniture: ThreeSpriteManager['furniture'] = {} as ThreeSpriteManager['furniture'];
+  const pcFrontOn: (THREE.Texture | null)[] = [];
   for (let i = 0; i < furnKeys.length; i++) {
-    const key = furnKeys[i] as keyof ThreeSpriteManager['furniture'];
-    furniture[key] = pixelTextureFromImage(furnImgs[i]);
+    const key = furnKeys[i];
+    const texture = pixelTextureFromImage(furnImgs[i]);
+    if (key === 'pcFrontOn1' || key === 'pcFrontOn2' || key === 'pcFrontOn3') {
+      pcFrontOn.push(texture);
+      continue;
+    }
+    (furniture as Record<string, THREE.Texture | null | (THREE.Texture | null)[]>)[key] = texture;
   }
+  furniture.pcFrontOn = pcFrontOn;
 
   return {
     characterImages: charImgs,

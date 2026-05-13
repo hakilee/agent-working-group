@@ -37,9 +37,8 @@ const VERT_DOOR_ROWS: ReadonlySet<number> = new Set([6, 7, 19, 20]);
  *  — one between each pair of vertically-stacked rooms). */
 const HORIZ_DOOR_COLS: ReadonlySet<number> = new Set([6, 7, 20, 21, 33, 34]);
 
-/** Floor variant assignments. Six rooms, six distinct variants — the
- *  underlying floor_N.png files don't all exist but the renderer falls back
- *  to floor[0] for any missing variant, so the layout stays valid. */
+/** Floor variant assignments. Six rooms use distinct variants from the
+ *  restored asset pack; missing variants still fall back to floor[0]. */
 const ROOM_ZONES: ReadonlyArray<RoomZone> = [
   { id: 'focus',     label: 'Focus',     minCol:  1, maxCol: 13, minRow:  1, maxRow: 12, floorVariant: 1 },
   { id: 'meeting',   label: 'Meeting',   minCol: 15, maxCol: 27, minRow:  1, maxRow: 12, floorVariant: 2 },
@@ -172,7 +171,7 @@ function addFocusBottomDesk(b: Builder, leftCol: number): void {
   addFurniture(b, {
     id: `pc-${seatId}`, kind: 'pc', variant: 'front',
     col: leftCol + 1, row: FOCUS_BOTTOM_DESK_ROW - 1, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
+    spriteOverhangRows: 1, blocking: false, animated: true,
   }, false);
   addFurniture(b, {
     id: `chair-${seatId}`, kind: 'chair', variant: 'back',
@@ -219,7 +218,7 @@ function addReceptionDesk(b: Builder): void {
   addFurniture(b, {
     id: `pc-${seatId}`, kind: 'pc', variant: 'front',
     col: leftCol + 1, row: deskRow - 1, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
+    spriteOverhangRows: 1, blocking: false, animated: true,
   }, false);
   addFurniture(b, {
     id: `chair-${seatId}`, kind: 'chair', variant: 'back',

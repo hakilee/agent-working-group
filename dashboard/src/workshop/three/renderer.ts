@@ -116,6 +116,7 @@ function makeSmokeTexture(): THREE.CanvasTexture | null {
 function pickFurnitureTexture(
   f: FurnitureInstance,
   sprites: ThreeSpriteManager,
+  animatedFrame = 0,
 ): { texture: THREE.Texture | null; flipX: boolean } {
   const fur = sprites.furniture;
   switch (f.kind) {
@@ -123,7 +124,8 @@ function pickFurnitureTexture(
       return { texture: f.variant === 'side' ? fur.deskSide : fur.deskFront, flipX: false };
     case 'pc': {
       const flipX = f.variant === 'side-mirror';
-      const t = f.variant === 'back' ? fur.pcBack : f.variant === 'side' || flipX ? fur.pcSide : fur.pcFront;
+      const animatedFront = f.animated ? (fur.pcFrontOn[animatedFrame % fur.pcFrontOn.length] ?? fur.pcFront) : fur.pcFront;
+      const t = f.variant === 'back' ? fur.pcBack : f.variant === 'side' || flipX ? fur.pcSide : animatedFront;
       return { texture: t, flipX };
     }
     case 'chair': {
@@ -173,10 +175,19 @@ function pickFurnitureTexture(
   }
 }
 
+function texturePixelSize(texture: THREE.Texture | null): { w: number; h: number } | null {
+  const image = texture?.image as { width?: number; height?: number; naturalWidth?: number; naturalHeight?: number } | undefined;
+  const w = image?.naturalWidth ?? image?.width ?? 0;
+  const h = image?.naturalHeight ?? image?.height ?? 0;
+  return w > 0 && h > 0 ? { w, h } : null;
+}
+
 interface FurnitureRecord {
   mesh: THREE.Mesh;
   material: THREE.MeshBasicMaterial;
+  furniture: FurnitureInstance;
   zY: number;
+  lastAnimatedFrame: number;
 }
 
 interface CharacterRecord {
@@ -521,6 +532,8 @@ export class ThreeWorkshopRenderer {
       rec.tint.visible = flashOn;
     }
 
+    this.updateFurnitureAnimations(nowMs);
+
     // Smoke wisps — emit & advect.
     this.updateSmoke(dt);
     this.updateDust(dt);
@@ -680,10 +693,14 @@ export class ThreeWorkshopRenderer {
   private createFurnitureRecord(f: FurnitureInstance): FurnitureRecord | null {
     const { texture, flipX } = pickFurnitureTexture(f, this.sprites);
     const overhang = f.spriteOverhangRows ?? 0;
-    const dx = f.col * TILE_SIZE;
-    const dy = (f.row - overhang) * TILE_SIZE;
-    const dw = f.w * TILE_SIZE;
-    const dh = (f.h + overhang) * TILE_SIZE;
+    const footprintW = f.w * TILE_SIZE;
+    const footprintH = f.h * TILE_SIZE;
+    const natural = texturePixelSize(texture);
+    const dw = natural?.w ?? footprintW;
+    const dh = natural?.h ?? footprintH + overhang * TILE_SIZE;
+    const dx = f.col * TILE_SIZE + (footprintW - dw) / 2;
+    const bottomY = (f.row + f.h) * TILE_SIZE;
+    const dy = natural ? bottomY - dh : (f.row - overhang) * TILE_SIZE;
     const geom = new THREE.PlaneGeometry(dw, dh);
     if (flipX) {
       // Flip texture horizontally via UVs
@@ -708,7 +725,23 @@ export class ThreeWorkshopRenderer {
     const zY = (f.row + f.h) * TILE_SIZE;
     mesh.renderOrder = ORDER_SPRITE_BASE + zY;
     this.scene.add(mesh);
-    return { mesh, material: mat, zY };
+    return { mesh, material: mat, furniture: f, zY, lastAnimatedFrame: -1 };
+  }
+
+  private updateFurnitureAnimations(nowMs: number): void {
+    for (const rec of this.furniture.values()) {
+      const f = rec.furniture;
+      if (f.kind !== 'pc' || !f.animated || f.variant !== 'front') continue;
+      const frames = this.sprites.furniture.pcFrontOn;
+      if (frames.length === 0) continue;
+      const frame = Math.floor(nowMs / 280) % frames.length;
+      if (frame === rec.lastAnimatedFrame) continue;
+      const texture = frames[frame] ?? this.sprites.furniture.pcFront;
+      if (!texture || rec.material.map === texture) continue;
+      rec.material.map = texture;
+      rec.material.needsUpdate = true;
+      rec.lastAnimatedFrame = frame;
+    }
   }
 
   // ── Character meshes ───────────────────────────────────────────────────────
