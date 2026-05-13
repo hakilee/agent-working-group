@@ -78,6 +78,17 @@ export interface Seat {
   kind: 'desk' | 'meeting';
 }
 
+export interface RoomZone {
+  id: string;
+  label: string;
+  minCol: number;
+  maxCol: number;
+  minRow: number;
+  maxRow: number;
+  /** Index into SpriteManager.floor[] used to tile this zone's floor. */
+  floorVariant: number;
+}
+
 export interface OfficeLayout {
   cols: number;
   rows: number;
@@ -86,6 +97,10 @@ export interface OfficeLayout {
   seats: Seat[];
   /** Set of "col,row" strings that block walking (from furniture footprints) */
   blocked: Set<string>;
+  /** Logical room zones (for floor styling, future labels, debugging). */
+  rooms: RoomZone[];
+  /** Per-tile floor variant index. Walls and out-of-room aisles default to 0. */
+  floorVariants: number[][];
 }
 
 export interface EngineCharacter {
@@ -154,7 +169,9 @@ export interface FurnitureSprites {
 export interface SpriteManager {
   characters: SpriteSheet[];
   furniture: FurnitureSprites;
-  floor: HTMLImageElement | null;
+  /** Floor tile variants, indexed by RoomZone.floorVariant. Always at least
+   *  one entry; missing variants from disk fall back to floor[0]. */
+  floor: (HTMLImageElement | null)[];
   wall: HTMLImageElement | null;
   /** Frame size for character sprites in pixels */
   charFrameW: number;

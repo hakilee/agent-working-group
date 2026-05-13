@@ -314,11 +314,15 @@ export function render(ctx: CanvasRenderingContext2D, opts: RenderOptions): void
   const minRow = Math.max(0, Math.floor(camera.y / TILE_SIZE));
   const maxRow = Math.min(layout.rows - 1, Math.floor((camera.y + camera.height - 1) / TILE_SIZE));
 
+  const floorImages = sprites.floor;
+  const floorFallback = floorImages[0] ?? null;
   for (let r = minRow; r <= maxRow; r++) {
     for (let c = minCol; c <= maxCol; c++) {
       const tile = layout.tiles[r][c];
       if (tile === TileType.FLOOR) {
-        drawFloorTile(ctx, sprites.floor, c * TILE_SIZE, r * TILE_SIZE, darkMode);
+        const variantIdx = layout.floorVariants[r]?.[c] ?? 0;
+        const img = floorImages[variantIdx] ?? floorFallback;
+        drawFloorTile(ctx, img, c * TILE_SIZE, r * TILE_SIZE, darkMode);
       }
     }
   }

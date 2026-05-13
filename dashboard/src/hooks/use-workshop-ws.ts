@@ -18,6 +18,11 @@ export interface UseWorkshopWS {
    *  Consumers use this to reconcile to server positions without firing on
    *  every local optimistic update. */
   snapshotNonce: number;
+  /** Increments each time a queues frame is received (including the first
+   *  empty one). Lets the page distinguish "no queue data yet" from "queue
+   *  data confirmed empty" so it can hold the loading curtain until the
+   *  character set is known. */
+  queuesNonce: number;
   sendAgentUpdate: (role: string, state: WorkshopAgentState) => void;
 }
 
@@ -32,6 +37,7 @@ export function useWorkshopWS(): UseWorkshopWS {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [snapshotNonce, setSnapshotNonce] = useState(0);
+  const [queuesNonce, setQueuesNonce] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
 
   // Initial REST fetch for positions as a fallback when WS is slow.
@@ -111,6 +117,7 @@ export function useWorkshopWS(): UseWorkshopWS {
         if (frame.type === 'queues') {
           const q = frame as unknown as QueueFrame;
           if (Array.isArray(q.agents)) setQueueAgents(q.agents);
+          setQueuesNonce((n) => n + 1);
           return;
         }
       };
@@ -140,5 +147,5 @@ export function useWorkshopWS(): UseWorkshopWS {
     }
   }, []);
 
-  return { agentPositions, queueAgents, connected, error, snapshotNonce, sendAgentUpdate };
+  return { agentPositions, queueAgents, connected, error, snapshotNonce, queuesNonce, sendAgentUpdate };
 }

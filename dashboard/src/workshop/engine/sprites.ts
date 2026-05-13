@@ -8,6 +8,8 @@ const CHAR_FRAME_W = 16;
 const CHAR_FRAME_H = 32;
 const CHAR_FRAMES_PER_DIR = 7;
 const CHAR_PALETTE_COUNT = 6;
+/** How many floor variants live under /assets/floors/floor_N.png. */
+const FLOOR_VARIANT_COUNT = 9;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -78,8 +80,11 @@ export async function loadSprites(): Promise<SpriteManager> {
   for (let i = 0; i < CHAR_PALETTE_COUNT; i++) {
     charPromises.push(loadImageOptional(`/assets/characters/char_${i}.png`));
   }
+  const floorPromises: Promise<HTMLImageElement | null>[] = [];
+  for (let i = 0; i < FLOOR_VARIANT_COUNT; i++) {
+    floorPromises.push(loadImageOptional(`/assets/floors/floor_${i}.png`));
+  }
   const [
-    floor,
     wall,
     deskFront,
     deskSide,
@@ -107,9 +112,8 @@ export async function loadSprites(): Promise<SpriteManager> {
     clock,
     smallPainting,
     largePainting,
-    ...chars
+    ...rest
   ] = await Promise.all([
-    loadImageOptional('/assets/floors/floor_0.png'),
     loadImageOptional('/assets/walls/wall_0.png'),
     loadImageOptional('/assets/furniture/DESK/DESK_FRONT.png'),
     loadImageOptional('/assets/furniture/DESK/DESK_SIDE.png'),
@@ -138,7 +142,11 @@ export async function loadSprites(): Promise<SpriteManager> {
     loadImageOptional('/assets/furniture/SMALL_PAINTING/SMALL_PAINTING.png'),
     loadImageOptional('/assets/furniture/LARGE_PAINTING/LARGE_PAINTING.png'),
     ...charPromises,
+    ...floorPromises,
   ]);
+
+  const chars = rest.slice(0, CHAR_PALETTE_COUNT);
+  const floors = rest.slice(CHAR_PALETTE_COUNT, CHAR_PALETTE_COUNT + FLOOR_VARIANT_COUNT);
 
   const sheets: SpriteSheet[] = [];
   for (const img of chars) {
@@ -167,7 +175,7 @@ export async function loadSprites(): Promise<SpriteManager> {
       smallPainting,
       largePainting,
     },
-    floor,
+    floor: floors,
     wall,
     charFrameW: CHAR_FRAME_W,
     charFrameH: CHAR_FRAME_H,

@@ -39,9 +39,16 @@ const MAP_PIXEL_H = LAYOUT_TILE_ROWS * TILE_SIZE;
 /** Min ms between throttled in-walk WS position updates per agent. */
 const POSITION_UPDATE_THROTTLE_MS = 400;
 
-/** Wait this long for the initial server snapshot before showing the canvas
- *  anyway. Prevents a momentary "facing front" flash from default state. */
-const ENGINE_READY_TIMEOUT_MS = 1200;
+/** Wait this long for both an initial workshop snapshot AND the first queues
+ *  frame before showing the canvas anyway. Avoids two visible jitter sources
+ *  on refresh: (a) a momentary "facing front" flash from default state, and
+ *  (b) a camera snap when characters spawn into the world after reveal. */
+const ENGINE_READY_TIMEOUT_MS = 1500;
+
+/** Fixed stage height so layout is stable from the very first paint — the
+ *  canvas occupies this exact box before sprites/snapshot are ready, so
+ *  there's no top-to-bottom shift when content swaps in. */
+const STAGE_HEIGHT_CSS = 'min(70vh, 640px)';
 
 function detectDarkMode(): boolean {
   if (typeof document === 'undefined') return false;
@@ -137,19 +144,25 @@ export default function Workshop() {
     };
   }, []);
 
-  // Mark the engine ready once we have the initial server snapshot, or after
-  // a short timeout if the snapshot is taking too long. Until ready we hide
-  // the canvas behind a loading overlay so the user never sees a default-
-  // facing flash before persisted state lands.
+  // Mark the engine ready only once we have:
+  //   - sprites loaded (no missing-tile fallback flash), AND
+  //   - the initial position snapshot (no "facing front" flash), AND
+  //   - the initial queues frame (so character set is known and the camera
+  //     centroid is computed on the real cast before reveal — prevents a
+  //     visible camera jump from map-center → character-centroid right after
+  //     the loading overlay disappears).
+  // A timeout still uncovers the canvas if the server is unreachable, so the
+  // empty office can be shown rather than spinning indefinitely.
   useEffect(() => {
     if (engineReady) return;
-    if (ws.snapshotNonce > 0) {
+    if (!sprites) return;
+    if (ws.snapshotNonce > 0 && ws.queuesNonce > 0) {
       setEngineReady(true);
       return;
     }
     const t = window.setTimeout(() => setEngineReady(true), ENGINE_READY_TIMEOUT_MS);
     return () => window.clearTimeout(t);
-  }, [ws.snapshotNonce, engineReady]);
+  }, [ws.snapshotNonce, ws.queuesNonce, engineReady, sprites]);
 
   const rooms = useMemo(() => deriveRooms(ws.queueAgents), [ws.queueAgents]);
   const hoveredRoom = useMemo<AgentRoom | null>(() => {
@@ -317,6 +330,20 @@ export default function Workshop() {
       setLayout(layoutRef.current);
     }
 
+    const computeCameraTarget = (): { x: number; y: number } => {
+      const chars = charactersRef.current;
+      if (chars.length === 0) {
+        return { x: MAP_PIXEL_W / 2, y: MAP_PIXEL_H / 2 };
+      }
+      let sx = 0;
+      let sy = 0;
+      for (const c of chars) {
+        sx += c.x + 8;
+        sy += c.y + 16;
+      }
+      return { x: sx / chars.length, y: sy / chars.length };
+    };
+
     const syncSize = () => {
       // Track device pixel ratio so pixel-art stays crisp on HiDPI displays.
       // The CSS size still matches the container; only the backing store grows.
@@ -332,6 +359,12 @@ export default function Workshop() {
       } else {
         resizeCamera(cameraRef.current, cssW, cssH, MAP_PIXEL_W, MAP_PIXEL_H, dpr);
       }
+      // Seed the camera on the real character centroid (or map center if
+      // there are no characters yet) so the very first paint after reveal is
+      // already in the right place — no "snap" from map-center to centroid
+      // when the game loop's first tick fires.
+      const target = computeCameraTarget();
+      updateCamera(cameraRef.current, target.x, target.y, MAP_PIXEL_W, MAP_PIXEL_H);
     };
     syncSize();
 
@@ -340,6 +373,11 @@ export default function Workshop() {
 
     const stop = startGameLoop(canvas, {
       update: (dt) => {
+        // Don't run any character AI or camera motion before reveal — this
+        // keeps the (still-hidden) canvas in a deterministic, fully-settled
+        // state so the first visible frame after the loading curtain lifts
+        // is the same as the last hidden frame: no apparent motion.
+        if (!engineReadyRef.current) return;
         const layout = layoutRef.current;
         if (!layout) return;
         const now = performance.now();
@@ -384,22 +422,13 @@ export default function Workshop() {
             });
           }
         }
-        // Camera follow: center on cluster of characters, fall back to map center.
+        // Camera follow: center on character centroid. Only adjust once
+        // there are characters — otherwise leave the camera at whatever
+        // syncSize() seeded it with (map center) so we never snap.
         const cam = cameraRef.current;
-        if (cam) {
-          let tx = MAP_PIXEL_W / 2;
-          let ty = MAP_PIXEL_H / 2;
-          if (charactersRef.current.length > 0) {
-            let sx = 0;
-            let sy = 0;
-            for (const c of charactersRef.current) {
-              sx += c.x + 8;
-              sy += c.y + 16;
-            }
-            tx = sx / charactersRef.current.length;
-            ty = sy / charactersRef.current.length;
-          }
-          updateCamera(cam, tx, ty, MAP_PIXEL_W, MAP_PIXEL_H);
+        if (cam && charactersRef.current.length > 0) {
+          const target = computeCameraTarget();
+          updateCamera(cam, target.x, target.y, MAP_PIXEL_W, MAP_PIXEL_H);
         }
       },
       render: (ctx) => {
@@ -478,7 +507,7 @@ export default function Workshop() {
       <div
         ref={containerRef}
         className="relative overflow-hidden rounded-none border border-ops-line bg-black/5 dark:border-white/15 dark:bg-white/5"
-        style={{ height: 'min(70vh, 640px)' }}
+        style={{ height: STAGE_HEIGHT_CSS }}
       >
         <canvas
           ref={canvasRef}
