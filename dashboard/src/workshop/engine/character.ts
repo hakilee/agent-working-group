@@ -17,9 +17,9 @@ const WALK_SPEED_TILES_PER_SEC = 3.2;
 const WALK_FRAME_INTERVAL = 0.16;
 const TYPE_FRAME_INTERVAL = 0.45;
 const READ_FRAME_INTERVAL = 0.6;
-const WANDER_INTERVAL_MIN = 4;
-const WANDER_INTERVAL_MAX = 9;
-const IDLE_ERRAND_CHANCE = 0.35;
+const WANDER_INTERVAL_MIN = 2.5;
+const WANDER_INTERVAL_MAX = 6;
+const IDLE_ERRAND_CHANCE = 0.78;
 const RESTORED_DECISION_DELAY = 2.2;
 const RESTORED_DECISION_JITTER = 1.2;
 const ROLE_MOVE_PRIORITY: Record<string, number> = { lead: 0, worker: 1 };
@@ -427,9 +427,13 @@ function decideNextAction(c: EngineCharacter, ctx: UpdateContext): void {
         startWander(c, ctx);
         return;
       }
-      if (c.roomState === 'idle' && c.tileCol === seat.col && c.tileRow === seat.row && Math.random() < IDLE_ERRAND_CHANCE) {
-        startAmbientErrand(c, ctx);
-        return;
+      if (c.roomState === 'idle' && c.tileCol === seat.col && c.tileRow === seat.row) {
+        if (Math.random() < IDLE_ERRAND_CHANCE) {
+          startAmbientErrand(c, ctx);
+          return;
+        }
+        // Keep idle agents visibly alive instead of freezing indefinitely at desks.
+        c.wanderTimer = Math.min(c.wanderTimer, 1.2);
       }
       if (c.tileCol === seat.col && c.tileRow === seat.row) {
         c.dir = seat.facingDir;

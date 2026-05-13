@@ -38,6 +38,9 @@ const MAP_PIXEL_H = LAYOUT_TILE_ROWS * TILE_SIZE;
 const POSITION_UPDATE_THROTTLE_MS = 400;
 const ENGINE_READY_TIMEOUT_MS = 1500;
 const STAGE_HEIGHT_CSS = 'min(70vh, 640px)';
+const CAMERA_TOUR_INTERVAL_MS = 7500;
+const CAMERA_LERP_PER_SEC = 2.4;
+const CAMERA_ROOM_TOUR_ORDER = ['focus', 'meeting', 'ops', 'reception', 'lounge', 'library'] as const;
 
 function detectDarkMode(): boolean {
   if (typeof document === 'undefined') return false;
@@ -109,7 +112,20 @@ function shouldKeepLocalWalk(c: EngineCharacter, stored: { tileCol?: number; til
   if (stored.tileCol === undefined || stored.tileRow === undefined) return false;
   if (stored.tileCol === c.tileCol && stored.tileRow === c.tileRow) return true;
   const tileLag = Math.abs(stored.tileCol - c.tileCol) + Math.abs(stored.tileRow - c.tileRow);
-  return c.path.length > 0 && tileLag === 1;
+  return c.path.length > 0 && tileLag <= 2;
+}
+
+function shouldRestoreFromSnapshot(c: EngineCharacter, stored: { tileCol?: number; tileRow?: number; state?: unknown }): boolean {
+  if (stored.tileCol === undefined || stored.tileRow === undefined) return false;
+  const tileLag = Math.abs(stored.tileCol - c.tileCol) + Math.abs(stored.tileRow - c.tileRow);
+  if (tileLag === 0) return false;
+  if (c.state === CharacterState.WALK && tileLag <= 4) return false;
+  if (stored.state !== 'walk' && tileLag <= 2) return false;
+  return true;
+}
+
+function lerpNumber(from: number, to: number, amount: number): number {
+  return from + (to - from) * amount;
 }
 
 function stateAccentClass(state: AgentRoom['state']): string {
@@ -258,6 +274,7 @@ export default function Workshop() {
   const taskPulsesRef = useRef<TaskPulse[]>([]);
   const taskPulseSeqRef = useRef(0);
   const bubbleFlushRef = useRef(0);
+  const cameraTargetRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     agentPositionsRef.current = ws.agentPositions;
@@ -372,6 +389,7 @@ export default function Workshop() {
       const stored = sanitizeRestore(positions[c.role]);
       if (!stored) continue;
       if (shouldKeepLocalWalk(c, stored)) continue;
+      if (!shouldRestoreFromSnapshot(c, stored)) continue;
       restoreCharacterState(c, stored);
     }
   }, [ws.snapshotNonce]);
@@ -422,18 +440,44 @@ export default function Workshop() {
       setLayout(layoutRef.current);
     }
 
-    const computeCameraTarget = (): { x: number; y: number } => {
-      const chars = charactersRef.current;
-      if (chars.length === 0) {
-        return { x: MAP_PIXEL_W / 2, y: MAP_PIXEL_H / 2 };
-      }
-      let sx = 0;
-      let sy = 0;
+    const characterBoundsCenter = (chars: EngineCharacter[]): { x: number; y: number } => {
+      let minX = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
       for (const c of chars) {
-        sx += c.x + 8;
-        sy += c.y + 16;
+        const x = c.x + 8;
+        const y = c.y + 16;
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
       }
-      return { x: sx / chars.length, y: sy / chars.length };
+      return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+    };
+
+    const computeCameraTarget = (nowMs = performance.now()): { x: number; y: number } => {
+      const chars = charactersRef.current;
+      const layout = layoutRef.current;
+      if (chars.length === 0) return { x: MAP_PIXEL_W / 2, y: MAP_PIXEL_H / 2 };
+
+      const active = chars.filter(
+        (c) => c.state === CharacterState.WALK || c.currentActivity || c.roomState !== 'idle' || c.isBlocked,
+      );
+      if (active.length > 0 || !layout || reducedMotionRef.current) {
+        return characterBoundsCenter(active.length > 0 ? active : chars);
+      }
+
+      const tourRooms = CAMERA_ROOM_TOUR_ORDER
+        .map((id) => layout.rooms.find((room) => room.id === id))
+        .filter((room): room is NonNullable<typeof room> => Boolean(room));
+      if (tourRooms.length === 0) return characterBoundsCenter(chars);
+
+      const room = tourRooms[Math.floor(nowMs / CAMERA_TOUR_INTERVAL_MS) % tourRooms.length];
+      return {
+        x: ((room.minCol + room.maxCol + 1) * TILE_SIZE) / 2,
+        y: ((room.minRow + room.maxRow + 1) * TILE_SIZE) / 2,
+      };
     };
 
     const dprInitial = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
@@ -441,6 +485,7 @@ export default function Workshop() {
     const cssH0 = Math.max(1, Math.floor(container.clientHeight));
     cameraRef.current = createCamera(cssW0, cssH0, MAP_PIXEL_W, MAP_PIXEL_H, dprInitial);
     const tgt0 = computeCameraTarget();
+    cameraTargetRef.current = tgt0;
     updateCamera(cameraRef.current, tgt0.x, tgt0.y, MAP_PIXEL_W, MAP_PIXEL_H);
 
     const renderer = new ThreeWorkshopRenderer({
@@ -466,7 +511,7 @@ export default function Workshop() {
         resizeCamera(cam, cssW, cssH, MAP_PIXEL_W, MAP_PIXEL_H, dpr);
       }
       renderer.resize(cssW, cssH, dpr);
-      const target = computeCameraTarget();
+      const target = cameraTargetRef.current ?? computeCameraTarget();
       if (cam) updateCamera(cam, target.x, target.y, MAP_PIXEL_W, MAP_PIXEL_H);
     };
     syncSize();
@@ -531,7 +576,14 @@ export default function Workshop() {
         }
         const cam = cameraRef.current;
         if (cam && charactersRef.current.length > 0) {
-          const target = computeCameraTarget();
+          const desired = computeCameraTarget(nowMs);
+          const current = cameraTargetRef.current ?? desired;
+          const blend = reducedMotionRef.current ? 1 : 1 - Math.exp(-CAMERA_LERP_PER_SEC * dt);
+          const target = {
+            x: lerpNumber(current.x, desired.x, blend),
+            y: lerpNumber(current.y, desired.y, blend),
+          };
+          cameraTargetRef.current = target;
           updateCamera(cam, target.x, target.y, MAP_PIXEL_W, MAP_PIXEL_H);
         }
       }
