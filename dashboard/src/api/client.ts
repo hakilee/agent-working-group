@@ -227,6 +227,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, ...options }),
     }),
+  getWorkshop: () => request<WorkshopSnapshot>('/api/workshop'),
   liveness: {
     heartbeats: (timeoutSeconds?: number) => {
       const qs = timeoutSeconds ? `?timeoutSeconds=${timeoutSeconds}` : '';
@@ -256,4 +257,26 @@ export function queueStreamUrl(): string {
 
 export function livenessStreamUrl(): string {
   return `${wsBase()}/ws/liveness`;
+}
+
+export function workshopStreamUrl(): string {
+  return `${wsBase()}/ws/workshop`;
+}
+
+export interface WorkshopAgentState {
+  x?: number;
+  y?: number;
+  tileCol?: number;
+  tileRow?: number;
+  dir?: number;
+  state?: string;
+  updatedAt?: number;
+  [key: string]: unknown;
+}
+
+export interface WorkshopSnapshot {
+  type: 'workshop';
+  agents: Record<string, WorkshopAgentState>;
+  layoutVersion: number;
+  ts: number;
 }

@@ -1,5 +1,6 @@
 import { Collapsible } from '@base-ui/react/collapsible';
 import {
+  IconBuildingFactory2,
   IconChevronDown,
   IconHeartbeat,
   IconInbox,
@@ -24,6 +25,7 @@ type NavItem = {
 const PRIMARY_NAV: NavItem[] = [
   { to: '/', label: 'Overview', icon: IconLayoutDashboard, end: true },
   { to: '/queue', label: 'Queue', icon: IconInbox },
+  { to: '/workshop', label: 'Workshop', icon: IconBuildingFactory2 },
   { to: '/workers', label: 'Workers', icon: IconUsersGroup },
   { to: '/liveness', label: 'Liveness', icon: IconHeartbeat },
 ];

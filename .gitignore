@@ -1,6 +1,7 @@
 .agent-working-group/
 __pycache__/
 *.py[cod]
+.logs/
 
 # Generated packaging artifacts
 uv.lock
