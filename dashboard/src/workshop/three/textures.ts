@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const WORKSHOP_ASSET_REV = 'gather-office-v4';
+const WORKSHOP_ASSET_REV = 'gather-office-v6';
 
 function assetUrl(path: string): string {
   return `${path}?v=${WORKSHOP_ASSET_REV}`;
@@ -58,10 +58,10 @@ function pixelTextureFromCanvas(canvas: HTMLCanvasElement): THREE.Texture {
   return tex;
 }
 
-function makeGatherPropTexture(kind: 'queue_board' | 'status_wall' | 'review_terminal' | 'window_panel' | 'wall_panel' | 'door_frame' | 'maker_bench' | 'plaza_planter' | 'garden_bed' | 'tool_cabinet' | 'parts_shelf' | 'cable_spool' | 'hazard_barrel'): THREE.Texture {
+function makeGatherPropTexture(kind: 'queue_board' | 'status_wall' | 'review_terminal' | 'window_panel' | 'wall_panel' | 'door_frame' | 'maker_bench' | 'plaza_planter' | 'potted_plant_round' | 'potted_plant_leafy' | 'potted_plant_tall' | 'hedge_planter' | 'flower_shrub' | 'floor_sprout' | 'desk_plant' | 'hanging_vine' | 'garden_bed' | 'tool_cabinet' | 'parts_shelf' | 'cable_spool' | 'hazard_barrel'): THREE.Texture {
   const canvas = document.createElement('canvas');
   canvas.width = kind === 'review_terminal' ? 32 : kind === 'tool_cabinet' || kind === 'parts_shelf' ? 32 : kind === 'window_panel' ? 32 : 48;
-  canvas.height = kind === 'review_terminal' ? 32 : kind === 'tool_cabinet' || kind === 'parts_shelf' ? 32 : kind === 'plaza_planter' ? 40 : 24;
+  canvas.height = kind === 'review_terminal' ? 32 : kind === 'tool_cabinet' || kind === 'parts_shelf' ? 32 : kind === 'plaza_planter' ? 40 : kind === 'potted_plant_tall' ? 40 : kind === 'hanging_vine' ? 32 : kind === 'hedge_planter' ? 32 : 24;
   const ctx = canvas.getContext('2d');
   if (!ctx) return pixelTextureFromCanvas(canvas);
   ctx.imageSmoothingEnabled = false;
@@ -92,6 +92,130 @@ function makeGatherPropTexture(kind: 'queue_board' | 'status_wall' | 'review_ter
     ctx.fillRect(30, 13, 2, 3);
     ctx.fillStyle = '#1e1816';
     ctx.fillRect(7, 31, 34, 3);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'potted_plant_round') {
+    ctx.fillStyle = '#2b211c';
+    ctx.fillRect(18, 15, 12, 7);
+    ctx.fillStyle = '#8f5f3d';
+    ctx.fillRect(19, 16, 10, 5);
+    ctx.fillStyle = '#315f43';
+    ctx.fillRect(18, 10, 5, 5);
+    ctx.fillRect(23, 7, 5, 7);
+    ctx.fillRect(27, 11, 4, 4);
+    ctx.fillStyle = '#77b86a';
+    ctx.fillRect(20, 9, 3, 3);
+    ctx.fillRect(25, 6, 3, 4);
+    ctx.fillRect(28, 10, 2, 3);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'potted_plant_leafy') {
+    ctx.fillStyle = '#2d241f';
+    ctx.fillRect(17, 17, 14, 6);
+    ctx.fillStyle = '#b0794a';
+    ctx.fillRect(18, 18, 12, 4);
+    ctx.fillStyle = '#244f38';
+    ctx.fillRect(17, 9, 5, 7);
+    ctx.fillRect(21, 5, 6, 10);
+    ctx.fillRect(27, 8, 5, 8);
+    ctx.fillRect(20, 12, 9, 5);
+    ctx.fillStyle = '#86c978';
+    ctx.fillRect(19, 8, 3, 4);
+    ctx.fillRect(23, 4, 3, 5);
+    ctx.fillRect(28, 7, 3, 4);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'potted_plant_tall') {
+    ctx.fillStyle = '#2c221d';
+    ctx.fillRect(18, 31, 13, 7);
+    ctx.fillStyle = '#9d6842';
+    ctx.fillRect(19, 32, 11, 5);
+    ctx.fillStyle = '#35513d';
+    ctx.fillRect(23, 10, 3, 22);
+    ctx.fillStyle = '#2f6c49';
+    ctx.fillRect(14, 8, 10, 5);
+    ctx.fillRect(26, 12, 10, 5);
+    ctx.fillRect(15, 18, 10, 5);
+    ctx.fillRect(26, 22, 9, 5);
+    ctx.fillStyle = '#80bd6b';
+    ctx.fillRect(16, 7, 6, 2);
+    ctx.fillRect(28, 11, 6, 2);
+    ctx.fillRect(17, 17, 6, 2);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'hedge_planter') {
+    ctx.fillStyle = '#2b211d';
+    ctx.fillRect(3, 20, 42, 9);
+    ctx.fillStyle = '#7a563b';
+    ctx.fillRect(5, 21, 38, 6);
+    ctx.fillStyle = '#255c3d';
+    for (let x = 5; x <= 39; x += 5) ctx.fillRect(x, 11 + ((x / 5) % 2), 6, 11);
+    ctx.fillStyle = '#74b966';
+    for (let x = 8; x <= 38; x += 10) ctx.fillRect(x, 9, 4, 4);
+    ctx.fillStyle = '#1f1916';
+    ctx.fillRect(7, 29, 34, 2);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'flower_shrub') {
+    ctx.fillStyle = '#254b36';
+    ctx.fillRect(15, 12, 17, 8);
+    ctx.fillRect(19, 8, 9, 6);
+    ctx.fillStyle = '#78b866';
+    ctx.fillRect(16, 11, 5, 4);
+    ctx.fillRect(24, 9, 6, 4);
+    ctx.fillStyle = '#e5b85a';
+    ctx.fillRect(18, 9, 2, 2);
+    ctx.fillStyle = '#d46d6a';
+    ctx.fillRect(27, 12, 2, 2);
+    ctx.fillStyle = '#1f1916';
+    ctx.fillRect(16, 20, 14, 2);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'floor_sprout') {
+    ctx.fillStyle = '#2c6a44';
+    ctx.fillRect(21, 15, 2, 5);
+    ctx.fillRect(18, 17, 3, 2);
+    ctx.fillRect(23, 16, 4, 2);
+    ctx.fillStyle = '#8ccf70';
+    ctx.fillRect(19, 16, 2, 1);
+    ctx.fillRect(24, 15, 2, 1);
+    ctx.fillStyle = 'rgba(31,25,22,0.45)';
+    ctx.fillRect(17, 21, 12, 1);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'desk_plant') {
+    ctx.fillStyle = '#2a211d';
+    ctx.fillRect(20, 16, 8, 5);
+    ctx.fillStyle = '#b0784d';
+    ctx.fillRect(21, 17, 6, 3);
+    ctx.fillStyle = '#2f6d48';
+    ctx.fillRect(19, 12, 4, 4);
+    ctx.fillRect(23, 10, 4, 5);
+    ctx.fillRect(27, 13, 3, 3);
+    ctx.fillStyle = '#86c978';
+    ctx.fillRect(24, 9, 2, 3);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'hanging_vine') {
+    ctx.fillStyle = '#4b4038';
+    ctx.fillRect(17, 3, 14, 4);
+    ctx.fillStyle = '#9b7046';
+    ctx.fillRect(19, 5, 10, 5);
+    ctx.fillStyle = '#2d6d45';
+    ctx.fillRect(20, 10, 3, 12);
+    ctx.fillRect(26, 9, 3, 15);
+    ctx.fillStyle = '#80bd6b';
+    ctx.fillRect(18, 12, 4, 3);
+    ctx.fillRect(24, 16, 4, 3);
+    ctx.fillRect(28, 11, 3, 3);
     return pixelTextureFromCanvas(canvas);
   }
 
@@ -266,6 +390,14 @@ export interface ThreeSpriteManager {
     largePlant: THREE.Texture | null;
     hangingPlant: THREE.Texture | null;
     cactus: THREE.Texture | null;
+    pottedPlantRound: THREE.Texture | null;
+    pottedPlantLeafy: THREE.Texture | null;
+    pottedPlantTall: THREE.Texture | null;
+    hedgePlanter: THREE.Texture | null;
+    flowerShrub: THREE.Texture | null;
+    floorSprout: THREE.Texture | null;
+    deskPlant: THREE.Texture | null;
+    hangingVine: THREE.Texture | null;
     sofaFront: THREE.Texture | null;
     sofaBack: THREE.Texture | null;
     sofaSide: THREE.Texture | null;
@@ -372,6 +504,14 @@ export async function loadThreeSprites(): Promise<ThreeSpriteManager> {
   furniture.doorFrame = makeGatherPropTexture('door_frame');
   furniture.makerBench = makeGatherPropTexture('maker_bench');
   furniture.plazaPlanter = makeGatherPropTexture('plaza_planter');
+  furniture.pottedPlantRound = makeGatherPropTexture('potted_plant_round');
+  furniture.pottedPlantLeafy = makeGatherPropTexture('potted_plant_leafy');
+  furniture.pottedPlantTall = makeGatherPropTexture('potted_plant_tall');
+  furniture.hedgePlanter = makeGatherPropTexture('hedge_planter');
+  furniture.flowerShrub = makeGatherPropTexture('flower_shrub');
+  furniture.floorSprout = makeGatherPropTexture('floor_sprout');
+  furniture.deskPlant = makeGatherPropTexture('desk_plant');
+  furniture.hangingVine = makeGatherPropTexture('hanging_vine');
   furniture.gardenBed = makeGatherPropTexture('garden_bed');
   furniture.toolCabinet = makeGatherPropTexture('tool_cabinet');
   furniture.partsShelf = makeGatherPropTexture('parts_shelf');

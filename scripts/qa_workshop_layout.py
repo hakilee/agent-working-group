@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Static QA guard for Workshop office layout and collision regressions.
+"""Static QA guard for the Gather-style Workshop startup campus.
 
-The expanded Workshop layout adds a central grass garden, an outdoor cafe
-terrace, and side-oriented workbenches. The checks below are intentionally
-phrased in terms of intent (a garden zone exists, the meeting table reserves
-its north edge, the coffee maker activity stands beside the maker) so the
-guard survives non-cosmetic layout tweaks but still catches the original
-regressions it was written for.
+The Workshop map is now shaped after Gather startup-office compositions: a
+large walkable campus spine, compact room neighborhoods, repeated windows,
+plants, desks, lounge clusters, and outdoor greenery. These checks preserve
+those structural decisions and the collision invariants that previously broke
+runtime movement.
 """
 
 from __future__ import annotations
@@ -27,41 +26,6 @@ def require(condition: bool, message: str, failures: list[str]) -> None:
         failures.append(message)
 
 
-def block_for_id(source: str, furniture_id: str) -> str:
-    pattern = re.compile(
-        r"addFurniture\(b, \{(?P<body>[^}]*?id: ['`]" + re.escape(furniture_id) + r"['`][^}]*?)\}\s*(?:,\s*false)?\);",
-        re.S,
-    )
-    match = pattern.search(source)
-    return match.group("body") if match else ""
-
-
-def find_garden_zone(source: str) -> str:
-    """Return the literal of the central garden zone definition, or empty."""
-    match = re.search(
-        r"\{\s*id:\s*'(?:central-garden|garden-atrium)'[^}]*\}",
-        source,
-    )
-    return match.group(0) if match else ""
-
-
-def find_plaza_planter_block(source: str) -> str:
-    pattern = re.compile(
-        r"addFurniture\(b, \{(?P<body>[^}]*?kind:\s*'plaza_planter'[^}]*?)\}\s*(?:,\s*false)?\);",
-        re.S,
-    )
-    match = pattern.search(source)
-    return match.group("body") if match else ""
-
-
-def find_coffee_activity(source: str) -> str:
-    match = re.search(
-        r"\{\s*id:\s*'coffee-maker'[^}]*\}",
-        source,
-    )
-    return match.group(0) if match else ""
-
-
 def main() -> int:
     source = LAYOUT.read_text(encoding="utf-8")
     textures = TEXTURES.read_text(encoding="utf-8")
@@ -75,73 +39,63 @@ def main() -> int:
         "asset cache-bust revision must use a recognized Workshop cache-bust naming scheme",
         failures,
     )
-    require("'garden_bed'" in types and "'plaza_planter'" in types and "'window_panel'" in types,
-            "Gather-style garden/window furniture kinds must be typed", failures)
-    require("case 'garden_bed'" in renderer and "case 'plaza_planter'" in renderer and "case 'window_panel'" in renderer,
-            "Three.js renderer must map Gather-style furniture textures", failures)
-    require("makeGatherPropTexture('garden_bed')" in textures and "makeGatherPropTexture('plaza_planter')" in textures and "makeGatherPropTexture('window_panel')" in textures,
-            "Gather-style procedural textures must be created", failures)
     require("CAMERA_ROOM_TOUR_ORDER" not in page and "CAMERA_TOUR_INTERVAL_MS" not in page,
             "Workshop camera must not auto-tour rooms while agents are idle", failures)
     require("const lead = chars.find((c) => c.role === 'lead')" in page,
             "Workshop camera must keep a stable lead/agent focus instead of falling back to map center", failures)
+    require("CAMERA_VIEW_DEADZONE_W_RATIO" in page and "CAMERA_ACTIVE_CLUSTER_RADIUS_PX" in page,
+            "Workshop camera must keep Gather-like dead-zone and clustered active-agent targeting", failures)
 
-    require(bool(find_garden_zone(source)),
-            "layout must include a named central garden zone", failures)
-    require("id: 'meeting-lounge'" in source and "label: 'Meeting Lounge'" in source and "floorVariant: 6" in source,
-            "meeting lounge must use a cohesive Gather-like floor variant", failures)
-    require("return isPathEdge ? 0 : 2" in source,
-            "central courtyard must use subtle office tiles instead of noisy grass/fountain flooring", failures)
-    require("return isStoneRing ? 8 : 4" not in source,
-            "central courtyard must not keep the old grass-and-paver fountain treatment", failures)
+    require("const COLS = 78" in source and "const ROWS = 46" in source,
+            "layout must use the rebuilt wide startup-campus footprint", failures)
+    for zone in (
+        "north-boardroom", "north-open-office", "north-focus-suite", "east-greenhouse",
+        "west-call-room", "central-lounge", "east-team-room", "south-game-lounge",
+        "south-maker-lab", "south-library", "south-quiet-room",
+    ):
+        require(f"id: '{zone}'" in source, f"layout missing startup room zone {zone}", failures)
+    require("function isInMainSpine" in source and "floorVariant: 8" in source,
+            "layout must include a broad Gather-style circulation spine and feature flooring", failures)
+    require("function buildOutdoorCampus" in source and "outdoor-tree" in source,
+            "layout must include outdoor campus greenery, not only interior rooms", failures)
+
+    for kind in (
+        "garden_bed", "plaza_planter", "window_panel", "wall_panel", "maker_bench",
+        "potted_plant_round", "potted_plant_leafy", "potted_plant_tall", "hedge_planter",
+        "flower_shrub", "floor_sprout", "desk_plant", "hanging_vine",
+    ):
+        require(f"'{kind}'" in types, f"Gather-style furniture kind {kind} must be typed", failures)
+        require(f"case '{kind}'" in renderer, f"Three.js renderer must map furniture kind {kind}", failures)
+        require(f"makeGatherPropTexture('{kind}')" in textures, f"procedural texture must exist for {kind}", failures)
+        require(f"'{kind}'" in source, f"layout must use furniture kind {kind}", failures)
+
     require("kind: 'fountain_tower'" not in source and "central-fountain" not in source,
-            "central fountain must be removed from the Gather-style courtyard", failures)
-    require(bool(re.search(r"kind:\s*'garden_bed'", source)),
-            "layout must include at least one garden bed", failures)
-    require(bool(re.search(r"kind:\s*'window_panel'", source)),
-            "layout must use Gather-style repeated window panels", failures)
+            "old fountain-based map must stay removed", failures)
+    require("id: 'central-garden'" not in source and "id: 'meeting-lounge'" not in source,
+            "old v4 room map must be replaced, not patched in place", failures)
 
-    plaza_planter = find_plaza_planter_block(source)
-    require("w: 3" in plaza_planter and "h: 2" in plaza_planter,
-            "central courtyard must use a 3x2 planter island instead of a fountain", failures)
-    require("blocking: true" in plaza_planter,
-            "central planter island must block pathfinding through its footprint", failures)
+    window_count = source.count("addWindowBand") * 3 + source.count("kind: 'window_panel'")
+    wall_art_count = source.count("addWallArt") + source.count("kind: 'wall_panel'")
+    desk_count = source.count("addTopDesk(b,") + source.count("addBottomDesk(b,") + source.count("addSideDesk(b,")
+    plant_kind_count = sum(source.count(f"'{kind}'") for kind in (
+        "potted_plant_round", "potted_plant_leafy", "potted_plant_tall", "hedge_planter",
+    ))
+    botanical_accent_count = sum(source.count(f"'{kind}'") for kind in (
+        "flower_shrub", "floor_sprout", "desk_plant", "hanging_vine",
+    ))
+    require(window_count >= 10, "startup campus must use repeated Gather-like window banks", failures)
+    require(wall_art_count >= 4, "startup campus must use wall panels/signage for lived-in rooms", failures)
+    require(desk_count >= 7, "startup campus must include multiple work neighborhoods", failures)
+    require(plant_kind_count >= 16, "startup campus must use many blocking plant/planter variants", failures)
+    require(botanical_accent_count >= 18, "startup campus must use non-blocking botanical accents for Gather density", failures)
+    require("addFurniture(b, { id, kind, variant: 'front', col, row, w, h, spriteOverhangRows: overhang, blocking: false }, false)" in source,
+            "tiny botanical accents must be non-blocking so density does not break navigation", failures)
 
-    table = block_for_id(source, "meeting-table")
-    require("blocking: true" in table, "meeting table must block its own footprint", failures)
-    # The pushBlocked guard for the table's north edge prevents characters from
-    # standing inside the sprite's visible footprint.
-    require("pushBlocked(b, tableCol, tableRow - 1, 3, 1)" in source,
-            "meeting table must reserve its north visual edge", failures)
+    require("pushBlocked(b, tableCol" not in source,
+            "old single meeting-table collision workaround should not be the basis of the new campus map", failures)
+    require("team-coffee-maker" in source and "team-wash-station" in source,
+            "coffee and wash activities must remain available in the startup team room", failures)
 
-    # Verify the coffee maker activity does not coincide with the maker's tile.
-    coffee_block = re.search(
-        r"addFurniture\(b, \{[^}]*kind:\s*'coffee'[^}]*?col:\s*(?P<col>\d+),\s*row:\s*(?P<row>\d+)[^}]*?\}\s*(?:,\s*false)?\);",
-        source,
-    )
-    if coffee_block is None:
-        failures.append("layout must include a coffee maker furniture instance")
-    else:
-        maker_col = int(coffee_block.group("col"))
-        maker_row = int(coffee_block.group("row"))
-        require("blocking: true" in coffee_block.group(0),
-                "coffee maker must block its tile", failures)
-        activity = find_coffee_activity(source)
-        if not activity:
-            failures.append("coffee-maker activity must exist so characters use the maker")
-        else:
-            act_col_match = re.search(r"col:\s*(\d+)", activity)
-            act_row_match = re.search(r"row:\s*(\d+)", activity)
-            act_col = int(act_col_match.group(1)) if act_col_match else -1
-            act_row = int(act_row_match.group(1)) if act_row_match else -1
-            same_tile = (act_col, act_row) == (maker_col, maker_row)
-            adjacent = abs(act_col - maker_col) + abs(act_row - maker_row) == 1
-            require(not same_tile and adjacent,
-                    "coffee activity must stand beside the maker instead of inside it", failures)
-
-    # PC seat collision invariants — top desk PCs are 'back' variant and block,
-    # bottom desk PCs are 'front' variant and share the chair tile so the
-    # character can walk into the seat.
     top_pcs = re.findall(
         r"addFurniture\(b, \{[^}]*id:\s*`pc-\$\{seatId\}`[^}]*variant:\s*'back'[^}]*\}\s*(?:,\s*false)?\);",
         source,
@@ -155,29 +109,9 @@ def main() -> int:
     require(bool(bottom_pcs),
             "bottom PCs must remain non-blocking so they share chair tiles", failures)
 
-    # Reception PC: there is exactly one front-facing reception PC, and it must
-    # be a blocking instance.
-    reception_pc = re.search(
-        r"addFurniture\(b, \{[^}]*id:\s*`pc-\$\{seatId\}`[^}]*variant:\s*'front'[^}]*?\}\);[\s\S]*?addReceptionDesk",
-        source,
-    )
-    # Fallback: scan addReceptionDesk for an explicit reception PC.
-    reception_section = re.search(r"function addReceptionDesk[\s\S]*?\n\}", source)
-    if reception_section is not None:
-        rs = reception_section.group(0)
-        rec_pc_block = re.search(
-            r"addFurniture\(b, \{[^}]*kind:\s*'pc'[^}]*?\}\s*(?:,\s*false)?\);",
-            rs,
-        )
-        if rec_pc_block is None:
-            failures.append("reception PC must exist in addReceptionDesk")
-        else:
-            require("blocking: true" in rec_pc_block.group(0),
-                    "reception front PC must be blocking", failures)
-
     if failures:
         raise SystemExit("\n".join(failures))
-    print("validated Workshop office/garden layout guards")
+    print("validated Gather startup Workshop layout guards")
     return 0
 
 

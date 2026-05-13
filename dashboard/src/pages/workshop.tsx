@@ -38,9 +38,12 @@ const MAP_PIXEL_H = LAYOUT_TILE_ROWS * TILE_SIZE;
 const POSITION_UPDATE_THROTTLE_MS = 400;
 const ENGINE_READY_TIMEOUT_MS = 1500;
 const STAGE_HEIGHT_CSS = 'min(70vh, 640px)';
-const CAMERA_LERP_PER_SEC = 4.2;
+const CAMERA_LERP_PER_SEC = 2.8;
 const CAMERA_SNAP_THRESHOLD_PX = 0.35;
-const CAMERA_TARGET_DEADZONE_PX = 0.75;
+const CAMERA_TARGET_DEADZONE_PX = 1.5;
+const CAMERA_VIEW_DEADZONE_W_RATIO = 0.24;
+const CAMERA_VIEW_DEADZONE_H_RATIO = 0.2;
+const CAMERA_ACTIVE_CLUSTER_RADIUS_PX = 20 * TILE_SIZE;
 
 function detectDarkMode(): boolean {
   if (typeof document === 'undefined') return false;
@@ -457,17 +460,34 @@ export default function Workshop() {
       return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
     };
 
+    const cameraPriority = (c: EngineCharacter): number => {
+      if (c.isBlocked) return 5;
+      if (c.currentActivity) return 4;
+      if (c.state === CharacterState.WALK) return 3;
+      if (c.roomState !== 'idle') return 2;
+      return 1;
+    };
+
     const computeCameraTarget = (): { x: number; y: number } => {
       const chars = charactersRef.current;
       if (chars.length === 0) return { x: TILE_SIZE * 7, y: TILE_SIZE * 28 };
 
-      const active = chars.filter(
-        (c) => c.state === CharacterState.WALK || c.currentActivity || c.roomState !== 'idle' || c.isBlocked,
-      );
-      if (active.length > 0) return characterBoundsCenter(active);
-
       const lead = chars.find((c) => c.role === 'lead') ?? chars[0];
-      return characterCenter(lead);
+      const leadCenter = characterCenter(lead);
+      const active = chars
+        .filter((c) => c.state === CharacterState.WALK || c.currentActivity || c.roomState !== 'idle' || c.isBlocked)
+        .sort((a, b) => cameraPriority(b) - cameraPriority(a));
+      if (active.length > 0) {
+        const anchor = active[0];
+        const anchorCenter = characterCenter(anchor);
+        const nearby = active.filter((c) => {
+          const center = characterCenter(c);
+          return Math.hypot(center.x - anchorCenter.x, center.y - anchorCenter.y) <= CAMERA_ACTIVE_CLUSTER_RADIUS_PX;
+        });
+        return nearby.length > 1 ? characterBoundsCenter(nearby) : anchorCenter;
+      }
+
+      return leadCenter;
     };
 
     const dprInitial = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
@@ -566,11 +586,17 @@ export default function Workshop() {
         }
         const cam = cameraRef.current;
         if (cam && charactersRef.current.length > 0) {
-          const desired = computeCameraTarget();
+          let desired = computeCameraTarget();
           const current = cameraTargetRef.current ?? desired;
-          // Critically-damped follow: blend rate is independent of frame time
-          // so pans look identical at 60Hz and 30Hz. A tiny dead-zone keeps
-          // the camera still when characters jitter under the focus point.
+          const centerX = cam.x + cam.width / 2;
+          const centerY = cam.y + cam.height / 2;
+          const inViewDeadzone =
+            Math.abs(desired.x - centerX) <= cam.width * CAMERA_VIEW_DEADZONE_W_RATIO &&
+            Math.abs(desired.y - centerY) <= cam.height * CAMERA_VIEW_DEADZONE_H_RATIO;
+          if (!reducedMotionRef.current && inViewDeadzone) desired = current;
+          // Critically-damped follow: blend rate is independent of frame time.
+          // A viewport dead-zone keeps Gather-style camera motion calm while
+          // characters take small steps inside the current view.
           const dx = desired.x - current.x;
           const dy = desired.y - current.y;
           const dist = Math.hypot(dx, dy);

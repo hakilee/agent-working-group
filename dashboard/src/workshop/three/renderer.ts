@@ -205,6 +205,22 @@ function pickFurnitureTexture(
       return { texture: fur.hangingPlant, flipX: false };
     case 'cactus':
       return { texture: fur.cactus, flipX: false };
+    case 'potted_plant_round':
+      return { texture: fur.pottedPlantRound, flipX: false };
+    case 'potted_plant_leafy':
+      return { texture: fur.pottedPlantLeafy, flipX: false };
+    case 'potted_plant_tall':
+      return { texture: fur.pottedPlantTall, flipX: false };
+    case 'hedge_planter':
+      return { texture: fur.hedgePlanter, flipX: false };
+    case 'flower_shrub':
+      return { texture: fur.flowerShrub, flipX: false };
+    case 'floor_sprout':
+      return { texture: fur.floorSprout, flipX: false };
+    case 'desk_plant':
+      return { texture: fur.deskPlant, flipX: false };
+    case 'hanging_vine':
+      return { texture: fur.hangingVine, flipX: false };
     case 'sofa': {
       const flipX = f.variant === 'side-mirror';
       const t = f.variant === 'back' ? fur.sofaBack : f.variant === 'side' || flipX ? fur.sofaSide : fur.sofaFront;

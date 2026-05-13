@@ -560,17 +560,16 @@ def save_floor_variant(index: int, base: Color, accent: Color, mode: str) -> Non
             if x + 1 < 16:
                 pix[x + 1, y] = texture_noise_color(accent, x, y, 8)
     elif mode == "gather_stone":
-        # Smaller 8x8 sub-tiles make each logical cell feel closer to Gather's
-        # dense tilesheets instead of one large chunky 16px slab.
-        seam = texture_noise_color(accent, index, index, 6)
-        for y in (0, 7, 8, 15):
+        # Subtle Gather-like tile texture: readable up close, quiet in wide shots.
+        seam = texture_noise_color(accent, index, index, 3)
+        for y in (0, 15):
             for x in range(16):
                 pix[x, y] = seam
-        for x in (0, 7, 8, 15):
+        for x in (0, 15):
             for y in range(16):
                 pix[x, y] = seam
-        for x, y in [(2, 2), (5, 5), (11, 3), (13, 6), (3, 11), (6, 13), (10, 10), (14, 14)]:
-            pix[x, y] = texture_noise_color(accent, x, y, 8)
+        for x, y in [(4, 4), (12, 3), (5, 12), (11, 11)]:
+            pix[x, y] = texture_noise_color(accent, x, y, 4)
     elif mode == "rug":
         border = accent
         thread = texture_noise_color(base, index, index, 10)
