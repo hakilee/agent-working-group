@@ -1,6 +1,6 @@
 import type { AgentRoom, RoomState } from '../types';
-import { meetingSpotFor, wanderSpotFor } from './office-layout';
-import { findPath } from './pathfinding';
+import { ambientErrandSpotFor, meetingSpotFor, officeActivityFor, wanderSpotFor } from './office-layout';
+import { findPath, tileKey } from './pathfinding';
 import {
   CharacterState,
   Direction,
@@ -8,6 +8,7 @@ import {
   type CharacterState as CState,
   type Direction as Dir,
   type EngineCharacter,
+  type OfficeActivityDestination,
   type OfficeLayout,
   type Seat,
 } from './types';
@@ -18,6 +19,16 @@ const TYPE_FRAME_INTERVAL = 0.45;
 const READ_FRAME_INTERVAL = 0.6;
 const WANDER_INTERVAL_MIN = 4;
 const WANDER_INTERVAL_MAX = 9;
+const IDLE_ERRAND_CHANCE = 0.35;
+const RESTORED_DECISION_DELAY = 2.2;
+const RESTORED_DECISION_JITTER = 1.2;
+const ROLE_MOVE_PRIORITY: Record<string, number> = { lead: 0, worker: 1 };
+const COLLISION_WAIT_MIN = 0.35;
+const COLLISION_WAIT_MAX = 1.1;
+
+function restoredDecisionDelay(): number {
+  return RESTORED_DECISION_DELAY + Math.random() * RESTORED_DECISION_JITTER;
+}
 
 function hashStr(s: string): number {
   let h = 0;
@@ -113,13 +124,16 @@ export function createCharacter(
     tileCol,
     tileRow,
     path: [],
+    target: null,
     moveProgress: 0,
     frame: 0,
     frameTimer: 0,
     seatId: null,
     intent: intentFor(room.state),
     roomState: room.state,
-    wanderTimer: 0.4 + Math.random() * 0.6,
+    currentActivity: null,
+    actionTimer: 0,
+    wanderTimer: restore ? restoredDecisionDelay() : 0.4 + Math.random() * 0.6,
     flashTimer: 0,
     isBlocked: room.state === 'blocked',
   };
@@ -137,6 +151,9 @@ export function restoreCharacterState(c: EngineCharacter, restore: CharacterRest
   c.y = (c.tileRow - 1) * TILE_SIZE;
   if (restore.dir !== undefined) c.dir = restore.dir;
   c.path = [];
+  c.target = null;
+  c.currentActivity = null;
+  c.actionTimer = 0;
   c.moveProgress = 0;
   const incoming = restore.state;
   c.state =
@@ -147,7 +164,7 @@ export function restoreCharacterState(c: EngineCharacter, restore: CharacterRest
   c.frameTimer = 0;
   // Give the engine a brief beat before deciding the next action so the
   // restored pose is visible to the user.
-  c.wanderTimer = 0.4 + Math.random() * 0.6;
+  c.wanderTimer = restoredDecisionDelay();
 }
 
 /** Pick a wander interval. */
@@ -188,7 +205,11 @@ export function applyRoomState(c: EngineCharacter, room: AgentRoom): void {
   c.profile = room.profile;
   c.isBlocked = room.state === 'blocked';
   c.intent = intentFor(room.state);
-  // If intent changed and we're not currently walking, force a re-decision soon.
+  // Real queue work interrupts ambient office actions.
+  if (c.intent !== prevIntent) {
+    c.currentActivity = null;
+    c.actionTimer = 0;
+  }
   if (c.intent !== prevIntent && c.state !== CharacterState.WALK) {
     c.wanderTimer = Math.min(c.wanderTimer, 0.5);
   }
@@ -201,13 +222,69 @@ function dirFromDelta(dc: number, dr: number): Dir {
   return Direction.RIGHT;
 }
 
+function hasMovementPriority(c: EngineCharacter, other: EngineCharacter): boolean {
+  const cRank = ROLE_MOVE_PRIORITY[c.role] ?? 99;
+  const otherRank = ROLE_MOVE_PRIORITY[other.role] ?? 99;
+  if (cRank !== otherRank) return cRank < otherRank;
+  return c.role.localeCompare(other.role) < 0;
+}
+
+function occupiedTiles(c: EngineCharacter, characters: EngineCharacter[], respectPriority = false): Set<string> {
+  const occupied = new Set<string>();
+  for (const other of characters) {
+    if (other.role === c.role) continue;
+    occupied.add(tileKey(other.tileCol, other.tileRow));
+    const next = other.path[0];
+    if (!next) continue;
+    const canClaimMovingReservation =
+      respectPriority && hasMovementPriority(c, other) && other.state === CharacterState.WALK;
+    if (!canClaimMovingReservation) occupied.add(tileKey(next.col, next.row));
+  }
+  return occupied;
+}
+
 function pathTo(
   c: EngineCharacter,
   target: { col: number; row: number },
-  layout: OfficeLayout,
+  ctx: UpdateContext,
   allowBlockedEnd: boolean,
 ): Array<{ col: number; row: number }> {
-  return findPath(c.tileCol, c.tileRow, target.col, target.row, layout, allowBlockedEnd);
+  const dynamicBlocked = occupiedTiles(c, ctx.characters, true);
+  if (allowBlockedEnd) dynamicBlocked.delete(tileKey(target.col, target.row));
+  return findPath(c.tileCol, c.tileRow, target.col, target.row, ctx.layout, allowBlockedEnd, dynamicBlocked);
+}
+
+function isTileReserved(c: EngineCharacter, col: number, row: number, ctx: UpdateContext): boolean {
+  return occupiedTiles(c, ctx.characters, true).has(tileKey(col, row));
+}
+
+function snapToTile(c: EngineCharacter): void {
+  c.x = c.tileCol * TILE_SIZE;
+  c.y = (c.tileRow - 1) * TILE_SIZE;
+  c.moveProgress = 0;
+}
+
+function waitAfterBlockedMove(c: EngineCharacter): void {
+  c.path = [];
+  c.target = null;
+  c.currentActivity = null;
+  c.actionTimer = 0;
+  c.state = CharacterState.IDLE;
+  snapToTile(c);
+  c.wanderTimer = COLLISION_WAIT_MIN + Math.random() * (COLLISION_WAIT_MAX - COLLISION_WAIT_MIN);
+}
+
+function rerouteOrYield(c: EngineCharacter, ctx: UpdateContext): void {
+  snapToTile(c);
+  if (c.target) {
+    const nextPath = pathTo(c, { col: c.target.col, row: c.target.row }, ctx, c.target.allowBlockedEnd);
+    if (nextPath.length > 0) {
+      c.path = nextPath;
+      c.moveProgress = 0;
+      return;
+    }
+  }
+  waitAfterBlockedMove(c);
 }
 
 function findTargetSeat(c: EngineCharacter, seats: Seat[]): Seat | null {
@@ -225,7 +302,7 @@ export interface UpdateContext {
 }
 
 export function updateCharacter(c: EngineCharacter, dt: number, ctx: UpdateContext): void {
-  const { layout, reducedMotion } = ctx;
+  const { reducedMotion } = ctx;
 
   // Animate frame timer (always advances; sprite chooses how to render).
   c.frameTimer += dt;
@@ -248,8 +325,26 @@ export function updateCharacter(c: EngineCharacter, dt: number, ctx: UpdateConte
   }
 
   // Walking: progress along path.
+  if (c.currentActivity && c.actionTimer > 0) {
+    c.actionTimer = Math.max(0, c.actionTimer - dt);
+    if (c.actionTimer === 0) {
+      c.currentActivity = null;
+      c.state = CharacterState.IDLE;
+      c.wanderTimer = pickWanderDelay();
+    }
+    return;
+  }
+
+  if (c.state === CharacterState.WALK && c.path.length === 0) {
+    waitAfterBlockedMove(c);
+    return;
+  }
   if (c.state === CharacterState.WALK && c.path.length > 0) {
     const next = c.path[0];
+    if (isTileReserved(c, next.col, next.row, ctx)) {
+      rerouteOrYield(c, ctx);
+      return;
+    }
     if (reducedMotion) {
       c.tileCol = next.col;
       c.tileRow = next.row;
@@ -286,18 +381,40 @@ export function updateCharacter(c: EngineCharacter, dt: number, ctx: UpdateConte
   decideNextAction(c, ctx);
 }
 
+function beginActivity(c: EngineCharacter, activity: OfficeActivityDestination): void {
+  c.currentActivity = activity;
+  c.actionTimer = activity.durationSec;
+  c.dir = activity.facingDir;
+  c.state = activity.state;
+  c.frame = 0;
+  c.frameTimer = 0;
+}
+
 function onArriveAtTarget(c: EngineCharacter, ctx: UpdateContext): void {
-  // If we walked to our seat tile, sit and play the seated animation.
+  const arrivedTarget = c.target;
   const seat = findTargetSeat(c, ctx.layout.seats);
   if (seat && c.tileCol === seat.col && c.tileRow === seat.row) {
     c.dir = seat.facingDir;
     c.state = seatedAnimFor(c.roomState);
+    c.target = null;
+    c.currentActivity = null;
+    c.actionTimer = 0;
     c.frame = 0;
     c.frameTimer = 0;
     return;
   }
-  // Otherwise, we arrived at a wander/meeting spot — idle there.
-  c.state = c.intent === 'meeting' ? CharacterState.IDLE : CharacterState.IDLE;
+  if (arrivedTarget?.activityId) {
+    const activity = ctx.layout.activities.find((item) => item.id === arrivedTarget.activityId);
+    if (activity) {
+      c.target = null;
+      beginActivity(c, activity);
+      return;
+    }
+  }
+  c.target = null;
+  c.currentActivity = null;
+  c.actionTimer = 0;
+  c.state = CharacterState.IDLE;
   c.frame = 0;
 }
 
@@ -307,21 +424,28 @@ function decideNextAction(c: EngineCharacter, ctx: UpdateContext): void {
   switch (c.intent) {
     case 'seat': {
       if (!seat) {
-        // No seat assigned — wander.
         startWander(c, ctx);
+        return;
+      }
+      if (c.roomState === 'idle' && c.tileCol === seat.col && c.tileRow === seat.row && Math.random() < IDLE_ERRAND_CHANCE) {
+        startAmbientErrand(c, ctx);
         return;
       }
       if (c.tileCol === seat.col && c.tileRow === seat.row) {
         c.dir = seat.facingDir;
+        c.path = [];
+        c.target = null;
+        c.moveProgress = 0;
         c.state = seatedAnimFor(c.roomState);
         return;
       }
-      const path = pathTo(c, { col: seat.col, row: seat.row }, ctx.layout, true);
+      const path = pathTo(c, { col: seat.col, row: seat.row }, ctx, true);
       if (path.length === 0) {
         startWander(c, ctx);
         return;
       }
       c.path = path;
+      c.target = { col: seat.col, row: seat.row, allowBlockedEnd: true };
       c.state = CharacterState.WALK;
       c.moveProgress = 0;
       return;
@@ -330,15 +454,19 @@ function decideNextAction(c: EngineCharacter, ctx: UpdateContext): void {
       const spot = meetingSpotFor(ctx.layout, hashStr(c.role));
       if (c.tileCol === spot.col && c.tileRow === spot.row) {
         c.dir = Direction.UP;
+        c.path = [];
+        c.target = null;
+        c.moveProgress = 0;
         c.state = CharacterState.IDLE;
         return;
       }
-      const path = pathTo(c, spot, ctx.layout, false);
+      const path = pathTo(c, spot, ctx, false);
       if (path.length === 0) {
         startWander(c, ctx);
         return;
       }
       c.path = path;
+      c.target = { col: spot.col, row: spot.row, allowBlockedEnd: false };
       c.state = CharacterState.WALK;
       c.moveProgress = 0;
       return;
@@ -352,17 +480,51 @@ function decideNextAction(c: EngineCharacter, ctx: UpdateContext): void {
   }
 }
 
-function startWander(c: EngineCharacter, ctx: UpdateContext): void {
-  const seed = hashStr(c.role) + Math.floor(Math.random() * 1000);
-  const spot = wanderSpotFor(ctx.layout, seed);
-  const path = pathTo(c, spot, ctx.layout, false);
-  if (path.length === 0) {
-    c.state = CharacterState.IDLE;
-    return;
-  }
+
+function roomIdAt(layout: OfficeLayout, col: number, row: number): string | undefined {
+  return layout.rooms.find(
+    (zone) => col >= zone.minCol && col <= zone.maxCol && row >= zone.minRow && row <= zone.maxRow,
+  )?.id;
+}
+
+function roomIdForIntent(c: EngineCharacter, layout: OfficeLayout): string | undefined {
+  if (c.intent === 'meeting') return 'meeting';
+  if (c.intent === 'wander') return roomIdAt(layout, c.tileCol, c.tileRow);
+  const seat = findTargetSeat(c, layout.seats);
+  return seat ? roomIdAt(layout, seat.col, seat.row) : roomIdAt(layout, c.tileCol, c.tileRow);
+}
+
+function walkToSpot(
+  c: EngineCharacter,
+  ctx: UpdateContext,
+  spot: { col: number; row: number },
+  activity?: OfficeActivityDestination | null,
+): boolean {
+  const path = pathTo(c, spot, ctx, false);
+  if (path.length === 0) return false;
   c.path = path;
+  c.target = { col: spot.col, row: spot.row, allowBlockedEnd: false, activityId: activity?.id ?? null };
+  c.currentActivity = null;
+  c.actionTimer = 0;
   c.state = CharacterState.WALK;
   c.moveProgress = 0;
+  return true;
+}
+
+function startAmbientErrand(c: EngineCharacter, ctx: UpdateContext): void {
+  const seed = hashStr(c.role) + c.frame + Math.floor(Math.random() * 1000);
+  const activity = officeActivityFor(ctx.layout, seed);
+  const spot = activity ?? ambientErrandSpotFor(ctx.layout, seed);
+  if (!walkToSpot(c, ctx, spot, activity)) {
+    waitAfterBlockedMove(c);
+  }
+}
+
+function startWander(c: EngineCharacter, ctx: UpdateContext): void {
+  const seed = hashStr(c.role) + Math.floor(Math.random() * 1000);
+  if (!walkToSpot(c, ctx, wanderSpotFor(ctx.layout, seed, roomIdForIntent(c, ctx.layout)))) {
+    waitAfterBlockedMove(c);
+  }
 }
 
 /**
@@ -375,12 +537,15 @@ export function teleportTo(c: EngineCharacter, col: number, row: number): void {
   c.x = col * TILE_SIZE;
   c.y = (row - 1) * TILE_SIZE;
   c.path = [];
+  c.target = null;
+  c.currentActivity = null;
+  c.actionTimer = 0;
   c.moveProgress = 0;
   c.state = CharacterState.IDLE;
   c.frame = 0;
   c.frameTimer = 0;
   // Avoid immediately triggering a new wander/seek the next tick.
-  c.wanderTimer = pickWanderDelay();
+  c.wanderTimer = restoredDecisionDelay();
 }
 
 /**

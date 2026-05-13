@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Page, PageHeader } from '../components/ui/page';
 import { useWorkshopWS } from '../hooks/use-workshop-ws';
 import { deriveRooms } from '../workshop/room-state';
@@ -31,6 +31,7 @@ import {
   type EngineCharacter,
   type OfficeLayout,
   type SpriteManager,
+  type TaskPulse,
 } from '../workshop/engine';
 
 const MAP_PIXEL_W = LAYOUT_TILE_COLS * TILE_SIZE;
@@ -60,67 +61,108 @@ function detectReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 }
 
-interface HoveredAgent {
-  room: AgentRoom;
-  screenX: number;
-  screenY: number;
+interface HoverTarget {
+  role: string;
+  x: number;
+  y: number;
+  bounds: { width: number; height: number };
 }
 
-function stateLabel(state: AgentRoom['state']): string {
-  switch (state) {
-    case 'working': return 'working';
-    case 'dispatching': return 'dispatching';
-    case 'reviewing': return 'reviewing';
-    case 'responding': return 'responding';
-    case 'blocked': return 'blocked';
-    case 'idle':
-    default: return 'idle';
-  }
+interface TooltipPlacement {
+  left: number;
+  top: number;
+  width: number;
+  transform: string;
+}
+
+const TOOLTIP_WIDTH = 200;
+const TOOLTIP_ESTIMATED_HEIGHT = 116;
+const TOOLTIP_EDGE_GAP = 8;
+const TOOLTIP_CURSOR_GAP = 14;
+const COUNT_FIELDS = ['pending', 'processing', 'processed', 'dead'] as const;
+const TASK_PULSE_DURATION_MS = 1250;
+const COMPLETE_PULSE_DURATION_MS = 900;
+const MAX_TASK_PULSES = 8;
+
+type CountSnapshot = Record<(typeof COUNT_FIELDS)[number], number>;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function countSnapshot(room: AgentRoom): CountSnapshot {
+  return {
+    pending: room.counts.pending,
+    processing: room.counts.processing,
+    processed: room.counts.processed,
+    dead: room.counts.dead,
+  };
+}
+
+function tooltipPlacement(target: HoverTarget): TooltipPlacement {
+  const width = Math.min(TOOLTIP_WIDTH, Math.max(0, target.bounds.width - TOOLTIP_EDGE_GAP * 2));
+  const hasRoomOnRight = target.x + width + TOOLTIP_CURSOR_GAP <= target.bounds.width - TOOLTIP_EDGE_GAP;
+  const hasRoomAbove = target.y >= TOOLTIP_ESTIMATED_HEIGHT + TOOLTIP_EDGE_GAP;
+  const hasRoomBelow =
+    target.y + TOOLTIP_ESTIMATED_HEIGHT + TOOLTIP_CURSOR_GAP <= target.bounds.height - TOOLTIP_EDGE_GAP;
+  const placeAbove = hasRoomAbove || !hasRoomBelow;
+  const rawLeft = hasRoomOnRight ? target.x + TOOLTIP_CURSOR_GAP : target.x - TOOLTIP_CURSOR_GAP - width;
+
+  return {
+    left: clamp(rawLeft, TOOLTIP_EDGE_GAP, target.bounds.width - width - TOOLTIP_EDGE_GAP),
+    top: placeAbove ? target.y - TOOLTIP_EDGE_GAP : target.y + TOOLTIP_CURSOR_GAP,
+    width,
+    transform: placeAbove ? 'translateY(-100%)' : 'translateY(0)',
+  };
+}
+
+function shouldKeepLocalWalk(c: EngineCharacter, stored: { tileCol?: number; tileRow?: number }): boolean {
+  if (c.state !== CharacterState.WALK) return false;
+  if (stored.tileCol === undefined || stored.tileRow === undefined) return false;
+  if (stored.tileCol === c.tileCol && stored.tileRow === c.tileRow) return true;
+  const tileLag = Math.abs(stored.tileCol - c.tileCol) + Math.abs(stored.tileRow - c.tileRow);
+  return c.path.length > 0 && tileLag === 1;
 }
 
 function stateAccentClass(state: AgentRoom['state']): string {
   switch (state) {
-    case 'working': return 'text-emerald-600 dark:text-emerald-300';
-    case 'dispatching': return 'text-amber-600 dark:text-amber-300';
-    case 'reviewing': return 'text-sky-600 dark:text-sky-300';
-    case 'responding': return 'text-violet-600 dark:text-violet-300';
-    case 'blocked': return 'text-rose-600 dark:text-rose-300';
+    case 'working':
+      return 'text-emerald-600 dark:text-emerald-300';
+    case 'dispatching':
+      return 'text-amber-600 dark:text-amber-300';
+    case 'reviewing':
+      return 'text-sky-600 dark:text-sky-300';
+    case 'responding':
+      return 'text-violet-600 dark:text-violet-300';
+    case 'blocked':
+      return 'text-rose-600 dark:text-rose-300';
     case 'idle':
-    default: return 'text-ops-muted dark:text-[#839087]';
+    default:
+      return 'text-ops-muted dark:text-[#839087]';
   }
 }
 
-function AgentTooltip({ hovered }: { hovered: HoveredAgent }) {
-  const { room, screenX, screenY } = hovered;
-  // Offset slightly above-right of cursor; flip to left when near right edge.
-  const dx = 14;
-  const dy = -8;
+function AgentTooltip({ room, target }: { room: AgentRoom; target: HoverTarget }) {
+  const placement = tooltipPlacement(target);
   return (
     <div
       className="pointer-events-none absolute z-10 select-none rounded-sm border border-ops-line bg-ops-panel/95 px-2 py-1.5 text-[10px] leading-tight text-ops-ink shadow-md backdrop-blur-sm dark:border-white/15 dark:bg-[#1e2722]/95 dark:text-[#eef3ec]"
-      style={{
-        left: screenX + dx,
-        top: screenY + dy,
-        transform: 'translate(0, -100%)',
-        maxWidth: 200,
-      }}
+      style={placement}
     >
-      <div className="flex items-center gap-1.5 font-bold tracking-wide">
-        <span aria-hidden>{room.profile.emoji}</span>
-        <span style={{ color: room.profile.color }}>{room.profile.displayName}</span>
-      </div>
-      <div className="mt-0.5 text-[9px] uppercase tracking-widest text-ops-muted dark:text-[#839087]">
-        {room.role}
+      <div className="font-bold tracking-wide" style={{ color: room.profile.color }}>
+        {room.profile.displayName}
       </div>
       <div className={`mt-1 font-semibold uppercase tracking-wider ${stateAccentClass(room.state)}`}>
-        {stateLabel(room.state)}
+        {room.state}
       </div>
-      <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-[9px] text-ops-muted dark:text-[#839087]">
-        <span>pending</span><span className="text-right text-ops-ink dark:text-[#eef3ec]">{room.counts.pending}</span>
-        <span>processing</span><span className="text-right text-ops-ink dark:text-[#eef3ec]">{room.counts.processing}</span>
-        <span>processed</span><span className="text-right text-ops-ink dark:text-[#eef3ec]">{room.counts.processed}</span>
-        <span>dead</span><span className="text-right text-ops-ink dark:text-[#eef3ec]">{room.counts.dead}</span>
-      </div>
+      <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-[9px] text-ops-muted dark:text-[#839087]">
+        {COUNT_FIELDS.map((field) => (
+          <Fragment key={field}>
+            <dt>{field}</dt>
+            <dd className="text-right text-ops-ink dark:text-[#eef3ec]">{room.counts[field]}</dd>
+          </Fragment>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -131,8 +173,7 @@ export default function Workshop() {
   const ws = useWorkshopWS();
   const [sprites, setSprites] = useState<SpriteManager | null>(null);
   const [engineReady, setEngineReady] = useState(false);
-  const [hoveredRole, setHoveredRole] = useState<string | null>(null);
-  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
+  const [hoverTarget, setHoverTarget] = useState<HoverTarget | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,14 +207,13 @@ export default function Workshop() {
 
   const rooms = useMemo(() => deriveRooms(ws.queueAgents), [ws.queueAgents]);
   const hoveredRoom = useMemo<AgentRoom | null>(() => {
-    if (!hoveredRole) return null;
-    return rooms.find((r) => r.role === hoveredRole) ?? null;
-  }, [hoveredRole, rooms]);
+    if (!hoverTarget) return null;
+    return rooms.find((r) => r.role === hoverTarget.role) ?? null;
+  }, [hoverTarget, rooms]);
 
   // Refs sourced from module-level state so they survive page navigation.
   const charactersRef = useRef<EngineCharacter[]>(getCharacters());
   const layoutRef = useRef<OfficeLayout | null>(getLayout());
-  const roomsRef = useRef<AgentRoom[]>(rooms);
   const darkModeRef = useRef<boolean>(detectDarkMode());
   const reducedMotionRef = useRef<boolean>(detectReducedMotion());
   const cameraRef = useRef<Camera | null>(null);
@@ -181,8 +221,10 @@ export default function Workshop() {
   const sendAgentUpdateRef = useRef(ws.sendAgentUpdate);
   const engineReadyRef = useRef(engineReady);
   const hoveredRoleRef = useRef<string | null>(null);
-  const pointerScreenRef = useRef<{ x: number; y: number } | null>(null);
   const lastSentRef = useRef<Map<string, number>>(new Map());
+  const prevCountsRef = useRef<Map<string, CountSnapshot>>(new Map());
+  const taskPulsesRef = useRef<TaskPulse[]>([]);
+  const taskPulseSeqRef = useRef(0);
 
   useEffect(() => {
     agentPositionsRef.current = ws.agentPositions;
@@ -197,6 +239,53 @@ export default function Workshop() {
   }, [engineReady]);
 
   useEffect(() => {
+    const prev = prevCountsRef.current;
+    const next = new Map<string, CountSnapshot>();
+    const roles = new Set(rooms.map((room) => room.role));
+    const lead = rooms.find((room) => room.role === 'lead') ?? rooms[0] ?? null;
+    const pulses = taskPulsesRef.current;
+    const now = performance.now();
+
+    for (const room of rooms) {
+      const counts = countSnapshot(room);
+      const before = prev.get(room.role);
+      next.set(room.role, counts);
+      if (!before) continue;
+
+      const pendingDelta = counts.pending - before.pending;
+      const processingDelta = counts.processing - before.processing;
+      const processedDelta = counts.processed - before.processed;
+      const handoffCount = Math.max(pendingDelta, processingDelta, 0);
+
+      for (let i = 0; i < handoffCount; i++) {
+        pulses.push({
+          id: `handoff-${now}-${taskPulseSeqRef.current++}`,
+          kind: 'handoff',
+          fromRole: lead && lead.role !== room.role ? lead.role : null,
+          toRole: room.role,
+          startedAt: now + i * 140,
+          durationMs: TASK_PULSE_DURATION_MS,
+        });
+      }
+      for (let i = 0; i < Math.max(processedDelta, 0); i++) {
+        pulses.push({
+          id: `complete-${now}-${taskPulseSeqRef.current++}`,
+          kind: 'complete',
+          fromRole: null,
+          toRole: room.role,
+          startedAt: now + i * 120,
+          durationMs: COMPLETE_PULSE_DURATION_MS,
+        });
+      }
+    }
+
+    taskPulsesRef.current = pulses
+      .filter((pulse) => roles.has(pulse.toRole) && now - pulse.startedAt <= pulse.durationMs)
+      .slice(-MAX_TASK_PULSES);
+    prevCountsRef.current = next;
+  }, [rooms]);
+
+  useEffect(() => {
     const root = document.documentElement;
     const obs = new MutationObserver(() => {
       darkModeRef.current = detectDarkMode();
@@ -207,7 +296,6 @@ export default function Workshop() {
 
   // Reflect rooms into refs and reconcile characters / seats.
   useEffect(() => {
-    roomsRef.current = rooms;
     setRooms(rooms);
     if (!sprites) return;
     const palCount = Math.max(sprites.characters.length, 1);
@@ -254,15 +342,7 @@ export default function Workshop() {
     for (const c of charactersRef.current) {
       const stored = sanitizeRestore(positions[c.role]);
       if (!stored) continue;
-      // If the character is mid-walk locally and the snapshot is consistent
-      // (same tile), don't disrupt the in-flight motion. Otherwise hard-snap.
-      if (
-        c.state === CharacterState.WALK &&
-        stored.tileCol === c.tileCol &&
-        stored.tileRow === c.tileRow
-      ) {
-        continue;
-      }
+      if (shouldKeepLocalWalk(c, stored)) continue;
       restoreCharacterState(c, stored);
     }
   }, [ws.snapshotNonce]);
@@ -278,8 +358,6 @@ export default function Workshop() {
     // Camera math is in CSS px; pointer coords are CSS px relative to canvas.
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
-    pointerScreenRef.current = { x: sx, y: sy };
-
     const world = screenToWorld(cam, sx, sy);
     let hit: string | null = null;
     // Walk reverse so the topmost (drawn last) wins ties.
@@ -299,25 +377,32 @@ export default function Workshop() {
         break;
       }
     }
-    if (hit !== hoveredRoleRef.current) {
-      hoveredRoleRef.current = hit;
-      setHoveredRole(hit);
+    hoveredRoleRef.current = hit;
+    if (!hit) {
+      setHoverTarget(null);
+      return;
     }
-    if (hit) {
-      setHoverPos({ x: sx, y: sy });
-    } else if (hoverPos !== null) {
-      setHoverPos(null);
-    }
-  }, [sprites, hoverPos]);
+    setHoverTarget((prev) => {
+      if (
+        prev?.role === hit &&
+        Math.abs(prev.x - sx) < 1 &&
+        Math.abs(prev.y - sy) < 1 &&
+        prev.bounds.width === rect.width &&
+        prev.bounds.height === rect.height
+      ) return prev;
+      return {
+        role: hit,
+        x: sx,
+        y: sy,
+        bounds: { width: rect.width, height: rect.height },
+      };
+    });
+  }, [sprites]);
 
   const handlePointerLeave = useCallback(() => {
-    pointerScreenRef.current = null;
-    if (hoveredRoleRef.current !== null) {
-      hoveredRoleRef.current = null;
-      setHoveredRole(null);
-    }
-    if (hoverPos !== null) setHoverPos(null);
-  }, [hoverPos]);
+    hoveredRoleRef.current = null;
+    setHoverTarget(null);
+  }, []);
 
   useEffect(() => {
     if (!sprites) return;
@@ -381,6 +466,7 @@ export default function Workshop() {
         const layout = layoutRef.current;
         if (!layout) return;
         const now = performance.now();
+        taskPulsesRef.current = taskPulsesRef.current.filter((pulse) => now - pulse.startedAt <= pulse.durationMs);
         for (const c of charactersRef.current) {
           const prevState = c.state;
           const prevTileCol = c.tileCol;
@@ -452,6 +538,8 @@ export default function Workshop() {
           darkMode: darkModeRef.current,
           camera: cam,
           hoveredRole: hoveredRoleRef.current,
+          taskPulses: taskPulsesRef.current,
+          nowMs: performance.now(),
         });
       },
     });
@@ -461,18 +549,17 @@ export default function Workshop() {
     };
   }, [sprites, rooms.length]);
 
-  // On unmount, push any in-flight position so a quick refresh during walk
-  // captures the latest sample.
   useEffect(() => {
     return () => {
       for (const c of getCharacters()) {
+        const state = c.state === CharacterState.WALK ? CharacterState.IDLE : c.state;
         sendAgentUpdateRef.current(c.role, {
-          x: Math.round(c.x),
-          y: Math.round(c.y),
+          x: c.tileCol * TILE_SIZE,
+          y: (c.tileRow - 1) * TILE_SIZE,
           tileCol: c.tileCol,
           tileRow: c.tileRow,
           dir: c.dir,
-          state: c.state === CharacterState.WALK ? 'idle' : c.state,
+          state,
         });
       }
     };
@@ -521,11 +608,7 @@ export default function Workshop() {
           onPointerMove={handlePointer}
           onPointerLeave={handlePointerLeave}
         />
-        {hoveredRoom && hoverPos && (
-          <AgentTooltip
-            hovered={{ room: hoveredRoom, screenX: hoverPos.x, screenY: hoverPos.y }}
-          />
-        )}
+        {hoveredRoom && hoverTarget && <AgentTooltip room={hoveredRoom} target={hoverTarget} />}
         {(!sprites || !engineReady) && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-[10px] uppercase tracking-widest text-white">
             {!sprites ? 'Loading sprites…' : 'Connecting…'}

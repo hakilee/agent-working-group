@@ -10,7 +10,6 @@ export interface AgentProfile {
   role: string;
   displayName: string;
   color: string;
-  emoji: string;
 }
 
 export interface AgentRoom {
@@ -18,12 +17,11 @@ export interface AgentRoom {
   profile: AgentProfile;
   counts: { pending: number; processing: number; processed: number; dead: number };
   state: RoomState;
-  latestBody: string | null;
 }
 
 export const KNOWN_PROFILES: Record<string, AgentProfile> = {
-  lead: { role: 'lead', displayName: 'SYMPHONY', color: '#0f6b55', emoji: '🎵' },
-  worker: { role: 'worker', displayName: 'MATDORI', color: '#c87438', emoji: '🍗' },
+  lead: { role: 'lead', displayName: 'Lead', color: '#0f6b55' },
+  worker: { role: 'worker', displayName: 'Worker', color: '#c87438' },
 };
 
 export function getProfile(role: string): AgentProfile {
@@ -34,7 +32,6 @@ export function getProfile(role: string): AgentProfile {
     role,
     displayName: role.charAt(0).toUpperCase() + role.slice(1),
     color: palette[idx],
-    emoji: '🤖',
   };
 }
 

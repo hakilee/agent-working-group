@@ -1,10 +1,20 @@
 import { TileType, type OfficeLayout } from './types';
 
-export function isWalkable(col: number, row: number, layout: OfficeLayout): boolean {
+export function tileKey(col: number, row: number): string {
+  return `${col},${row}`;
+}
+
+export function isWalkable(
+  col: number,
+  row: number,
+  layout: OfficeLayout,
+  dynamicBlocked: ReadonlySet<string> = new Set(),
+): boolean {
   if (row < 0 || row >= layout.rows || col < 0 || col >= layout.cols) return false;
   const t = layout.tiles[row][col];
   if (t === TileType.WALL || t === TileType.VOID) return false;
-  if (layout.blocked.has(`${col},${row}`)) return false;
+  const key = tileKey(col, row);
+  if (layout.blocked.has(key) || dynamicBlocked.has(key)) return false;
   return true;
 }
 
@@ -17,13 +27,13 @@ export function findPath(
   layout: OfficeLayout,
   /** If true, allow ending on a non-walkable tile (e.g., assigned seat that's marked blocked). */
   allowEndOnBlocked = false,
+  dynamicBlocked: ReadonlySet<string> = new Set(),
 ): Array<{ col: number; row: number }> {
   if (startCol === endCol && startRow === endRow) return [];
-  const key = (c: number, r: number) => `${c},${r}`;
-  const startKey = key(startCol, startRow);
-  const endKey = key(endCol, endRow);
+  const startKey = tileKey(startCol, startRow);
+  const endKey = tileKey(endCol, endRow);
 
-  if (!allowEndOnBlocked && !isWalkable(endCol, endRow, layout)) return [];
+  if (!allowEndOnBlocked && !isWalkable(endCol, endRow, layout, dynamicBlocked)) return [];
 
   const visited = new Set<string>([startKey]);
   const parent = new Map<string, string>();
@@ -38,7 +48,7 @@ export function findPath(
 
   while (queue.length > 0) {
     const curr = queue.shift()!;
-    const currKey = key(curr.col, curr.row);
+    const currKey = tileKey(curr.col, curr.row);
     if (currKey === endKey) {
       const path: Array<{ col: number; row: number }> = [];
       let k = endKey;
@@ -52,7 +62,7 @@ export function findPath(
     for (const d of dirs) {
       const nc = curr.col + d.dc;
       const nr = curr.row + d.dr;
-      const nk = key(nc, nr);
+      const nk = tileKey(nc, nr);
       if (visited.has(nk)) continue;
       const isEnd = nc === endCol && nr === endRow;
       if (isEnd && allowEndOnBlocked) {
@@ -61,7 +71,7 @@ export function findPath(
         queue.push({ col: nc, row: nr });
         continue;
       }
-      if (!isWalkable(nc, nr, layout)) continue;
+      if (!isWalkable(nc, nr, layout, dynamicBlocked)) continue;
       visited.add(nk);
       parent.set(nk, currKey);
       queue.push({ col: nc, row: nr });

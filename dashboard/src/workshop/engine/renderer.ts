@@ -6,6 +6,7 @@ import {
   type FurnitureInstance,
   type OfficeLayout,
   type SpriteManager,
+  type TaskPulse,
 } from './types';
 import { spriteFrameIndex } from './sprites';
 import type { Camera } from './camera';
@@ -18,12 +19,21 @@ export interface RenderOptions {
   camera: Camera;
   /** Role of the currently hovered character, if any. */
   hoveredRole?: string | null;
+  taskPulses?: TaskPulse[];
+  nowMs?: number;
 }
 
 interface Drawable {
   /** Y used for depth sorting (bottom of sprite). */
   zY: number;
   draw: (ctx: CanvasRenderingContext2D) => void;
+}
+
+const CANVAS_LABEL_FONT = '"Geist Mono", ui-monospace, monospace';
+const CANVAS_DISPLAY_FONT = '"LCT Ciburial", "Geist Mono", sans-serif';
+
+function canvasFont(sizePx: number, family = CANVAS_LABEL_FONT, weight = 600): string {
+  return `${weight} ${sizePx}px ${family}`;
 }
 
 function drawTiled(
@@ -145,6 +155,12 @@ function drawFurnitureSprite(
     case 'coffee_table':
       img = sprites.furniture.coffeeTable;
       break;
+    case 'coffee':
+      img = sprites.furniture.coffee;
+      break;
+    case 'bin':
+      img = sprites.furniture.bin;
+      break;
     case 'cushioned_bench':
       img = sprites.furniture.cushionedBench;
       break;
@@ -231,6 +247,85 @@ function drawCharacter(
   }
 }
 
+function drawTaskPulse(
+  ctx: CanvasRenderingContext2D,
+  pulse: TaskPulse,
+  characters: EngineCharacter[],
+  nowMs: number,
+  darkMode: boolean,
+): void {
+  const to = characters.find((c) => c.role === pulse.toRole);
+  if (!to) return;
+  const from = pulse.fromRole ? characters.find((c) => c.role === pulse.fromRole) : null;
+  const elapsed = nowMs - pulse.startedAt;
+  const t = Math.min(Math.max(elapsed / pulse.durationMs, 0), 1);
+  const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const targetX = to.x + 8;
+  const targetY = to.y + 2;
+
+  ctx.save();
+  if (pulse.kind === 'complete') {
+    const radius = 4 + t * 13;
+    ctx.globalAlpha = Math.max(0, 1 - t);
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(targetX, targetY + 10, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#22c55e';
+    ctx.font = canvasFont(8);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('done', targetX, targetY - 4 - t * 8);
+    ctx.restore();
+    return;
+  }
+
+  const startX = from ? from.x + 8 : targetX - 36;
+  const startY = from ? from.y + 2 : targetY - 10;
+  const arc = Math.sin(Math.PI * ease) * 18;
+  const x = startX + (targetX - startX) * ease;
+  const y = startY + (targetY - startY) * ease - arc;
+  ctx.globalAlpha = Math.sin(Math.PI * Math.min(t, 0.98));
+  ctx.fillStyle = darkMode ? '#f8fafc' : '#fffdf5';
+  ctx.strokeStyle = darkMode ? '#0f172a' : '#3f3420';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x - 5, y - 4, 10, 8, 1.5);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillRect(x - 2, y - 1, 4, 1);
+  ctx.restore();
+}
+
+
+function drawActivityBubble(
+  ctx: CanvasRenderingContext2D,
+  c: EngineCharacter,
+  darkMode: boolean,
+): void {
+  if (!c.currentActivity || c.actionTimer <= 0) return;
+  const label = c.currentActivity.label;
+  ctx.save();
+  ctx.font = canvasFont(8, CANVAS_DISPLAY_FONT, 400);
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  const cx = c.x + 8;
+  const y = c.y - 11;
+  const width = Math.max(34, Math.min(82, ctx.measureText(label).width + 10));
+  ctx.fillStyle = darkMode ? 'rgba(15,23,42,0.88)' : 'rgba(255,253,245,0.92)';
+  ctx.strokeStyle = c.profile.color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(cx - width / 2, y - 6, width, 12, 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = darkMode ? '#f8fafc' : '#3f3420';
+  ctx.fillText(label, cx, y + 0.5, width - 8);
+  ctx.restore();
+}
+
 function drawStateBubble(
   ctx: CanvasRenderingContext2D,
   c: EngineCharacter,
@@ -253,7 +348,7 @@ function drawStateBubble(
       return;
   }
   ctx.save();
-  ctx.font = '8px monospace';
+  ctx.font = canvasFont(8);
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
   const cx = c.x + 8;
@@ -268,7 +363,7 @@ function drawStateBubble(
 }
 
 export function render(ctx: CanvasRenderingContext2D, opts: RenderOptions): void {
-  const { layout, characters, sprites, darkMode, camera, hoveredRole } = opts;
+  const { layout, characters, sprites, darkMode, camera, hoveredRole, taskPulses = [], nowMs = 0 } = opts;
   const canvas = ctx.canvas;
   const canvasW = canvas.width;
   const canvasH = canvas.height;
@@ -355,7 +450,10 @@ export function render(ctx: CanvasRenderingContext2D, opts: RenderOptions): void
   drawables.sort((a, b) => a.zY - b.zY);
   for (const d of drawables) d.draw(ctx);
 
-  // State bubbles on top of world content.
+  for (const pulse of taskPulses) drawTaskPulse(ctx, pulse, characters, nowMs, darkMode);
+
+  // Activity and state bubbles on top of world content.
+  for (const c of characters) drawActivityBubble(ctx, c, darkMode);
   for (const c of characters) drawStateBubble(ctx, c);
 
   ctx.restore();

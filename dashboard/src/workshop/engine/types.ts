@@ -39,6 +39,8 @@ export type FurnitureKind =
   | 'cactus'
   | 'sofa'
   | 'coffee_table'
+  | 'coffee'
+  | 'bin'
   | 'cushioned_bench'
   | 'small_table'
   | 'clock'
@@ -89,6 +91,16 @@ export interface RoomZone {
   floorVariant: number;
 }
 
+export interface OfficeActivityDestination {
+  id: string;
+  label: string;
+  col: number;
+  row: number;
+  facingDir: Direction;
+  state: CharacterState;
+  durationSec: number;
+}
+
 export interface OfficeLayout {
   cols: number;
   rows: number;
@@ -101,6 +113,17 @@ export interface OfficeLayout {
   rooms: RoomZone[];
   /** Per-tile floor variant index. Walls and out-of-room aisles default to 0. */
   floorVariants: number[][];
+  /** Intentful destinations used for ambient office errands. */
+  activities: OfficeActivityDestination[];
+}
+
+export interface TaskPulse {
+  id: string;
+  kind: 'handoff' | 'complete';
+  fromRole: string | null;
+  toRole: string;
+  startedAt: number;
+  durationMs: number;
 }
 
 export interface EngineCharacter {
@@ -120,6 +143,8 @@ export interface EngineCharacter {
   tileRow: number;
   /** Remaining path steps (tile coords, excluding current) */
   path: Array<{ col: number; row: number }>;
+  /** Current route destination, used for rerouting around dynamic obstacles. */
+  target: { col: number; row: number; allowBlockedEnd: boolean; activityId?: string | null } | null;
   /** Progress 0..1 lerp between current tile and next path tile */
   moveProgress: number;
   /** Animation frame index */
@@ -132,6 +157,10 @@ export interface EngineCharacter {
   intent: 'seat' | 'meeting' | 'wander' | 'stay';
   /** Current AWG room state */
   roomState: RoomState;
+  /** Office action being performed after arriving at an intentful destination. */
+  currentActivity: OfficeActivityDestination | null;
+  /** Remaining seconds for the current office action. */
+  actionTimer: number;
   /** Timer for idle wandering decisions */
   wanderTimer: number;
   /** Timer for blocked flash (counts down 0..1 over flash period) */
@@ -159,6 +188,8 @@ export interface FurnitureSprites {
   cactus: HTMLImageElement | null;
   sofa: { front: HTMLImageElement | null; back: HTMLImageElement | null; side: HTMLImageElement | null };
   coffeeTable: HTMLImageElement | null;
+  coffee: HTMLImageElement | null;
+  bin: HTMLImageElement | null;
   cushionedBench: HTMLImageElement | null;
   smallTable: { front: HTMLImageElement | null; side: HTMLImageElement | null };
   clock: HTMLImageElement | null;

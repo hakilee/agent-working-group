@@ -31,6 +31,10 @@ _MAX_ROLE_LEN = 128
 _MAX_TILE = 1024
 
 
+def _persistable_state(value: str) -> str:
+    return "idle" if value == "walk" else value
+
+
 def _sanitize_agent_payload(raw: Any) -> dict[str, Any]:
     """Coerce an incoming WS payload into the allowed shape; drop garbage."""
     if not isinstance(raw, dict):
@@ -51,7 +55,7 @@ def _sanitize_agent_payload(raw: Any) -> dict[str, Any]:
                 out[key] = int(value)
         elif key == "state":
             if isinstance(value, str) and value in _ALLOWED_STATES:
-                out[key] = value
+                out[key] = _persistable_state(value)
     return out
 
 
@@ -71,7 +75,7 @@ class WorkshopState:
         """Return the full workshop state for REST/WebSocket delivery."""
         return {
             "type": "workshop",
-            "agents": dict(self._agents),
+            "agents": {role: self._normalize_agent(agent) for role, agent in self._agents.items()},
             "layoutVersion": self._layout_version,
             "ts": time.time(),
         }
@@ -110,11 +114,24 @@ class WorkshopState:
         try:
             with path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
-            self._agents = data.get("agents", {})
+            raw_agents = data.get("agents", {})
+            if isinstance(raw_agents, dict):
+                self._agents = {
+                    str(role): self._normalize_agent(agent)
+                    for role, agent in raw_agents.items()
+                    if isinstance(role, str) and isinstance(agent, dict)
+                }
             self._layout_version = data.get("layoutVersion", 0)
             logger.info("loaded workshop state from %s (%d agents)", path, len(self._agents))
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning("failed to load workshop state: %s", exc)
+
+    def _normalize_agent(self, agent: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(agent)
+        state = normalized.get("state")
+        if isinstance(state, str) and state in _ALLOWED_STATES:
+            normalized["state"] = _persistable_state(state)
+        return normalized
 
     def _maybe_save(self) -> None:
         """Throttled save — at most once per 2 seconds."""

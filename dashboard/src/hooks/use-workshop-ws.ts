@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   api,
   workshopStreamUrl,
@@ -13,15 +13,9 @@ export interface UseWorkshopWS {
   queueAgents: AgentSummary[];
   connected: boolean;
   error: string | null;
-  /** Increments each time an authoritative workshop snapshot arrives (initial
-   *  load via REST, initial WS frame, and any subsequent WS-pushed snapshot).
-   *  Consumers use this to reconcile to server positions without firing on
-   *  every local optimistic update. */
+  /** Increments each time an authoritative workshop snapshot arrives. */
   snapshotNonce: number;
-  /** Increments each time a queues frame is received (including the first
-   *  empty one). Lets the page distinguish "no queue data yet" from "queue
-   *  data confirmed empty" so it can hold the loading curtain until the
-   *  character set is known. */
+  /** Increments each time queue data is confirmed by WS or REST fallback. */
   queuesNonce: number;
   sendAgentUpdate: (role: string, state: WorkshopAgentState) => void;
 }
@@ -29,6 +23,19 @@ export interface UseWorkshopWS {
 interface QueueFrame {
   type: 'queues';
   agents?: AgentSummary[];
+}
+
+const REST_FALLBACK_INTERVAL_MS = 8000;
+const SOCKET_STALE_RECONNECT_MS = 45_000;
+
+function mergeSnapshotAgents(
+  setAgentPositions: Dispatch<SetStateAction<Record<string, WorkshopAgentState>>>,
+  setSnapshotNonce: Dispatch<SetStateAction<number>>,
+  snap: WorkshopSnapshot,
+): void {
+  if (!snap?.agents) return;
+  setAgentPositions(snap.agents);
+  setSnapshotNonce((n) => n + 1);
 }
 
 export function useWorkshopWS(): UseWorkshopWS {
@@ -39,26 +46,29 @@ export function useWorkshopWS(): UseWorkshopWS {
   const [snapshotNonce, setSnapshotNonce] = useState(0);
   const [queuesNonce, setQueuesNonce] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
+  const lastFrameAtRef = useRef(0);
+  const fallbackInFlightRef = useRef(false);
 
-  // Initial REST fetch for positions as a fallback when WS is slow.
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getWorkshop()
-      .then((snap) => {
-        if (cancelled) return;
-        if (snap?.agents) {
-          setAgentPositions((prev) => ({ ...snap.agents, ...prev }));
-          setSnapshotNonce((n) => n + 1);
-        }
-      })
-      .catch(() => {
-        // WS will deliver an initial snapshot; ignore REST failure.
-      });
-    return () => {
-      cancelled = true;
-    };
+  const refreshFromRest = useCallback(async () => {
+    if (fallbackInFlightRef.current) return;
+    fallbackInFlightRef.current = true;
+    try {
+      const [snap, queues] = await Promise.all([api.getWorkshop(), api.listQueues()]);
+      mergeSnapshotAgents(setAgentPositions, setSnapshotNonce, snap);
+      if (Array.isArray(queues.agents)) {
+        setQueueAgents(queues.agents);
+        setQueuesNonce((n) => n + 1);
+      }
+    } finally {
+      fallbackInFlightRef.current = false;
+    }
   }, []);
+
+  useEffect(() => {
+    refreshFromRest().catch(() => {
+      // WS can still recover; the visible connection state is handled below.
+    });
+  }, [refreshFromRest]);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +83,7 @@ export function useWorkshopWS(): UseWorkshopWS {
       setError(msg);
       retryTimer = window.setTimeout(connect, retryMs);
       retryMs = Math.min(retryMs * 2, WORKER_SOCKET_MAX_RETRY_MS);
+      refreshFromRest().catch(() => undefined);
     };
 
     const connect = () => {
@@ -85,9 +96,11 @@ export function useWorkshopWS(): UseWorkshopWS {
       }
       wsRef.current = ws;
       ws.onopen = () => {
+        lastFrameAtRef.current = Date.now();
         setConnected(true);
         setError(null);
         retryMs = WORKER_SOCKET_INITIAL_RETRY_MS;
+        refreshFromRest().catch(() => undefined);
       };
       ws.onclose = () => {
         wsRef.current = null;
@@ -97,6 +110,7 @@ export function useWorkshopWS(): UseWorkshopWS {
         ws?.close();
       };
       ws.onmessage = (ev) => {
+        lastFrameAtRef.current = Date.now();
         let parsed: unknown;
         try {
           parsed = JSON.parse(ev.data);
@@ -107,11 +121,7 @@ export function useWorkshopWS(): UseWorkshopWS {
         const frame = parsed as Record<string, unknown>;
         if (frame.type === 'ping') return;
         if (frame.type === 'workshop') {
-          const snap = frame as unknown as WorkshopSnapshot;
-          if (snap.agents) {
-            setAgentPositions(snap.agents);
-            setSnapshotNonce((n) => n + 1);
-          }
+          mergeSnapshotAgents(setAgentPositions, setSnapshotNonce, frame as unknown as WorkshopSnapshot);
           return;
         }
         if (frame.type === 'queues') {
@@ -130,12 +140,26 @@ export function useWorkshopWS(): UseWorkshopWS {
       ws?.close();
       wsRef.current = null;
     };
-  }, []);
+  }, [refreshFromRest]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      const ws = wsRef.current;
+      const stale = lastFrameAtRef.current > 0 && now - lastFrameAtRef.current > REST_FALLBACK_INTERVAL_MS;
+      if (!connected || stale) {
+        refreshFromRest().catch(() => undefined);
+      }
+      if (ws && ws.readyState === WebSocket.OPEN && now - lastFrameAtRef.current > SOCKET_STALE_RECONNECT_MS) {
+        ws.close();
+      }
+    }, REST_FALLBACK_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [connected, refreshFromRest]);
 
   const sendAgentUpdate = useCallback((role: string, state: WorkshopAgentState) => {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      // Optimistically reflect locally so the next reconnect snapshot lines up.
       setAgentPositions((prev) => ({ ...prev, [role]: { ...prev[role], ...state } }));
       return;
     }
@@ -143,9 +167,9 @@ export function useWorkshopWS(): UseWorkshopWS {
       ws.send(JSON.stringify({ type: 'agentUpdate', role, state }));
       setAgentPositions((prev) => ({ ...prev, [role]: { ...prev[role], ...state } }));
     } catch {
-      // ignore — onclose will retry
+      refreshFromRest().catch(() => undefined);
     }
-  }, []);
+  }, [refreshFromRest]);
 
   return { agentPositions, queueAgents, connected, error, snapshotNonce, queuesNonce, sendAgentUpdate };
 }

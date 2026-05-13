@@ -41,8 +41,14 @@ async def stream_workshop(websocket: WebSocket) -> None:
 
     state: WorkshopState = websocket.app.state.workshop_state
 
-    # Send initial snapshot
-    await websocket.send_json(state.get_snapshot())
+    send_lock = asyncio.Lock()
+
+    async def _send_json(payload: dict) -> None:
+        async with send_lock:
+            await websocket.send_json(payload)
+
+    # Send initial snapshot.
+    await _send_json(state.get_snapshot())
 
     # Subscribe to watcher broadcast channel for AWG queue changes
     watcher = websocket.app.state.awg_watcher
@@ -60,6 +66,7 @@ async def stream_workshop(websocket: WebSocket) -> None:
                 if data.get("type") == "agentUpdate" and "role" in data:
                     agent_data = data.get("state", {})
                     state.update_agent(data["role"], agent_data)
+                    await _send_json(state.get_snapshot())
         except WebSocketDisconnect:
             pass
         except Exception:
@@ -71,10 +78,11 @@ async def stream_workshop(websocket: WebSocket) -> None:
             while True:
                 try:
                     payload = await asyncio.wait_for(queue.get(), timeout=PING_INTERVAL_SEC)
-                    # Forward queue data so the client knows about AWG state changes
-                    await websocket.send_json(payload)
+                    # Forward queue data so the client knows about AWG state changes.
+                    await _send_json(payload)
                 except asyncio.TimeoutError:
-                    await websocket.send_json({"type": "ping", "ts": time.time()})
+                    await _send_json(state.get_snapshot())
+                    await _send_json({"type": "ping", "ts": time.time()})
         except WebSocketDisconnect:
             pass
         except Exception:

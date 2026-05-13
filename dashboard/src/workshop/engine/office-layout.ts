@@ -12,17 +12,15 @@
  * spots are dynamic (chosen at runtime) and do not consume desk seats.
  */
 import {
+  CharacterState,
   Direction,
   TileType,
   type FurnitureInstance,
+  type OfficeActivityDestination,
   type OfficeLayout,
   type RoomZone,
   type Seat,
 } from './types';
-
-// ────────────────────────────────────────────────────────────────
-// Map dimensions and room partitioning
-// ────────────────────────────────────────────────────────────────
 
 const COLS = 40;
 const ROWS = 26;
@@ -51,10 +49,6 @@ const ROOM_ZONES: ReadonlyArray<RoomZone> = [
   { id: 'library',   label: 'Library',   minCol: 29, maxCol: 38, minRow: 14, maxRow: 24, floorVariant: 5 },
 ];
 
-// ────────────────────────────────────────────────────────────────
-// Furniture placement constants
-// ────────────────────────────────────────────────────────────────
-
 const DESK_WIDTH = 3;
 
 /** Top-row focus desks (chair south of desk, agent faces UP toward monitor).
@@ -72,10 +66,6 @@ const FOCUS_DESK_COLS = [2, 6, 10] as const;
  *  1-wide × 3-tall side-desk; the agent sits on its west side facing east. */
 const OPS_DESK_COL = 37;
 const OPS_DESK_TOP_ROWS = [2, 6, 10] as const;
-
-// ────────────────────────────────────────────────────────────────
-// Layout builder
-// ────────────────────────────────────────────────────────────────
 
 interface Builder {
   cols: number;
@@ -151,10 +141,6 @@ function addSeat(b: Builder, col: number, row: number, facing: Direction): void 
   });
   b.seatCounter += 1;
 }
-
-// ────────────────────────────────────────────────────────────────
-// Room builders
-// ────────────────────────────────────────────────────────────────
 
 /** Build a focus-room desk cluster facing UP (chair south of desk). */
 function addFocusTopDesk(b: Builder, leftCol: number): void {
@@ -282,8 +268,8 @@ function buildMeetingRoom(b: Builder): void {
   });
   addFurniture(b, {
     id: 'meeting-plant-1', kind: 'cactus', variant: 'front',
-    col: 26, row: 11, w: 1, h: 1, spriteOverhangRows: 1, blocking: false,
-  }, false);
+    col: 26, row: 11, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
 }
 
 /** Decorate the ops room (right column, top). Bookshelves on west wall. */
@@ -303,8 +289,8 @@ function buildOpsRoom(b: Builder): void {
   // Plant near the doorway.
   addFurniture(b, {
     id: 'ops-plant-0', kind: 'plant', variant: 'front',
-    col: 29, row: 5, w: 1, h: 1, spriteOverhangRows: 1, blocking: false,
-  }, false);
+    col: 29, row: 5, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
   // Small painting on the top wall.
   addFurniture(b, {
     id: 'ops-painting-0', kind: 'small_painting', variant: 'front',
@@ -337,8 +323,8 @@ function buildFocusRoom(b: Builder): void {
   // Cactus on the floor in the aisle near a desk.
   addFurniture(b, {
     id: 'focus-cactus-0', kind: 'cactus', variant: 'front',
-    col: 13, row: 7, w: 1, h: 1, spriteOverhangRows: 1, blocking: false,
-  }, false);
+    col: 13, row: 7, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
 }
 
 /** Decorate the reception room (bottom-left). Entry zone with desk + bench. */
@@ -386,8 +372,21 @@ function buildLoungeRoom(b: Builder): void {
   });
   // Coffee table in front.
   addFurniture(b, {
-    id: 'lounge-coffee', kind: 'coffee_table', variant: 'front',
+    id: 'lounge-coffee-table', kind: 'coffee_table', variant: 'front',
     col: 20, row: 20, w: 2, h: 1, blocking: true,
+  });
+  // Utility counter: coffee maker plus a small wash station for office errands.
+  addFurniture(b, {
+    id: 'lounge-coffee-maker', kind: 'coffee', variant: 'front',
+    col: 24, row: 19, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
+  addFurniture(b, {
+    id: 'lounge-wash-counter', kind: 'small_table', variant: 'front',
+    col: 24, row: 22, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
+  addFurniture(b, {
+    id: 'lounge-bin', kind: 'bin', variant: 'front',
+    col: 23, row: 22, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
   });
   // Reading nook on the left side of the lounge.
   addFurniture(b, {
@@ -401,12 +400,12 @@ function buildLoungeRoom(b: Builder): void {
   // Plants framing the lounge.
   addFurniture(b, {
     id: 'lounge-plant-0', kind: 'plant', variant: 'front',
-    col: 15, row: 14, w: 1, h: 1, spriteOverhangRows: 1, blocking: false,
-  }, false);
+    col: 15, row: 14, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
   addFurniture(b, {
     id: 'lounge-plant-1', kind: 'plant', variant: 'front',
-    col: 26, row: 14, w: 1, h: 1, spriteOverhangRows: 1, blocking: false,
-  }, false);
+    col: 26, row: 14, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
   addFurniture(b, {
     id: 'lounge-large-plant', kind: 'large_plant', variant: 'front',
     col: 26, row: 22, w: 2, h: 2, spriteOverhangRows: 1, blocking: true,
@@ -444,17 +443,13 @@ function buildLibraryRoom(b: Builder): void {
   // Cactus and plant for greenery.
   addFurniture(b, {
     id: 'lib-cactus-0', kind: 'cactus', variant: 'front',
-    col: 29, row: 22, w: 1, h: 1, spriteOverhangRows: 1, blocking: false,
-  }, false);
+    col: 29, row: 22, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
   addFurniture(b, {
     id: 'lib-painting-0', kind: 'small_painting', variant: 'front',
     col: 32, row: 14, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
   });
 }
-
-// ────────────────────────────────────────────────────────────────
-// Public API
-// ────────────────────────────────────────────────────────────────
 
 /**
  * Create the office layout. `minSeats` controls how many desk seats are
@@ -505,6 +500,7 @@ export function createLayout(_minSeats: number): OfficeLayout {
     seats: b.seats,
     blocked: b.blocked,
     rooms: [...ROOM_ZONES],
+    activities: officeActivities(b),
   };
 }
 
@@ -513,41 +509,76 @@ export interface MeetingSpot {
   row: number;
 }
 
+function isWalkable(layout: OfficeLayout, spot: MeetingSpot): boolean {
+  return (
+    spot.col > 0 &&
+    spot.col < layout.cols - 1 &&
+    spot.row > 0 &&
+    spot.row < layout.rows - 1 &&
+    !layout.blocked.has(`${spot.col},${spot.row}`) &&
+    layout.tiles[spot.row][spot.col] !== TileType.WALL &&
+    layout.tiles[spot.row][spot.col] !== TileType.VOID
+  );
+}
+
+function fallbackSpot(layout: OfficeLayout): MeetingSpot {
+  return { col: Math.floor(layout.cols / 2), row: Math.floor(layout.rows / 2) };
+}
+
 /** Returns a tile adjacent to the meeting table where an agent can stand. */
 export function meetingSpotFor(layout: OfficeLayout, index: number): MeetingSpot {
-  // Standing spots around table (3×1 at cols 19-21, row 6).
   const spots: MeetingSpot[] = [
     { col: 19, row: 7 }, { col: 20, row: 7 }, { col: 21, row: 7 },
     { col: 19, row: 5 }, { col: 20, row: 5 }, { col: 21, row: 5 },
     { col: 18, row: 6 }, { col: 22, row: 6 },
   ];
-  const ok = spots.filter((s) =>
-    s.col > 0 && s.col < layout.cols - 1 &&
-    s.row > 0 && s.row < layout.rows - 1 &&
-    !layout.blocked.has(`${s.col},${s.row}`) &&
-    layout.tiles[s.row][s.col] !== TileType.WALL,
-  );
-  if (ok.length === 0) return { col: Math.floor(layout.cols / 2), row: Math.floor(layout.rows / 2) };
+  const ok = spots.filter((spot) => isWalkable(layout, spot));
+  if (ok.length === 0) return fallbackSpot(layout);
   return ok[index % ok.length];
 }
 
-/** Returns a deterministic walkable wander target somewhere in the office.
- *  Wander candidates are sampled from every room so agents naturally drift
- *  between zones (focus → lounge → library, etc.). */
-export function wanderSpotFor(layout: OfficeLayout, seed: number): { col: number; row: number } {
+function officeActivities(layout: Pick<OfficeLayout, 'cols' | 'rows' | 'tiles' | 'blocked'>): OfficeActivityDestination[] {
+  const candidates: OfficeActivityDestination[] = [
+    { id: 'whiteboard-review', label: 'Review board', col: 20, row: 2, facingDir: Direction.UP, state: CharacterState.READ, durationSec: 3.8 },
+    { id: 'ops-console', label: 'Check console', col: 36, row: 3, facingDir: Direction.RIGHT, state: CharacterState.TYPE, durationSec: 3.5 },
+    { id: 'ops-file', label: 'File notes', col: 31, row: 11, facingDir: Direction.LEFT, state: CharacterState.READ, durationSec: 3.2 },
+    { id: 'front-desk', label: 'Sort mail', col: 12, row: 19, facingDir: Direction.LEFT, state: CharacterState.READ, durationSec: 3.0 },
+    { id: 'coffee-maker', label: 'Pour coffee', col: 24, row: 20, facingDir: Direction.UP, state: CharacterState.IDLE, durationSec: 2.8 },
+    { id: 'wash-station', label: 'Wash hands', col: 24, row: 23, facingDir: Direction.UP, state: CharacterState.IDLE, durationSec: 3.0 },
+    { id: 'library-reference', label: 'Find reference', col: 34, row: 17, facingDir: Direction.RIGHT, state: CharacterState.READ, durationSec: 4.0 },
+    { id: 'lounge-read', label: 'Read brief', col: 16, row: 19, facingDir: Direction.DOWN, state: CharacterState.READ, durationSec: 3.6 },
+  ];
+  return candidates.filter((activity) => isWalkable(layout as OfficeLayout, activity));
+}
+
+export function ambientErrandSpotFor(layout: OfficeLayout, index: number): MeetingSpot {
+  const activity = officeActivityFor(layout, index);
+  return activity ?? wanderSpotFor(layout, index);
+}
+
+export function officeActivityFor(layout: OfficeLayout, index: number): OfficeActivityDestination | null {
+  const ok = layout.activities.filter((activity) => isWalkable(layout, activity));
+  if (ok.length === 0) return null;
+  return ok[Math.abs(index) % ok.length];
+}
+
+/** Returns a deterministic walkable wander target, biased toward a room. */
+export function wanderSpotFor(layout: OfficeLayout, seed: number, preferredRoomId?: string): { col: number; row: number } {
+  const preferred = preferredRoomId ? layout.rooms.find((zone) => zone.id === preferredRoomId) : null;
+  const rooms = preferred ? [preferred] : layout.rooms;
   const candidates: Array<{ col: number; row: number }> = [];
-  for (const zone of layout.rooms) {
+  for (const zone of rooms) {
     for (let r = zone.minRow + 1; r <= zone.maxRow - 1; r++) {
       for (let c = zone.minCol + 1; c <= zone.maxCol - 1; c++) {
         if (layout.blocked.has(`${c},${r}`)) continue;
-        if (layout.tiles[r][c] !== TileType.FLOOR) continue;
+        if (layout.tiles[r][c] === TileType.WALL || layout.tiles[r][c] === TileType.VOID) continue;
         candidates.push({ col: c, row: r });
       }
     }
   }
+  if (candidates.length === 0 && preferredRoomId) return wanderSpotFor(layout, seed);
   if (candidates.length === 0) return { col: Math.floor(layout.cols / 2), row: Math.floor(layout.rows / 2) };
-  const idx = Math.abs(seed) % candidates.length;
-  return candidates[idx];
+  return candidates[Math.abs(seed) % candidates.length];
 }
 
 export const LAYOUT_TILE_COLS = COLS;
