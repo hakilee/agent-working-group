@@ -18,13 +18,13 @@ const ROWS = 34;
 const DESK_WIDTH = 3;
 
 const ROOM_ZONES: ReadonlyArray<RoomZone> = [
-  { id: 'north-workshop', label: 'Maker Lab', minCol: 1, maxCol: 18, minRow: 1, maxRow: 10, floorVariant: 5 },
+  { id: 'north-workshop', label: 'Maker Lab', minCol: 1, maxCol: 18, minRow: 1, maxRow: 10, floorVariant: 1 },
   { id: 'east-studio', label: 'Focus Studio', minCol: 33, maxCol: 50, minRow: 1, maxRow: 10, floorVariant: 2 },
   { id: 'west-open-office', label: 'Desk Room', minCol: 1, maxCol: 18, minRow: 12, maxRow: 22, floorVariant: 1 },
   { id: 'central-garden', label: 'Courtyard', minCol: 20, maxCol: 31, minRow: 10, maxRow: 22, floorVariant: 0 },
-  { id: 'meeting-lounge', label: 'Meeting Lounge', minCol: 33, maxCol: 50, minRow: 12, maxRow: 22, floorVariant: 0 },
-  { id: 'reception', label: 'Reception', minCol: 1, maxCol: 18, minRow: 24, maxRow: 32, floorVariant: 6 },
-  { id: 'south-spine', label: 'Tool Hall', minCol: 20, maxCol: 31, minRow: 24, maxRow: 32, floorVariant: 5 },
+  { id: 'meeting-lounge', label: 'Meeting Lounge', minCol: 33, maxCol: 50, minRow: 12, maxRow: 22, floorVariant: 6 },
+  { id: 'reception', label: 'Reception', minCol: 1, maxCol: 18, minRow: 24, maxRow: 32, floorVariant: 2 },
+  { id: 'south-spine', label: 'Tool Hall', minCol: 20, maxCol: 31, minRow: 24, maxRow: 32, floorVariant: 1 },
   { id: 'garden-cafe', label: 'Cafe Patio', minCol: 33, maxCol: 50, minRow: 24, maxRow: 32, floorVariant: 7 },
 ];
 
@@ -44,18 +44,16 @@ function isInsideRoom(zone: RoomZone, col: number, row: number): boolean {
 }
 
 function roomVariantAt(col: number, row: number): number {
+  // Keep the campus on a small Gather-like material set; props create room identity.
   if (col >= 20 && col <= 31 && row >= 10 && row <= 22) {
-    // Gather sheets avoid hard seams: plaza pavers buffer the lawn core.
-    const isStoneRing = col <= 23 || col >= 28 || row <= 13 || row >= 19;
-    return isStoneRing ? 8 : 4;
+    const isPathEdge = col <= 23 || col >= 28 || row <= 13 || row >= 19;
+    return isPathEdge ? 0 : 2;
   }
-  // A continuous paver spine ties doors together so rooms read like one campus.
-  if ((col >= 18 && col <= 33 && row >= 10 && row <= 13) || (col >= 18 && col <= 33 && row >= 22 && row <= 25)) return 8;
-  if ((col >= 23 && col <= 28 && row >= 1 && row <= 32) || (col >= 6 && col <= 45 && row >= 25 && row <= 27)) return 8;
-  if (col >= 34 && col <= 44 && row >= 14 && row <= 18) return 3;
+  if ((col >= 18 && col <= 33 && row >= 10 && row <= 13) || (col >= 18 && col <= 33 && row >= 22 && row <= 25)) return 0;
+  if ((col >= 23 && col <= 28 && row >= 1 && row <= 32) || (col >= 6 && col <= 45 && row >= 25 && row <= 27)) return 0;
   if ((col >= 36 && col <= 49 && row >= 26 && row <= 31) || (col >= 3 && col <= 16 && row >= 26 && row <= 30)) return 7;
-  if ((col >= 3 && col <= 16 && row >= 7 && row <= 8) || (col >= 36 && col <= 48 && row >= 7 && row <= 8)) return 5;
-  if ((col >= 2 && col <= 8 && row >= 28 && row <= 31) || (col >= 22 && col <= 29 && row >= 28 && row <= 31)) return 6;
+  if ((col >= 3 && col <= 16 && row >= 7 && row <= 8) || (col >= 36 && col <= 48 && row >= 7 && row <= 8)) return 1;
+  if ((col >= 2 && col <= 8 && row >= 28 && row <= 31) || (col >= 22 && col <= 29 && row >= 28 && row <= 31)) return 2;
   for (const zone of ROOM_ZONES) {
     if (isInsideRoom(zone, col, row)) return zone.floorVariant;
   }
@@ -149,10 +147,11 @@ function addCafeSet(b: Builder, id: string, col: number, row: number): void {
 function buildMakerLab(b: Builder): void {
   for (const col of [2, 7, 12]) addTopDesk(b, col, 5);
   addSideDesk(b, 17, 3, Direction.RIGHT);
-  addFurniture(b, { id: 'lab-status-wall', kind: 'status_wall', variant: 'front', col: 2, row: 1, w: 4, h: 1, spriteOverhangRows: 1, blocking: true });
-  addFurniture(b, { id: 'lab-pegboard-a', kind: 'small_painting', variant: 'front', col: 7, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'lab-status-wall', kind: 'wall_panel', variant: 'front', col: 2, row: 1, w: 4, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'lab-pegboard-a', kind: 'wall_panel', variant: 'front', col: 7, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
   addFurniture(b, { id: 'lab-parts-shelf', kind: 'parts_shelf', variant: 'front', col: 9, row: 1, w: 2, h: 2, blocking: true });
   addFurniture(b, { id: 'lab-tool-cabinet', kind: 'tool_cabinet', variant: 'front', col: 14, row: 1, w: 2, h: 2, blocking: true });
+  addFurniture(b, { id: 'lab-maker-bench', kind: 'maker_bench', variant: 'front', col: 7, row: 8, w: 3, h: 1, blocking: true });
   addFurniture(b, { id: 'lab-spool', kind: 'cable_spool', variant: 'front', col: 3, row: 9, w: 2, h: 1, blocking: true });
   addFurniture(b, { id: 'lab-barrel', kind: 'hazard_barrel', variant: 'front', col: 16, row: 9, w: 1, h: 1, blocking: true });
 }
@@ -161,8 +160,8 @@ function buildFocusStudio(b: Builder): void {
   for (const col of [35, 40, 45]) addTopDesk(b, col, 5);
   addSideDesk(b, 49, 3, Direction.LEFT);
   addFurniture(b, { id: 'focus-whiteboard', kind: 'whiteboard', variant: 'front', col: 34, row: 1, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
-  addFurniture(b, { id: 'focus-window-a', kind: 'large_painting', variant: 'front', col: 37, row: 1, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
-  addFurniture(b, { id: 'focus-queue-board', kind: 'queue_board', variant: 'front', col: 42, row: 1, w: 3, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'focus-window-a', kind: 'window_panel', variant: 'front', col: 37, row: 1, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'focus-queue-board', kind: 'wall_panel', variant: 'front', col: 42, row: 1, w: 3, h: 1, spriteOverhangRows: 1, blocking: true });
   addFurniture(b, { id: 'focus-bookshelf', kind: 'double_bookshelf', variant: 'front', col: 47, row: 8, w: 2, h: 2, blocking: true });
   addFurniture(b, { id: 'focus-plant', kind: 'large_plant', variant: 'front', col: 34, row: 8, w: 1, h: 2, spriteOverhangRows: 1, blocking: true });
 }
@@ -171,8 +170,8 @@ function buildDeskRoom(b: Builder): void {
   for (const col of [3, 8, 13]) addBottomDesk(b, col, 19);
   for (const row of [13, 18]) addSideDesk(b, 17, row, Direction.RIGHT);
   addFurniture(b, { id: 'deskroom-bookshelf', kind: 'bookshelf', variant: 'front', col: 2, row: 12, w: 1, h: 2, blocking: true });
-  addFurniture(b, { id: 'deskroom-window-a', kind: 'small_painting', variant: 'front', col: 8, row: 12, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
-  addFurniture(b, { id: 'deskroom-window-b', kind: 'small_painting', variant: 'front', col: 12, row: 12, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'deskroom-window-a', kind: 'window_panel', variant: 'front', col: 8, row: 12, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'deskroom-window-b', kind: 'window_panel', variant: 'front', col: 12, row: 12, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
   addFurniture(b, { id: 'deskroom-terminal', kind: 'review_terminal', variant: 'front', col: 4, row: 20, w: 2, h: 2, blocking: true });
   addFurniture(b, { id: 'deskroom-plant', kind: 'large_plant', variant: 'front', col: 14, row: 20, w: 2, h: 2, spriteOverhangRows: 1, blocking: true });
 }
@@ -181,7 +180,8 @@ function buildCourtyard(b: Builder): void {
   addFurniture(b, { id: 'central-garden-bed-north', kind: 'garden_bed', variant: 'front', col: 22, row: 11, w: 3, h: 1, blocking: true });
   addFurniture(b, { id: 'central-garden-bed-east', kind: 'garden_bed', variant: 'front', col: 28, row: 14, w: 3, h: 1, blocking: true });
   addFurniture(b, { id: 'central-garden-bed-south', kind: 'garden_bed', variant: 'front', col: 27, row: 20, w: 3, h: 1, blocking: true });
-  addFurniture(b, { id: 'central-fountain-tower', kind: 'fountain_tower', variant: 'front', col: 24, row: 15, w: 3, h: 3, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'central-planter-island', kind: 'plaza_planter', variant: 'front', col: 24, row: 15, w: 3, h: 2, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'central-social-table', kind: 'coffee_table', variant: 'front', col: 24, row: 18, w: 2, h: 1, blocking: true });
   addFurniture(b, { id: 'central-tree-west', kind: 'large_plant', variant: 'front', col: 21, row: 18, w: 2, h: 2, spriteOverhangRows: 1, blocking: true });
   addFurniture(b, { id: 'central-tree-east', kind: 'large_plant', variant: 'front', col: 29, row: 12, w: 1, h: 2, spriteOverhangRows: 1, blocking: true });
   addFurniture(b, { id: 'central-bench-west', kind: 'cushioned_bench', variant: 'front', col: 21, row: 14, w: 1, h: 1, blocking: true });
@@ -194,8 +194,8 @@ function buildGatherLounge(b: Builder): void {
   addFurniture(b, { id: 'meeting-table', kind: 'table', variant: 'front', col: tableCol, row: tableRow, w: 3, h: 1, blocking: true });
   pushBlocked(b, tableCol, tableRow - 1, 3, 1);
   addFurniture(b, { id: 'meeting-whiteboard', kind: 'whiteboard', variant: 'front', col: 36, row: 12, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
-  addFurniture(b, { id: 'meeting-window-a', kind: 'large_painting', variant: 'front', col: 39, row: 12, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
-  addFurniture(b, { id: 'meeting-queue-board', kind: 'queue_board', variant: 'front', col: 43, row: 12, w: 3, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'meeting-window-a', kind: 'window_panel', variant: 'front', col: 39, row: 12, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'meeting-queue-board', kind: 'wall_panel', variant: 'front', col: 43, row: 12, w: 3, h: 1, spriteOverhangRows: 1, blocking: true });
   addFurniture(b, { id: 'meeting-sofa-west', kind: 'sofa', variant: 'front', col: 34, row: 20, w: 2, h: 1, blocking: true });
   addFurniture(b, { id: 'meeting-sofa-east', kind: 'sofa', variant: 'front', col: 47, row: 20, w: 2, h: 1, blocking: true });
   addFurniture(b, { id: 'meeting-coffee-maker', kind: 'coffee', variant: 'front', col: 48, row: 18, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
@@ -207,9 +207,9 @@ function buildGatherLounge(b: Builder): void {
 
 function buildReceptionAndHall(b: Builder): void {
   addBottomDesk(b, 4, 29);
-  addFurniture(b, { id: 'reception-signage', kind: 'large_painting', variant: 'front', col: 5, row: 24, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
-  addFurniture(b, { id: 'reception-window-a', kind: 'small_painting', variant: 'front', col: 9, row: 24, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
-  addFurniture(b, { id: 'reception-window-b', kind: 'small_painting', variant: 'front', col: 13, row: 24, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'reception-signage', kind: 'window_panel', variant: 'front', col: 5, row: 24, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'reception-window-a', kind: 'window_panel', variant: 'front', col: 9, row: 24, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'reception-window-b', kind: 'window_panel', variant: 'front', col: 13, row: 24, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
   addFurniture(b, { id: 'reception-bench-0', kind: 'cushioned_bench', variant: 'front', col: 11, row: 29, w: 1, h: 1, blocking: true });
   addFurniture(b, { id: 'reception-bench-1', kind: 'cushioned_bench', variant: 'front', col: 13, row: 29, w: 1, h: 1, blocking: true });
   addFurniture(b, { id: 'reception-plant', kind: 'large_plant', variant: 'front', col: 2, row: 30, w: 2, h: 2, spriteOverhangRows: 1, blocking: true });
@@ -277,7 +277,6 @@ export function meetingSpotFor(layout: OfficeLayout, index: number): MeetingSpot
 
 function officeActivities(layout: Pick<OfficeLayout, 'cols' | 'rows' | 'tiles' | 'blocked'>): OfficeActivityDestination[] {
   const candidates: OfficeActivityDestination[] = [
-    { id: 'central-fountain', label: 'Visit fountain', col: 23, row: 16, facingDir: Direction.RIGHT, state: CharacterState.IDLE, durationSec: 3.4 },
     { id: 'central-garden-read', label: 'Read in garden', col: 28, row: 19, facingDir: Direction.DOWN, state: CharacterState.READ, durationSec: 3.8 },
     { id: 'terrace-coffee', label: 'Coffee outside', col: 47, row: 25, facingDir: Direction.RIGHT, state: CharacterState.COFFEE, durationSec: 3.0 },
     { id: 'terrace-table-chat', label: 'Cafe table', col: 38, row: 27, facingDir: Direction.LEFT, state: CharacterState.COFFEE, durationSec: 3.2 },

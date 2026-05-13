@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const WORKSHOP_ASSET_REV = 'gather-office-v3';
+const WORKSHOP_ASSET_REV = 'gather-office-v4';
 
 function assetUrl(path: string): string {
   return `${path}?v=${WORKSHOP_ASSET_REV}`;
@@ -58,10 +58,10 @@ function pixelTextureFromCanvas(canvas: HTMLCanvasElement): THREE.Texture {
   return tex;
 }
 
-function makeWorkshopPropTexture(kind: 'queue_board' | 'status_wall' | 'review_terminal' | 'garden_bed' | 'fountain_tower' | 'tool_cabinet' | 'parts_shelf' | 'cable_spool' | 'hazard_barrel'): THREE.Texture {
+function makeGatherPropTexture(kind: 'queue_board' | 'status_wall' | 'review_terminal' | 'window_panel' | 'wall_panel' | 'door_frame' | 'maker_bench' | 'plaza_planter' | 'garden_bed' | 'tool_cabinet' | 'parts_shelf' | 'cable_spool' | 'hazard_barrel'): THREE.Texture {
   const canvas = document.createElement('canvas');
-  canvas.width = kind === 'review_terminal' ? 32 : kind === 'fountain_tower' ? 48 : kind === 'tool_cabinet' || kind === 'parts_shelf' ? 32 : 48;
-  canvas.height = kind === 'review_terminal' ? 32 : kind === 'fountain_tower' ? 64 : kind === 'tool_cabinet' || kind === 'parts_shelf' ? 32 : 24;
+  canvas.width = kind === 'review_terminal' ? 32 : kind === 'tool_cabinet' || kind === 'parts_shelf' ? 32 : kind === 'window_panel' ? 32 : 48;
+  canvas.height = kind === 'review_terminal' ? 32 : kind === 'tool_cabinet' || kind === 'parts_shelf' ? 32 : kind === 'plaza_planter' ? 40 : 24;
   const ctx = canvas.getContext('2d');
   if (!ctx) return pixelTextureFromCanvas(canvas);
   ctx.imageSmoothingEnabled = false;
@@ -78,27 +78,79 @@ function makeWorkshopPropTexture(kind: 'queue_board' | 'status_wall' | 'review_t
     return pixelTextureFromCanvas(canvas);
   }
 
-  if (kind === 'fountain_tower') {
-    ctx.fillStyle = '#263644';
-    ctx.fillRect(6, 45, 36, 13);
-    ctx.fillStyle = '#5d7f93';
-    ctx.fillRect(8, 43, 32, 12);
-    ctx.fillStyle = '#a7d8dd';
-    ctx.fillRect(12, 45, 24, 5);
-    ctx.fillStyle = '#6c8797';
-    ctx.fillRect(18, 18, 12, 30);
-    ctx.fillRect(14, 30, 20, 8);
-    ctx.fillStyle = '#d8f3ee';
-    ctx.fillRect(21, 8, 6, 14);
-    ctx.fillRect(19, 22, 10, 3);
-    ctx.fillStyle = '#77c7d8';
-    ctx.fillRect(16, 27, 3, 19);
-    ctx.fillRect(29, 27, 3, 19);
-    ctx.fillRect(22, 24, 4, 24);
-    ctx.fillStyle = '#f5fbef';
-    ctx.fillRect(23, 3, 2, 5);
-    ctx.fillRect(20, 11, 2, 6);
-    ctx.fillRect(27, 11, 2, 6);
+  if (kind === 'plaza_planter') {
+    ctx.fillStyle = '#2a211d';
+    ctx.fillRect(4, 20, 40, 12);
+    ctx.fillStyle = '#73533a';
+    ctx.fillRect(6, 22, 36, 8);
+    ctx.fillStyle = '#2f6f4a';
+    for (let x = 8; x <= 38; x += 5) ctx.fillRect(x, 10 + ((x / 5) % 3), 4, 12);
+    ctx.fillStyle = '#88bf68';
+    for (let x = 11; x <= 36; x += 8) ctx.fillRect(x, 9, 3, 5);
+    ctx.fillStyle = '#d8b05f';
+    ctx.fillRect(19, 15, 2, 3);
+    ctx.fillRect(30, 13, 2, 3);
+    ctx.fillStyle = '#1e1816';
+    ctx.fillRect(7, 31, 34, 3);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'window_panel') {
+    ctx.fillStyle = '#485456';
+    ctx.fillRect(2, 4, 28, 18);
+    ctx.fillStyle = '#8db0b6';
+    ctx.fillRect(4, 6, 10, 13);
+    ctx.fillRect(18, 6, 8, 13);
+    ctx.fillStyle = '#d6e3df';
+    ctx.fillRect(5, 7, 8, 2);
+    ctx.fillRect(19, 7, 6, 2);
+    ctx.fillStyle = '#6f7f80';
+    ctx.fillRect(15, 5, 2, 16);
+    ctx.fillRect(4, 20, 24, 2);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'wall_panel') {
+    ctx.fillStyle = '#50433a';
+    ctx.fillRect(3, 4, 42, 18);
+    ctx.fillStyle = '#d0b46b';
+    ctx.fillRect(5, 6, 38, 14);
+    ctx.fillStyle = '#6f563a';
+    for (let x = 8; x < 40; x += 8) ctx.fillRect(x, 8, 2, 9);
+    ctx.fillStyle = '#2e5e4f';
+    ctx.fillRect(10, 9, 5, 3);
+    ctx.fillRect(24, 9, 9, 3);
+    ctx.fillStyle = '#b85d42';
+    ctx.fillRect(17, 14, 6, 3);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'door_frame') {
+    ctx.fillStyle = '#4e4038';
+    ctx.fillRect(6, 2, 36, 22);
+    ctx.fillStyle = '#88725b';
+    ctx.fillRect(10, 5, 28, 19);
+    ctx.fillStyle = '#2e2c2b';
+    ctx.fillRect(13, 8, 22, 16);
+    ctx.fillStyle = '#d0b46b';
+    ctx.fillRect(35, 15, 2, 2);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'maker_bench') {
+    ctx.fillStyle = '#241d1a';
+    ctx.fillRect(3, 8, 42, 14);
+    ctx.fillStyle = '#9a673e';
+    ctx.fillRect(5, 9, 38, 7);
+    ctx.fillStyle = '#5b3e2d';
+    ctx.fillRect(5, 17, 38, 3);
+    ctx.fillStyle = '#7aa2aa';
+    ctx.fillRect(10, 5, 9, 4);
+    ctx.fillStyle = '#c49a4b';
+    ctx.fillRect(25, 6, 10, 3);
+    ctx.fillStyle = '#241d1a';
+    ctx.fillRect(8, 21, 4, 3);
+    ctx.fillRect(36, 21, 4, 3);
     return pixelTextureFromCanvas(canvas);
   }
 
@@ -229,8 +281,12 @@ export interface ThreeSpriteManager {
     queueBoard: THREE.Texture | null;
     statusWall: THREE.Texture | null;
     reviewTerminal: THREE.Texture | null;
+    windowPanel: THREE.Texture | null;
+    wallPanel: THREE.Texture | null;
+    doorFrame: THREE.Texture | null;
+    makerBench: THREE.Texture | null;
+    plazaPlanter: THREE.Texture | null;
     gardenBed: THREE.Texture | null;
-    fountainTower: THREE.Texture | null;
     toolCabinet: THREE.Texture | null;
     partsShelf: THREE.Texture | null;
     cableSpool: THREE.Texture | null;
@@ -308,15 +364,19 @@ export async function loadThreeSprites(): Promise<ThreeSpriteManager> {
     (furniture as Record<string, THREE.Texture | null | (THREE.Texture | null)[]>)[key] = texture;
   }
   furniture.pcFrontOn = pcFrontOn;
-  furniture.queueBoard = makeWorkshopPropTexture('queue_board');
-  furniture.statusWall = makeWorkshopPropTexture('status_wall');
-  furniture.reviewTerminal = makeWorkshopPropTexture('review_terminal');
-  furniture.gardenBed = makeWorkshopPropTexture('garden_bed');
-  furniture.fountainTower = makeWorkshopPropTexture('fountain_tower');
-  furniture.toolCabinet = makeWorkshopPropTexture('tool_cabinet');
-  furniture.partsShelf = makeWorkshopPropTexture('parts_shelf');
-  furniture.cableSpool = makeWorkshopPropTexture('cable_spool');
-  furniture.hazardBarrel = makeWorkshopPropTexture('hazard_barrel');
+  furniture.queueBoard = makeGatherPropTexture('queue_board');
+  furniture.statusWall = makeGatherPropTexture('status_wall');
+  furniture.reviewTerminal = makeGatherPropTexture('review_terminal');
+  furniture.windowPanel = makeGatherPropTexture('window_panel');
+  furniture.wallPanel = makeGatherPropTexture('wall_panel');
+  furniture.doorFrame = makeGatherPropTexture('door_frame');
+  furniture.makerBench = makeGatherPropTexture('maker_bench');
+  furniture.plazaPlanter = makeGatherPropTexture('plaza_planter');
+  furniture.gardenBed = makeGatherPropTexture('garden_bed');
+  furniture.toolCabinet = makeGatherPropTexture('tool_cabinet');
+  furniture.partsShelf = makeGatherPropTexture('parts_shelf');
+  furniture.cableSpool = makeGatherPropTexture('cable_spool');
+  furniture.hazardBarrel = makeGatherPropTexture('hazard_barrel');
 
   return {
     characterImages: charImgs,

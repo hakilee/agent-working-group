@@ -45,9 +45,9 @@ def find_garden_zone(source: str) -> str:
     return match.group(0) if match else ""
 
 
-def find_fountain_block(source: str) -> str:
+def find_plaza_planter_block(source: str) -> str:
     pattern = re.compile(
-        r"addFurniture\(b, \{(?P<body>[^}]*?kind:\s*'fountain_tower'[^}]*?)\}\s*(?:,\s*false)?\);",
+        r"addFurniture\(b, \{(?P<body>[^}]*?kind:\s*'plaza_planter'[^}]*?)\}\s*(?:,\s*false)?\);",
         re.S,
     )
     match = pattern.search(source)
@@ -75,12 +75,12 @@ def main() -> int:
         "asset cache-bust revision must use a recognized Workshop cache-bust naming scheme",
         failures,
     )
-    require("'garden_bed'" in types and "'fountain_tower'" in types,
-            "garden/fountain furniture kinds must be typed", failures)
-    require("case 'garden_bed'" in renderer and "case 'fountain_tower'" in renderer,
-            "Three.js renderer must map garden/fountain furniture textures", failures)
-    require("makeWorkshopPropTexture('garden_bed')" in textures and "makeWorkshopPropTexture('fountain_tower')" in textures,
-            "garden/fountain procedural textures must be created", failures)
+    require("'garden_bed'" in types and "'plaza_planter'" in types and "'window_panel'" in types,
+            "Gather-style garden/window furniture kinds must be typed", failures)
+    require("case 'garden_bed'" in renderer and "case 'plaza_planter'" in renderer and "case 'window_panel'" in renderer,
+            "Three.js renderer must map Gather-style furniture textures", failures)
+    require("makeGatherPropTexture('garden_bed')" in textures and "makeGatherPropTexture('plaza_planter')" in textures and "makeGatherPropTexture('window_panel')" in textures,
+            "Gather-style procedural textures must be created", failures)
     require("CAMERA_ROOM_TOUR_ORDER" not in page and "CAMERA_TOUR_INTERVAL_MS" not in page,
             "Workshop camera must not auto-tour rooms while agents are idle", failures)
     require("const lead = chars.find((c) => c.role === 'lead')" in page,
@@ -88,24 +88,24 @@ def main() -> int:
 
     require(bool(find_garden_zone(source)),
             "layout must include a named central garden zone", failures)
-    require("id: 'meeting-lounge'" in source and "label: 'Meeting Lounge'" in source and "floorVariant: 0" in source,
-            "meeting lounge must use the shared plaza floor, not the garden grass tile", failures)
-    require("col >= 34 && col <= 44 && row >= 14 && row <= 18" in source and "return 3" in source,
-            "meeting lounge should use a local rug island instead of recoloring the whole room", failures)
-    require("const isStoneRing" in source and "return isStoneRing ? 8 : 4" in source,
-            "central garden must use a paver transition ring before grass", failures)
-    require("save_paver_variant(8" in (ROOT / "scripts" / "polish_workshop_sprite_details.py").read_text(encoding="utf-8"),
-            "floor variant 8 must be a dedicated paver transition tile", failures)
-    require("kind: 'fountain_tower'" in source,
-            "layout must include a fountain tower", failures)
+    require("id: 'meeting-lounge'" in source and "label: 'Meeting Lounge'" in source and "floorVariant: 6" in source,
+            "meeting lounge must use a cohesive Gather-like floor variant", failures)
+    require("return isPathEdge ? 0 : 2" in source,
+            "central courtyard must use subtle office tiles instead of noisy grass/fountain flooring", failures)
+    require("return isStoneRing ? 8 : 4" not in source,
+            "central courtyard must not keep the old grass-and-paver fountain treatment", failures)
+    require("kind: 'fountain_tower'" not in source and "central-fountain" not in source,
+            "central fountain must be removed from the Gather-style courtyard", failures)
     require(bool(re.search(r"kind:\s*'garden_bed'", source)),
             "layout must include at least one garden bed", failures)
+    require(bool(re.search(r"kind:\s*'window_panel'", source)),
+            "layout must use Gather-style repeated window panels", failures)
 
-    fountain = find_fountain_block(source)
-    require("w: 3" in fountain and "h: 3" in fountain,
-            "fountain tower must be a 3x3 visual anchor", failures)
-    require("blocking: true" in fountain,
-            "fountain tower must block pathfinding through its footprint", failures)
+    plaza_planter = find_plaza_planter_block(source)
+    require("w: 3" in plaza_planter and "h: 2" in plaza_planter,
+            "central courtyard must use a 3x2 planter island instead of a fountain", failures)
+    require("blocking: true" in plaza_planter,
+            "central planter island must block pathfinding through its footprint", failures)
 
     table = block_for_id(source, "meeting-table")
     require("blocking: true" in table, "meeting table must block its own footprint", failures)

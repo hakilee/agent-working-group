@@ -232,10 +232,18 @@ function pickFurnitureTexture(
       return { texture: fur.statusWall, flipX: false };
     case 'review_terminal':
       return { texture: fur.reviewTerminal, flipX: false };
+    case 'window_panel':
+      return { texture: fur.windowPanel, flipX: false };
+    case 'wall_panel':
+      return { texture: fur.wallPanel, flipX: false };
+    case 'door_frame':
+      return { texture: fur.doorFrame, flipX: false };
+    case 'maker_bench':
+      return { texture: fur.makerBench, flipX: false };
+    case 'plaza_planter':
+      return { texture: fur.plazaPlanter, flipX: false };
     case 'garden_bed':
       return { texture: fur.gardenBed, flipX: false };
-    case 'fountain_tower':
-      return { texture: fur.fountainTower, flipX: false };
     case 'tool_cabinet':
       return { texture: fur.toolCabinet, flipX: false };
     case 'parts_shelf':
