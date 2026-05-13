@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const WORKSHOP_ASSET_REV = 'office-garden-v7';
+const WORKSHOP_ASSET_REV = 'gather-office-v1';
 
 function assetUrl(path: string): string {
   return `${path}?v=${WORKSHOP_ASSET_REV}`;
@@ -58,10 +58,10 @@ function pixelTextureFromCanvas(canvas: HTMLCanvasElement): THREE.Texture {
   return tex;
 }
 
-function makeWorkshopPropTexture(kind: 'queue_board' | 'status_wall' | 'review_terminal' | 'garden_bed' | 'fountain_tower'): THREE.Texture {
+function makeWorkshopPropTexture(kind: 'queue_board' | 'status_wall' | 'review_terminal' | 'garden_bed' | 'fountain_tower' | 'tool_cabinet' | 'parts_shelf' | 'cable_spool' | 'hazard_barrel'): THREE.Texture {
   const canvas = document.createElement('canvas');
-  canvas.width = kind === 'review_terminal' ? 32 : kind === 'fountain_tower' ? 48 : 48;
-  canvas.height = kind === 'review_terminal' ? 32 : kind === 'fountain_tower' ? 64 : 24;
+  canvas.width = kind === 'review_terminal' ? 32 : kind === 'fountain_tower' ? 48 : kind === 'tool_cabinet' || kind === 'parts_shelf' ? 32 : 48;
+  canvas.height = kind === 'review_terminal' ? 32 : kind === 'fountain_tower' ? 64 : kind === 'tool_cabinet' || kind === 'parts_shelf' ? 32 : 24;
   const ctx = canvas.getContext('2d');
   if (!ctx) return pixelTextureFromCanvas(canvas);
   ctx.imageSmoothingEnabled = false;
@@ -99,6 +99,64 @@ function makeWorkshopPropTexture(kind: 'queue_board' | 'status_wall' | 'review_t
     ctx.fillRect(23, 3, 2, 5);
     ctx.fillRect(20, 11, 2, 6);
     ctx.fillRect(27, 11, 2, 6);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'tool_cabinet') {
+    ctx.fillStyle = '#1f2933';
+    ctx.fillRect(3, 6, 26, 22);
+    ctx.fillStyle = '#b95f3b';
+    ctx.fillRect(5, 8, 22, 18);
+    ctx.fillStyle = '#e0a45d';
+    for (let y = 11; y <= 21; y += 5) ctx.fillRect(7, y, 18, 1);
+    ctx.fillStyle = '#f2d38a';
+    ctx.fillRect(21, 10, 3, 2);
+    ctx.fillRect(21, 15, 3, 2);
+    ctx.fillRect(21, 20, 3, 2);
+    ctx.fillStyle = '#0f1720';
+    ctx.fillRect(5, 26, 22, 2);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'parts_shelf') {
+    ctx.fillStyle = '#1c2730';
+    ctx.fillRect(2, 4, 28, 24);
+    ctx.fillStyle = '#5b4a36';
+    ctx.fillRect(4, 6, 24, 20);
+    ctx.fillStyle = '#2c3e4a';
+    for (let y = 10; y <= 22; y += 6) ctx.fillRect(4, y, 24, 2);
+    ctx.fillStyle = '#d9a441';
+    ctx.fillRect(7, 7, 5, 3);
+    ctx.fillStyle = '#7fb069';
+    ctx.fillRect(14, 13, 5, 3);
+    ctx.fillStyle = '#8ecae6';
+    ctx.fillRect(21, 19, 5, 3);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'cable_spool') {
+    ctx.fillStyle = '#172029';
+    ctx.fillRect(11, 5, 26, 16);
+    ctx.fillStyle = '#8f5e32';
+    ctx.fillRect(8, 6, 6, 14);
+    ctx.fillRect(34, 6, 6, 14);
+    ctx.fillStyle = '#263746';
+    for (let x = 15; x < 34; x += 3) ctx.fillRect(x, 8, 2, 10);
+    ctx.fillStyle = '#6ec6df';
+    ctx.fillRect(17, 10, 14, 2);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'hazard_barrel') {
+    ctx.fillStyle = '#171b20';
+    ctx.fillRect(15, 4, 18, 18);
+    ctx.fillStyle = '#d8912d';
+    ctx.fillRect(16, 5, 16, 16);
+    ctx.fillStyle = '#1d242b';
+    ctx.fillRect(16, 9, 16, 2);
+    ctx.fillRect(16, 15, 16, 2);
+    ctx.fillStyle = '#f2c94c';
+    ctx.fillRect(19, 6, 4, 3);
     return pixelTextureFromCanvas(canvas);
   }
 
@@ -173,6 +231,10 @@ export interface ThreeSpriteManager {
     reviewTerminal: THREE.Texture | null;
     gardenBed: THREE.Texture | null;
     fountainTower: THREE.Texture | null;
+    toolCabinet: THREE.Texture | null;
+    partsShelf: THREE.Texture | null;
+    cableSpool: THREE.Texture | null;
+    hazardBarrel: THREE.Texture | null;
   };
   floor: (HTMLImageElement | null)[];
   wall: HTMLImageElement | null;
@@ -251,6 +313,10 @@ export async function loadThreeSprites(): Promise<ThreeSpriteManager> {
   furniture.reviewTerminal = makeWorkshopPropTexture('review_terminal');
   furniture.gardenBed = makeWorkshopPropTexture('garden_bed');
   furniture.fountainTower = makeWorkshopPropTexture('fountain_tower');
+  furniture.toolCabinet = makeWorkshopPropTexture('tool_cabinet');
+  furniture.partsShelf = makeWorkshopPropTexture('parts_shelf');
+  furniture.cableSpool = makeWorkshopPropTexture('cable_spool');
+  furniture.hazardBarrel = makeWorkshopPropTexture('hazard_barrel');
 
   return {
     characterImages: charImgs,

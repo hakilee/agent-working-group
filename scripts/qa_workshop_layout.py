@@ -71,8 +71,8 @@ def main() -> int:
     failures: list[str] = []
 
     require(
-        re.search(r"WORKSHOP_ASSET_REV\s*=\s*'office-garden-v(\d+)'", textures) is not None,
-        "asset cache-bust revision must use the office-garden-vN naming",
+        re.search(r"WORKSHOP_ASSET_REV\s*=\s*'(?:office-garden-v\d+|gather-office-v\d+)'", textures) is not None,
+        "asset cache-bust revision must use a recognized Workshop cache-bust naming scheme",
         failures,
     )
     require("'garden_bed'" in types and "'fountain_tower'" in types,
@@ -90,7 +90,7 @@ def main() -> int:
             "layout must include a named central garden zone", failures)
     require("id: 'meeting-lounge'" in source and "label: 'Meeting Lounge'" in source and "floorVariant: 0" in source,
             "meeting lounge must use the shared plaza floor, not the garden grass tile", failures)
-    require("col >= 38 && col <= 43 && row >= 14 && row <= 17" in source and "return 3" in source,
+    require("col >= 34 && col <= 44 && row >= 14 && row <= 18" in source and "return 3" in source,
             "meeting lounge should use a local rug island instead of recoloring the whole room", failures)
     require("const isStoneRing" in source and "return isStoneRing ? 8 : 4" in source,
             "central garden must use a paver transition ring before grass", failures)

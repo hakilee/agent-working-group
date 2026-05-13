@@ -53,7 +53,11 @@ export type FurnitureKind =
   | 'status_wall'
   | 'review_terminal'
   | 'garden_bed'
-  | 'fountain_tower';
+  | 'fountain_tower'
+  | 'tool_cabinet'
+  | 'parts_shelf'
+  | 'cable_spool'
+  | 'hazard_barrel';
 export type FurnitureVariant = 'front' | 'back' | 'side' | 'side-mirror';
 
 export interface FurnitureInstance {

@@ -236,6 +236,14 @@ function pickFurnitureTexture(
       return { texture: fur.gardenBed, flipX: false };
     case 'fountain_tower':
       return { texture: fur.fountainTower, flipX: false };
+    case 'tool_cabinet':
+      return { texture: fur.toolCabinet, flipX: false };
+    case 'parts_shelf':
+      return { texture: fur.partsShelf, flipX: false };
+    case 'cable_spool':
+      return { texture: fur.cableSpool, flipX: false };
+    case 'hazard_barrel':
+      return { texture: fur.hazardBarrel, flipX: false };
     default:
       return { texture: null, flipX: false };
   }
