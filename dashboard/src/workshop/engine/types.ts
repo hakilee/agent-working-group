@@ -45,7 +45,10 @@ export type FurnitureKind =
   | 'small_table'
   | 'clock'
   | 'small_painting'
-  | 'large_painting';
+  | 'large_painting'
+  | 'queue_board'
+  | 'status_wall'
+  | 'review_terminal';
 export type FurnitureVariant = 'front' | 'back' | 'side' | 'side-mirror';
 
 export interface FurnitureInstance {

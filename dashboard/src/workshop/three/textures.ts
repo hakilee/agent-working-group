@@ -39,6 +39,56 @@ export function pixelTextureFromImage(img: HTMLImageElement | null): THREE.Textu
   return tex;
 }
 
+function pixelTextureFromCanvas(canvas: HTMLCanvasElement): THREE.Texture {
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.premultiplyAlpha = false;
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function makeWorkshopPropTexture(kind: 'queue_board' | 'status_wall' | 'review_terminal'): THREE.Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = kind === 'review_terminal' ? 32 : 48;
+  canvas.height = kind === 'review_terminal' ? 32 : 24;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return pixelTextureFromCanvas(canvas);
+  ctx.imageSmoothingEnabled = false;
+
+  const frame = kind === 'review_terminal' ? '#34465f' : '#5a3b24';
+  const face = kind === 'status_wall' ? '#14372f' : kind === 'queue_board' ? '#1f2b45' : '#0b1826';
+  ctx.fillStyle = frame;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = face;
+  ctx.fillRect(2, 2, canvas.width - 4, canvas.height - 4);
+  ctx.fillStyle = kind === 'status_wall' ? '#54d48a' : '#ffd166';
+  const rows = kind === 'review_terminal' ? 3 : 4;
+  for (let i = 0; i < rows; i++) {
+    const y = 5 + i * 5;
+    ctx.fillRect(5, y, Math.max(5, canvas.width - 12 - i * 4), 2);
+  }
+  if (kind === 'queue_board') {
+    ctx.fillStyle = '#ef476f';
+    ctx.fillRect(canvas.width - 8, 5, 3, 3);
+    ctx.fillStyle = '#06d6a0';
+    ctx.fillRect(canvas.width - 8, 11, 3, 3);
+  } else if (kind === 'status_wall') {
+    ctx.fillStyle = '#8ecae6';
+    ctx.fillRect(canvas.width - 11, canvas.height - 8, 6, 3);
+  } else {
+    ctx.fillStyle = '#8ecae6';
+    ctx.fillRect(6, canvas.height - 7, canvas.width - 12, 2);
+    ctx.fillStyle = '#ffb703';
+    ctx.fillRect(8, 8, 3, 3);
+  }
+  return pixelTextureFromCanvas(canvas);
+}
+
 export interface ThreeSpriteManager {
   /** Per character palette: source image (or null) for UV-based sheet animation. */
   characterImages: (HTMLImageElement | null)[];
@@ -76,6 +126,9 @@ export interface ThreeSpriteManager {
     clock: THREE.Texture | null;
     smallPainting: THREE.Texture | null;
     largePainting: THREE.Texture | null;
+    queueBoard: THREE.Texture | null;
+    statusWall: THREE.Texture | null;
+    reviewTerminal: THREE.Texture | null;
   };
   floor: (HTMLImageElement | null)[];
   wall: HTMLImageElement | null;
@@ -149,6 +202,9 @@ export async function loadThreeSprites(): Promise<ThreeSpriteManager> {
     (furniture as Record<string, THREE.Texture | null | (THREE.Texture | null)[]>)[key] = texture;
   }
   furniture.pcFrontOn = pcFrontOn;
+  furniture.queueBoard = makeWorkshopPropTexture('queue_board');
+  furniture.statusWall = makeWorkshopPropTexture('status_wall');
+  furniture.reviewTerminal = makeWorkshopPropTexture('review_terminal');
 
   return {
     characterImages: charImgs,

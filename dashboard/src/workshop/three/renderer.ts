@@ -170,6 +170,12 @@ function pickFurnitureTexture(
       return { texture: fur.smallPainting, flipX: false };
     case 'large_painting':
       return { texture: fur.largePainting, flipX: false };
+    case 'queue_board':
+      return { texture: fur.queueBoard, flipX: false };
+    case 'status_wall':
+      return { texture: fur.statusWall, flipX: false };
+    case 'review_terminal':
+      return { texture: fur.reviewTerminal, flipX: false };
     default:
       return { texture: null, flipX: false };
   }

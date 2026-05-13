@@ -87,6 +87,43 @@ function drawFloorTile(
   }
 }
 
+function drawWorkshopPropFallback(
+  ctx: CanvasRenderingContext2D,
+  f: FurnitureInstance,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+): boolean {
+  if (f.kind !== 'queue_board' && f.kind !== 'status_wall' && f.kind !== 'review_terminal') return false;
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  const frame = f.kind === 'review_terminal' ? '#34465f' : '#5a3b24';
+  const face = f.kind === 'status_wall' ? '#14372f' : f.kind === 'queue_board' ? '#1f2b45' : '#0b1826';
+  ctx.fillStyle = frame;
+  ctx.fillRect(dx, dy, dw, dh);
+  ctx.fillStyle = face;
+  ctx.fillRect(dx + 2, dy + 2, Math.max(0, dw - 4), Math.max(0, dh - 4));
+  ctx.fillStyle = f.kind === 'status_wall' ? '#54d48a' : '#ffd166';
+  const rows = f.kind === 'review_terminal' ? 3 : 4;
+  for (let i = 0; i < rows; i++) {
+    const y = dy + 5 + i * 5;
+    ctx.fillRect(dx + 5, y, Math.max(4, dw - 12 - i * 3), 2);
+  }
+  if (f.kind === 'queue_board') {
+    ctx.fillStyle = '#ef476f';
+    ctx.fillRect(dx + dw - 8, dy + 5, 3, 3);
+    ctx.fillStyle = '#06d6a0';
+    ctx.fillRect(dx + dw - 8, dy + 11, 3, 3);
+  }
+  if (f.kind === 'review_terminal') {
+    ctx.fillStyle = '#8ecae6';
+    ctx.fillRect(dx + 6, dy + dh - 7, dw - 12, 2);
+  }
+  ctx.restore();
+  return true;
+}
+
 function drawFurnitureSprite(
   ctx: CanvasRenderingContext2D,
   f: FurnitureInstance,
@@ -176,6 +213,9 @@ function drawFurnitureSprite(
     case 'large_painting':
       img = sprites.furniture.largePainting;
       break;
+  }
+  if (!img && drawWorkshopPropFallback(ctx, f, dx, dy, dw, dh)) {
+    return;
   }
   if (img) {
     if (flipX) {

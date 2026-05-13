@@ -242,6 +242,10 @@ function buildMeetingRoom(b: Builder): void {
     id: 'meeting-whiteboard', kind: 'whiteboard', variant: 'front',
     col: 19, row: 1, w: 2, h: 1, spriteOverhangRows: 1, blocking: true,
   });
+  addFurniture(b, {
+    id: 'meeting-queue-board', kind: 'queue_board', variant: 'front',
+    col: 21, row: 1, w: 3, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
   // Clock and paintings flanking the whiteboard.
   addFurniture(b, {
     id: 'meeting-clock', kind: 'clock', variant: 'front',
@@ -295,6 +299,10 @@ function buildOpsRoom(b: Builder): void {
     id: 'ops-painting-0', kind: 'small_painting', variant: 'front',
     col: 33, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
   });
+  addFurniture(b, {
+    id: 'ops-status-wall', kind: 'status_wall', variant: 'front',
+    col: 34, row: 1, w: 3, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
 }
 
 /** Decorate the focus room: 6 desk seats (3 top + 3 bottom), plus wall art. */
@@ -309,6 +317,10 @@ function buildFocusRoom(b: Builder): void {
   addFurniture(b, {
     id: 'focus-painting-1', kind: 'small_painting', variant: 'front',
     col: 9, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
+  });
+  addFurniture(b, {
+    id: 'focus-review-terminal', kind: 'review_terminal', variant: 'front',
+    col: 11, row: 7, w: 2, h: 2, blocking: true,
   });
   // Hanging plants in the corners.
   addFurniture(b, {

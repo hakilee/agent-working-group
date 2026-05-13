@@ -345,6 +345,9 @@ export function updateCharacter(c: EngineCharacter, dt: number, ctx: UpdateConte
       rerouteOrYield(c, ctx);
       return;
     }
+    const fromCol = c.tileCol;
+    const fromRow = c.tileRow;
+    c.dir = dirFromDelta(next.col - fromCol, next.row - fromRow);
     if (reducedMotion) {
       c.tileCol = next.col;
       c.tileRow = next.row;
@@ -354,12 +357,9 @@ export function updateCharacter(c: EngineCharacter, dt: number, ctx: UpdateConte
       c.moveProgress = 0;
     } else {
       c.moveProgress += dt * WALK_SPEED_TILES_PER_SEC;
-      const fromCol = c.tileCol;
-      const fromRow = c.tileRow;
       const t = Math.min(c.moveProgress, 1);
       c.x = (fromCol + (next.col - fromCol) * t) * TILE_SIZE;
       c.y = ((fromRow + (next.row - fromRow) * t) - 1) * TILE_SIZE;
-      c.dir = dirFromDelta(next.col - fromCol, next.row - fromRow);
       if (c.moveProgress >= 1) {
         c.tileCol = next.col;
         c.tileRow = next.row;
