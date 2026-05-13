@@ -220,10 +220,9 @@ def polish_character_sheet(path: Path) -> None:
     sheet = Image.new("RGBA", (FRAME_W * CHAR_FRAMES_PER_DIR, FRAME_H * 3), TRANSPARENT)
     # Preserve the original seven frames from the current/upstream sheet.
     sheet.alpha_composite(source.crop((0, 0, FRAME_W * SOURCE_FRAMES_PER_DIR, FRAME_H * 3)), (0, 0))
-    for frame_index in range(SOURCE_FRAMES_PER_DIR):
-        box = (frame_index * FRAME_W, SIDE_ROW_Y, (frame_index + 1) * FRAME_W, SIDE_ROW_Y + FRAME_H)
-        src = sheet.crop(box)
-        sheet.paste(draw_side_frame(src, pal, frame_index), box)
+    # Preserve upstream side-walk frames. They already match the front/back
+    # character identity better than a generated profile pass. Only add action
+    # overlays on top of matching upstream frames.
     for frame_index in (3, 4):
         sx = frame_index * FRAME_W
         for row in (0, 1):
@@ -235,7 +234,7 @@ def polish_character_sheet(path: Path) -> None:
             base = sheet.crop((0, row * FRAME_H, FRAME_W, (row + 1) * FRAME_H))
             sheet.paste(draw_front_action_frame(base, pal, frame_index, row), (sx, row * FRAME_H))
         side_base = sheet.crop((0, SIDE_ROW_Y, FRAME_W, SIDE_ROW_Y + FRAME_H))
-        sheet.paste(draw_side_frame(side_base, pal, frame_index), (sx, SIDE_ROW_Y))
+        sheet.paste(draw_front_action_frame(side_base, pal, frame_index, 2), (sx, SIDE_ROW_Y))
     sheet.save(path)
 
 
