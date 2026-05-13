@@ -273,6 +273,22 @@ function startWander(c: EngineCharacter, ctx: UpdateContext): void {
 }
 
 /**
+ * Instantly snap a character to a tile, clearing any active path. Used to
+ * reconcile with server-side positions on (re)connect.
+ */
+export function teleportTo(c: EngineCharacter, col: number, row: number): void {
+  c.tileCol = col;
+  c.tileRow = row;
+  c.x = col * TILE_SIZE;
+  c.y = (row - 1) * TILE_SIZE;
+  c.path = [];
+  c.moveProgress = 0;
+  c.state = CharacterState.IDLE;
+  c.frame = 0;
+  c.frameTimer = 0;
+}
+
+/**
  * Assign seats to characters based on their roles. Stable mapping: the same role
  * always gets the same seat across rebuilds (sorted by role name).
  */

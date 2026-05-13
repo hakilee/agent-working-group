@@ -9,6 +9,7 @@ export function startGameLoop(
 ): () => void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return () => {};
+  // Canvas dimensions are managed by the caller (ResizeObserver in React effect).
   ctx.imageSmoothingEnabled = false;
 
   let last = performance.now();

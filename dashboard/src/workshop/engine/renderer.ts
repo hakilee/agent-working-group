@@ -8,12 +8,14 @@ import {
   type SpriteManager,
 } from './types';
 import { spriteFrameIndex } from './sprites';
+import type { Camera } from './camera';
 
 export interface RenderOptions {
   layout: OfficeLayout;
   characters: EngineCharacter[];
   sprites: SpriteManager;
   darkMode: boolean;
+  camera: Camera;
 }
 
 interface Drawable {
@@ -270,13 +272,26 @@ function drawStateBubble(
 }
 
 export function render(ctx: CanvasRenderingContext2D, opts: RenderOptions): void {
-  const { layout, characters, sprites, darkMode } = opts;
+  const { layout, characters, sprites, darkMode, camera } = opts;
   const W = layout.cols * TILE_SIZE;
   const H = layout.rows * TILE_SIZE;
+  const canvas = ctx.canvas;
+  const canvasW = canvas.width;
+  const canvasH = canvas.height;
 
-  // Clear
+  // Clear full canvas in screen space (camera may not cover everything).
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = darkMode ? '#0e1411' : '#f3f0e8';
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, canvasW, canvasH);
+  ctx.restore();
+
+  // Camera → screen transform.
+  const scaleX = canvasW / camera.width;
+  const scaleY = canvasH / camera.height;
+  ctx.save();
+  ctx.setTransform(scaleX, 0, 0, scaleY, -camera.x * scaleX, -camera.y * scaleY);
+  ctx.imageSmoothingEnabled = false;
 
   // Floor tiles
   for (let r = 0; r < layout.rows; r++) {
@@ -321,10 +336,15 @@ export function render(ctx: CanvasRenderingContext2D, opts: RenderOptions): void
     drawStateBubble(ctx, c);
   }
 
-  // Subtle scanline overlay for retro vibe.
+  ctx.restore();
+
+  // Subtle scanline overlay in screen space, after camera transform is reset.
+  void W;
+  void H;
   ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 0.05;
   ctx.fillStyle = '#000';
-  for (let y = 0; y < H; y += 2) ctx.fillRect(0, y, W, 1);
+  for (let y = 0; y < canvasH; y += 2) ctx.fillRect(0, y, canvasW, 1);
   ctx.restore();
 }
