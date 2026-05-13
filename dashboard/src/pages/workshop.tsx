@@ -104,7 +104,9 @@ export default function Workshop() {
 
     const existing = new Map(charactersRef.current.map((c) => [c.role, c]));
     const next: EngineCharacter[] = [];
+    const activeRoles = new Set<string>();
     for (const room of rooms) {
+      activeRoles.add(room.role);
       const found = existing.get(room.role);
       if (found) {
         applyRoomState(found, room);
@@ -118,6 +120,11 @@ export default function Workshop() {
         next.push(createCharacter(room, palCount, { col: spawnCol, row: spawnRow }));
       }
     }
+    // Drop tracking entries for agents that no longer exist so the map can't
+    // grow unbounded across long-lived sessions.
+    for (const role of arrivedAtRef.current.keys()) {
+      if (!activeRoles.has(role)) arrivedAtRef.current.delete(role);
+    }
     charactersRef.current = next;
     setCharacters(next);
     if (layoutRef.current) {
@@ -125,12 +132,15 @@ export default function Workshop() {
     }
   }, [rooms, sprites]);
 
-  // On WS (re)connect: snap characters to authoritative server positions when
-  // they differ from current local tiles.
+  // On authoritative snapshot arrival (initial REST, first WS frame, or any
+  // subsequent server-pushed snapshot): snap characters to server positions.
+  // Reads from agentPositionsRef so this does NOT fire on local optimistic
+  // updates, which would risk teleporting mid-walk.
   useEffect(() => {
-    if (ws.reconnectNonce === 0) return;
+    if (ws.snapshotNonce === 0) return;
+    const positions = agentPositionsRef.current;
     for (const c of charactersRef.current) {
-      const stored = ws.agentPositions[c.role];
+      const stored = positions[c.role];
       if (!stored) continue;
       const tc = typeof stored.tileCol === 'number' ? stored.tileCol : null;
       const tr = typeof stored.tileRow === 'number' ? stored.tileRow : null;
@@ -139,7 +149,7 @@ export default function Workshop() {
         teleportTo(c, tc, tr);
       }
     }
-  }, [ws.reconnectNonce, ws.agentPositions]);
+  }, [ws.snapshotNonce]);
 
   useEffect(() => {
     if (!sprites) return;

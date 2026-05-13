@@ -10,7 +10,7 @@ import time
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request
 
-from ..services.workshop_state import WorkshopState
+from services.workshop_state import WorkshopState
 
 logger = logging.getLogger(__name__)
 

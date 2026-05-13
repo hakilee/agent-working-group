@@ -273,8 +273,6 @@ function drawStateBubble(
 
 export function render(ctx: CanvasRenderingContext2D, opts: RenderOptions): void {
   const { layout, characters, sprites, darkMode, camera } = opts;
-  const W = layout.cols * TILE_SIZE;
-  const H = layout.rows * TILE_SIZE;
   const canvas = ctx.canvas;
   const canvasW = canvas.width;
   const canvasH = canvas.height;
@@ -339,8 +337,6 @@ export function render(ctx: CanvasRenderingContext2D, opts: RenderOptions): void
   ctx.restore();
 
   // Subtle scanline overlay in screen space, after camera transform is reset.
-  void W;
-  void H;
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 0.05;

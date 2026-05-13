@@ -13,7 +13,11 @@ export interface UseWorkshopWS {
   queueAgents: AgentSummary[];
   connected: boolean;
   error: string | null;
-  reconnectNonce: number;
+  /** Increments each time an authoritative workshop snapshot arrives (initial
+   *  load via REST, initial WS frame, and any subsequent WS-pushed snapshot).
+   *  Consumers use this to reconcile to server positions without firing on
+   *  every local optimistic update. */
+  snapshotNonce: number;
   sendAgentUpdate: (role: string, state: WorkshopAgentState) => void;
 }
 
@@ -27,7 +31,7 @@ export function useWorkshopWS(): UseWorkshopWS {
   const [queueAgents, setQueueAgents] = useState<AgentSummary[]>([]);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reconnectNonce, setReconnectNonce] = useState(0);
+  const [snapshotNonce, setSnapshotNonce] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
 
   // Initial REST fetch for positions as a fallback when WS is slow.
@@ -37,7 +41,10 @@ export function useWorkshopWS(): UseWorkshopWS {
       .getWorkshop()
       .then((snap) => {
         if (cancelled) return;
-        if (snap?.agents) setAgentPositions((prev) => ({ ...snap.agents, ...prev }));
+        if (snap?.agents) {
+          setAgentPositions((prev) => ({ ...snap.agents, ...prev }));
+          setSnapshotNonce((n) => n + 1);
+        }
       })
       .catch(() => {
         // WS will deliver an initial snapshot; ignore REST failure.
@@ -75,7 +82,6 @@ export function useWorkshopWS(): UseWorkshopWS {
         setConnected(true);
         setError(null);
         retryMs = WORKER_SOCKET_INITIAL_RETRY_MS;
-        setReconnectNonce((n) => n + 1);
       };
       ws.onclose = () => {
         wsRef.current = null;
@@ -96,7 +102,10 @@ export function useWorkshopWS(): UseWorkshopWS {
         if (frame.type === 'ping') return;
         if (frame.type === 'workshop') {
           const snap = frame as unknown as WorkshopSnapshot;
-          if (snap.agents) setAgentPositions(snap.agents);
+          if (snap.agents) {
+            setAgentPositions(snap.agents);
+            setSnapshotNonce((n) => n + 1);
+          }
           return;
         }
         if (frame.type === 'queues') {
@@ -131,5 +140,5 @@ export function useWorkshopWS(): UseWorkshopWS {
     }
   }, []);
 
-  return { agentPositions, queueAgents, connected, error, reconnectNonce, sendAgentUpdate };
+  return { agentPositions, queueAgents, connected, error, snapshotNonce, sendAgentUpdate };
 }

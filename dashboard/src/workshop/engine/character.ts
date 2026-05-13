@@ -286,6 +286,8 @@ export function teleportTo(c: EngineCharacter, col: number, row: number): void {
   c.state = CharacterState.IDLE;
   c.frame = 0;
   c.frameTimer = 0;
+  // Avoid immediately triggering a new wander/seek the next tick.
+  c.wanderTimer = pickWanderDelay();
 }
 
 /**

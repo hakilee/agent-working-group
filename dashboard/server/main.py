@@ -20,11 +20,13 @@ from fastapi.staticfiles import StaticFiles
 from services.awg_reader import AwgReader, default_root
 from services.awg_watcher import AwgWatcher
 from services.tmux_monitor import PollingTmuxMonitor
+from services.workshop_state import WorkshopState
 from routers import liveness as liveness_router
 from routers import queue as queue_router
 from routers import queues as queues_router
 from routers import status as status_router
 from routers import workers as workers_router
+from routers import workshop as workshop_router
 from routers import ws as ws_router
 
 
@@ -107,12 +109,14 @@ def create_app() -> FastAPI:
     app.state.awg_reader = reader
     app.state.tmux_monitor = PollingTmuxMonitor()
     app.state.awg_watcher = AwgWatcher(reader)
+    app.state.workshop_state = WorkshopState(reader.root)
 
     app.include_router(status_router.router)
     app.include_router(queue_router.router)
     app.include_router(queues_router.router)
     app.include_router(workers_router.router)
     app.include_router(liveness_router.router)
+    app.include_router(workshop_router.router)
     app.include_router(ws_router.router)
 
     @app.get("/api/health")
