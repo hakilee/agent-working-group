@@ -38,19 +38,9 @@ const MAP_PIXEL_H = LAYOUT_TILE_ROWS * TILE_SIZE;
 const POSITION_UPDATE_THROTTLE_MS = 400;
 const ENGINE_READY_TIMEOUT_MS = 1500;
 const STAGE_HEIGHT_CSS = 'min(70vh, 640px)';
-const CAMERA_TOUR_INTERVAL_MS = 9000;
-const CAMERA_LERP_PER_SEC = 1.8;
-const CAMERA_SNAP_THRESHOLD_PX = 0.4;
-const CAMERA_TARGET_DEADZONE_PX = 2;
-const CAMERA_ROOM_TOUR_ORDER = [
-  'central-garden',
-  'north-workshop',
-  'east-studio',
-  'meeting-lounge',
-  'garden-cafe',
-  'reception',
-  'west-open-office',
-] as const;
+const CAMERA_LERP_PER_SEC = 4.2;
+const CAMERA_SNAP_THRESHOLD_PX = 0.35;
+const CAMERA_TARGET_DEADZONE_PX = 0.75;
 
 function detectDarkMode(): boolean {
   if (typeof document === 'undefined') return false;
@@ -450,14 +440,15 @@ export default function Workshop() {
       setLayout(layoutRef.current);
     }
 
+    const characterCenter = (c: EngineCharacter): { x: number; y: number } => ({ x: c.x + 8, y: c.y + 16 });
+
     const characterBoundsCenter = (chars: EngineCharacter[]): { x: number; y: number } => {
       let minX = Number.POSITIVE_INFINITY;
       let maxX = Number.NEGATIVE_INFINITY;
       let minY = Number.POSITIVE_INFINITY;
       let maxY = Number.NEGATIVE_INFINITY;
       for (const c of chars) {
-        const x = c.x + 8;
-        const y = c.y + 16;
+        const { x, y } = characterCenter(c);
         minX = Math.min(minX, x);
         maxX = Math.max(maxX, x);
         minY = Math.min(minY, y);
@@ -466,28 +457,17 @@ export default function Workshop() {
       return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
     };
 
-    const computeCameraTarget = (nowMs = performance.now()): { x: number; y: number } => {
+    const computeCameraTarget = (): { x: number; y: number } => {
       const chars = charactersRef.current;
-      const layout = layoutRef.current;
-      if (chars.length === 0) return { x: MAP_PIXEL_W / 2, y: MAP_PIXEL_H / 2 };
+      if (chars.length === 0) return { x: TILE_SIZE * 7, y: TILE_SIZE * 28 };
 
       const active = chars.filter(
         (c) => c.state === CharacterState.WALK || c.currentActivity || c.roomState !== 'idle' || c.isBlocked,
       );
-      if (active.length > 0 || !layout || reducedMotionRef.current) {
-        return characterBoundsCenter(active.length > 0 ? active : chars);
-      }
+      if (active.length > 0) return characterBoundsCenter(active);
 
-      const tourRooms = CAMERA_ROOM_TOUR_ORDER
-        .map((id) => layout.rooms.find((room) => room.id === id))
-        .filter((room): room is NonNullable<typeof room> => Boolean(room));
-      if (tourRooms.length === 0) return characterBoundsCenter(chars);
-
-      const room = tourRooms[Math.floor(nowMs / CAMERA_TOUR_INTERVAL_MS) % tourRooms.length];
-      return {
-        x: ((room.minCol + room.maxCol + 1) * TILE_SIZE) / 2,
-        y: ((room.minRow + room.maxRow + 1) * TILE_SIZE) / 2,
-      };
+      const lead = chars.find((c) => c.role === 'lead') ?? chars[0];
+      return characterCenter(lead);
     };
 
     const dprInitial = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
@@ -586,7 +566,7 @@ export default function Workshop() {
         }
         const cam = cameraRef.current;
         if (cam && charactersRef.current.length > 0) {
-          const desired = computeCameraTarget(nowMs);
+          const desired = computeCameraTarget();
           const current = cameraTargetRef.current ?? desired;
           // Critically-damped follow: blend rate is independent of frame time
           // so pans look identical at 60Hz and 30Hz. A tiny dead-zone keeps

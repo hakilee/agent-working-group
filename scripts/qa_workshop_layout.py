@@ -19,6 +19,7 @@ LAYOUT = ROOT / "dashboard" / "src" / "workshop" / "engine" / "office-layout.ts"
 TEXTURES = ROOT / "dashboard" / "src" / "workshop" / "three" / "textures.ts"
 TYPES = ROOT / "dashboard" / "src" / "workshop" / "engine" / "types.ts"
 RENDERER = ROOT / "dashboard" / "src" / "workshop" / "three" / "renderer.ts"
+PAGE = ROOT / "dashboard" / "src" / "pages" / "workshop.tsx"
 
 
 def require(condition: bool, message: str, failures: list[str]) -> None:
@@ -66,6 +67,7 @@ def main() -> int:
     textures = TEXTURES.read_text(encoding="utf-8")
     types = TYPES.read_text(encoding="utf-8")
     renderer = RENDERER.read_text(encoding="utf-8")
+    page = PAGE.read_text(encoding="utf-8")
     failures: list[str] = []
 
     require(
@@ -79,11 +81,17 @@ def main() -> int:
             "Three.js renderer must map garden/fountain furniture textures", failures)
     require("makeWorkshopPropTexture('garden_bed')" in textures and "makeWorkshopPropTexture('fountain_tower')" in textures,
             "garden/fountain procedural textures must be created", failures)
+    require("CAMERA_ROOM_TOUR_ORDER" not in page and "CAMERA_TOUR_INTERVAL_MS" not in page,
+            "Workshop camera must not auto-tour rooms while agents are idle", failures)
+    require("const lead = chars.find((c) => c.role === 'lead')" in page,
+            "Workshop camera must keep a stable lead/agent focus instead of falling back to map center", failures)
 
     require(bool(find_garden_zone(source)),
             "layout must include a named central garden zone", failures)
-    require("id: 'meeting-lounge'" in source and "label: 'Meeting Lounge'" in source and "floorVariant: 3" in source,
-            "meeting lounge must use an indoor floor, not the garden grass tile", failures)
+    require("id: 'meeting-lounge'" in source and "label: 'Meeting Lounge'" in source and "floorVariant: 0" in source,
+            "meeting lounge must use the shared plaza floor, not the garden grass tile", failures)
+    require("col >= 38 && col <= 43 && row >= 14 && row <= 17" in source and "return 3" in source,
+            "meeting lounge should use a local rug island instead of recoloring the whole room", failures)
     require("const isStoneRing" in source and "return isStoneRing ? 8 : 4" in source,
             "central garden must use a paver transition ring before grass", failures)
     require("save_paver_variant(8" in (ROOT / "scripts" / "polish_workshop_sprite_details.py").read_text(encoding="utf-8"),

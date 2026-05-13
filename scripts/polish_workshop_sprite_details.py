@@ -551,6 +551,31 @@ def save_floor_variant(index: int, base: Color, accent: Color, mode: str) -> Non
             pix[x, y] = accent
             if x + 1 < 16:
                 pix[x + 1, y] = texture_noise_color(accent, x, y, 8)
+    elif mode == "gather_stone":
+        for y in (0, 8):
+            for x in range(16):
+                pix[x, y] = accent
+        for x in (0, 7, 15):
+            for y in range(16):
+                pix[x, y] = accent
+        for x in (3, 11):
+            for y in range(1, 8):
+                pix[x, y] = texture_noise_color(accent, x, y, 2)
+        for x in (5, 13):
+            for y in range(9, 15):
+                pix[x, y] = texture_noise_color(accent, x, y, 2)
+    elif mode == "rug":
+        border = accent
+        thread = texture_noise_color(base, index, index, 10)
+        for y in range(16):
+            for x in range(16):
+                pix[x, y] = base if (x + y + index) % 3 else thread
+        for x in range(16):
+            pix[x, 0] = pix[x, 15] = border
+            pix[x, 2] = pix[x, 13] = texture_noise_color(border, x, index, 4)
+        for y in range(16):
+            pix[0, y] = pix[15, y] = border
+            pix[2, y] = pix[13, y] = texture_noise_color(border, y, index, 4)
     elif mode == "epoxy":
         for y in (5, 11):
             for x in range(16):
@@ -640,17 +665,16 @@ def save_paver_variant(index: int, base: Color, seam: Color, moss: Color) -> Non
 
 
 def polish_floor_and_wall_details() -> None:
-    # Indoor + outdoor floor family: concrete, epoxy, mats, plates,
-    # plus dedicated grass (variant 4) for the central garden and decking
-    # (variant 7) for the outdoor garden cafe.
+    # Gather-style material family: most rooms share a cool plaza paver,
+    # while rugs/deck/grass act as intentional themed islands.
     floor_specs = [
-        ((93, 96, 90, 255), (76, 78, 74, 255), "concrete"),
-        ((104, 101, 91, 255), (123, 116, 98, 255), "concrete"),
-        ((86, 98, 103, 255), (72, 86, 91, 255), "epoxy"),
-        ((96, 86, 75, 255), (116, 101, 82, 255), "concrete"),
+        ((156, 174, 181, 255), (98, 118, 127, 255), "gather_stone"),
+        ((149, 166, 174, 255), (92, 110, 120, 255), "gather_stone"),
+        ((161, 179, 185, 255), (104, 124, 132, 255), "gather_stone"),
+        ((126, 109, 94, 255), (172, 129, 72, 255), "rug"),
         None,  # variant 4 handled by save_grass_variant
-        ((104, 99, 86, 255), (82, 78, 70, 255), "plate"),
-        ((88, 91, 97, 255), (69, 72, 78, 255), "plate"),
+        ((130, 116, 102, 255), (82, 78, 70, 255), "plate"),
+        ((139, 154, 164, 255), (92, 108, 118, 255), "gather_stone"),
         None,  # variant 7 handled by save_deck_variant
         None,  # variant 8 handled by save_paver_variant
     ]
@@ -659,9 +683,9 @@ def polish_floor_and_wall_details() -> None:
             continue
         base, accent, mode = spec
         save_floor_variant(i, base, accent, mode)
-    save_grass_variant(4, (62, 108, 64, 255), (78, 132, 70, 255), (118, 178, 102, 255))
-    save_deck_variant(7, (110, 78, 52, 255), (148, 102, 60, 255), (74, 47, 30, 255))
-    save_paver_variant(8, (125, 112, 94, 255), (82, 73, 64, 255), (83, 130, 80, 255))
+    save_grass_variant(4, (54, 128, 72, 255), (84, 151, 84, 255), (142, 201, 112, 255))
+    save_deck_variant(7, (118, 84, 58, 255), (151, 103, 68, 255), (82, 58, 42, 255))
+    save_paver_variant(8, (156, 142, 119, 255), (91, 82, 73, 255), (83, 130, 80, 255))
 
     # Horizontally seamless wall: neutral edges, internal panels, cap, shadow, conduit.
     img = Image.new("RGBA", (64, 128), (0, 0, 0, 0))

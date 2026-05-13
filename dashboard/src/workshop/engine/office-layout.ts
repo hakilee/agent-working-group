@@ -1,6 +1,6 @@
 /**
- * Workshop office layout - expanded campus-style office with a central grass
- * garden, surrounding work neighborhoods, and an outdoor cafe terrace.
+ * Workshop office layout - Gather-style social office plaza with a central
+ * courtyard, themed work islands, and an outdoor cafe terrace.
  */
 import {
   CharacterState,
@@ -18,14 +18,14 @@ const ROWS = 34;
 const DESK_WIDTH = 3;
 
 const ROOM_ZONES: ReadonlyArray<RoomZone> = [
-  { id: 'north-workshop', label: 'North Workshop', minCol: 1, maxCol: 19, minRow: 1, maxRow: 10, floorVariant: 1 },
-  { id: 'west-open-office', label: 'West Open Office', minCol: 1, maxCol: 19, minRow: 11, maxRow: 24, floorVariant: 1 },
-  { id: 'central-garden', label: 'Central Garden', minCol: 20, maxCol: 31, minRow: 8, maxRow: 22, floorVariant: 4 },
-  { id: 'east-studio', label: 'East Studio', minCol: 32, maxCol: 50, minRow: 1, maxRow: 10, floorVariant: 2 },
-  { id: 'meeting-lounge', label: 'Meeting Lounge', minCol: 32, maxCol: 50, minRow: 11, maxRow: 22, floorVariant: 3 },
-  { id: 'garden-cafe', label: 'Garden Cafe', minCol: 32, maxCol: 50, minRow: 23, maxRow: 32, floorVariant: 7 },
+  { id: 'north-workshop', label: 'North Workshop', minCol: 1, maxCol: 19, minRow: 1, maxRow: 10, floorVariant: 0 },
+  { id: 'west-open-office', label: 'West Open Office', minCol: 1, maxCol: 19, minRow: 11, maxRow: 24, floorVariant: 0 },
+  { id: 'central-garden', label: 'Central Garden', minCol: 20, maxCol: 31, minRow: 8, maxRow: 22, floorVariant: 0 },
+  { id: 'east-studio', label: 'East Studio', minCol: 32, maxCol: 50, minRow: 1, maxRow: 10, floorVariant: 0 },
+  { id: 'meeting-lounge', label: 'Meeting Lounge', minCol: 32, maxCol: 50, minRow: 11, maxRow: 22, floorVariant: 0 },
+  { id: 'garden-cafe', label: 'Garden Cafe', minCol: 32, maxCol: 50, minRow: 23, maxRow: 32, floorVariant: 0 },
   { id: 'reception', label: 'Reception', minCol: 1, maxCol: 18, minRow: 25, maxRow: 32, floorVariant: 0 },
-  { id: 'south-spine', label: 'South Spine', minCol: 19, maxCol: 31, minRow: 23, maxRow: 32, floorVariant: 6 },
+  { id: 'south-spine', label: 'South Spine', minCol: 19, maxCol: 31, minRow: 23, maxRow: 32, floorVariant: 0 },
 ];
 
 interface Builder {
@@ -45,11 +45,14 @@ function isInsideRoom(zone: RoomZone, col: number, row: number): boolean {
 
 function roomVariantAt(col: number, row: number): number {
   if (col >= 20 && col <= 31 && row >= 8 && row <= 22) {
-    // The garden is an indoor atrium, not grass glued directly to desks.
-    // A stone ring creates a transition from office floor -> paving -> grass.
+    // The garden is an indoor courtyard, not grass glued directly to desks.
+    // A stone ring creates a transition from plaza floor -> paving -> grass.
     const isStoneRing = col <= 22 || col >= 29 || row <= 9 || row >= 21;
     return isStoneRing ? 8 : 4;
   }
+  if (col >= 19 && col <= 31 && row >= 23 && row <= 25) return 8;
+  if (col >= 38 && col <= 43 && row >= 14 && row <= 17) return 3;
+  if ((col >= 34 && col <= 39 && row >= 25 && row <= 29) || (col >= 43 && col <= 48 && row >= 27 && row <= 31)) return 7;
   for (const zone of ROOM_ZONES) {
     if (isInsideRoom(zone, col, row)) return zone.floorVariant;
   }
