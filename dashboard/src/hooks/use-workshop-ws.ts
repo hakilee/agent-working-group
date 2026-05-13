@@ -119,7 +119,7 @@ export function useWorkshopWS(): UseWorkshopWS {
         }
         if (!parsed || typeof parsed !== 'object') return;
         const frame = parsed as Record<string, unknown>;
-        if (frame.type === 'ping') return;
+        if (frame.type === 'ping' || frame.type === 'agentUpdateAck') return;
         if (frame.type === 'workshop') {
           mergeSnapshotAgents(setAgentPositions, setSnapshotNonce, frame as unknown as WorkshopSnapshot);
           return;
