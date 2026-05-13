@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import subprocess
 import shutil
 import sys
 from pathlib import Path
@@ -24,6 +25,41 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "dashboard" / "public" / "assets"
 ARTIFACTS = ROOT / "artifacts"
+
+POLISHED_ASSET_OVERRIDES = {
+    # Workshop-specific detail pass layered on top of pixel-agents: true side
+    # profile characters and clearer side-view office props.
+    "characters/char_0.png",
+    "characters/char_1.png",
+    "characters/char_2.png",
+    "characters/char_3.png",
+    "characters/char_4.png",
+    "characters/char_5.png",
+    "furniture/DESK/DESK_SIDE.png",
+    "furniture/PC/PC_SIDE.png",
+    "furniture/POT/POT.png",
+    "furniture/SMALL_TABLE/SMALL_TABLE_SIDE.png",
+    "walls/wall_0.png",
+    "floors/floor_0.png",
+    "floors/floor_1.png",
+    "floors/floor_2.png",
+    "floors/floor_3.png",
+    "floors/floor_4.png",
+    "floors/floor_5.png",
+    "floors/floor_6.png",
+    "floors/floor_7.png",
+    "floors/floor_8.png",
+}
+
+EXPECTED_DIMENSIONS = {
+    "walls/wall_0.png": (64, 128),
+    **{f"floors/floor_{i}.png": (16, 16) for i in range(9)},
+    **{f"characters/char_{i}.png": (112, 96) for i in range(6)},
+    "furniture/DESK/DESK_SIDE.png": (16, 64),
+    "furniture/PC/PC_SIDE.png": (16, 32),
+    "furniture/POT/POT.png": (16, 16),
+    "furniture/SMALL_TABLE/SMALL_TABLE_SIDE.png": (16, 48),
+}
 
 REQUIRED_ASSETS = [
     "walls/wall_0.png",
@@ -87,6 +123,14 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def apply_workshop_polish() -> None:
+    subprocess.run(
+        [sys.executable, os.fspath(ROOT / "scripts" / "polish_workshop_sprite_details.py")],
+        cwd=ROOT,
+        check=True,
+    )
+
+
 def sync_from_pixel_agents(source_assets: Path) -> None:
     missing = [rel for rel in REQUIRED_ASSETS if not (source_assets / rel).exists()]
     if missing:
@@ -113,11 +157,17 @@ def validate_assets(reference_assets: Path | None = None) -> list[str]:
             errors.append(f"invalid png: {rel}: {exc}")
             continue
 
+        expected_size = EXPECTED_DIMENSIONS.get(rel)
+        if expected_size is not None:
+            with Image.open(path) as image:
+                if image.size != expected_size:
+                    errors.append(f"unexpected dimensions: {rel}: {image.size} != {expected_size}")
+
         if reference_assets is not None:
             ref = reference_assets / rel
             if not ref.exists():
                 errors.append(f"missing reference: {rel}")
-            elif sha256(path) != sha256(ref):
+            elif rel not in POLISHED_ASSET_OVERRIDES and sha256(path) != sha256(ref):
                 errors.append(f"differs from reference: {rel}")
     return errors
 
@@ -166,6 +216,8 @@ def main() -> int:
 
     if args.sync_from:
         sync_from_pixel_agents(args.sync_from)
+
+    apply_workshop_polish()
 
     errors = validate_assets(args.reference)
     if errors:
