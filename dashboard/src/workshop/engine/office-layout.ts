@@ -554,8 +554,8 @@ function officeActivities(layout: Pick<OfficeLayout, 'cols' | 'rows' | 'tiles' |
     { id: 'ops-console', label: 'Check console', col: 36, row: 3, facingDir: Direction.RIGHT, state: CharacterState.TYPE, durationSec: 3.5 },
     { id: 'ops-file', label: 'File notes', col: 31, row: 11, facingDir: Direction.LEFT, state: CharacterState.READ, durationSec: 3.2 },
     { id: 'front-desk', label: 'Sort mail', col: 12, row: 19, facingDir: Direction.LEFT, state: CharacterState.READ, durationSec: 3.0 },
-    { id: 'coffee-maker', label: 'Pour coffee', col: 24, row: 20, facingDir: Direction.UP, state: CharacterState.IDLE, durationSec: 2.8 },
-    { id: 'wash-station', label: 'Wash hands', col: 24, row: 23, facingDir: Direction.UP, state: CharacterState.IDLE, durationSec: 3.0 },
+    { id: 'coffee-maker', label: 'Pour coffee', col: 24, row: 20, facingDir: Direction.UP, state: CharacterState.COFFEE, durationSec: 2.8 },
+    { id: 'wash-station', label: 'Wash hands', col: 24, row: 23, facingDir: Direction.UP, state: CharacterState.WASH, durationSec: 3.0 },
     { id: 'library-reference', label: 'Find reference', col: 34, row: 17, facingDir: Direction.RIGHT, state: CharacterState.READ, durationSec: 4.0 },
     { id: 'lounge-read', label: 'Read brief', col: 16, row: 19, facingDir: Direction.DOWN, state: CharacterState.READ, durationSec: 3.6 },
   ];

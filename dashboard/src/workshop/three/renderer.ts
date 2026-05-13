@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {
   CharacterState,
+  Direction,
   TILE_SIZE,
   TileType,
   type EngineCharacter,
@@ -34,6 +35,61 @@ const DUST_PARTICLE_COUNT = 40;
 const SHADOW_TEXTURE = makeShadowTexture();
 const SMOKE_TEXTURE = makeSmokeTexture();
 const HOVER_RING_TEXTURE = makeHoverRingTexture();
+const ACTION_CUE_TEXTURES = makeActionCueTextures();
+
+
+type ActionCueKey = 'type' | 'coffee' | 'wash' | 'sit';
+
+function makePixelCueTexture(draw: (ctx: CanvasRenderingContext2D) => void): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = 32;
+  c.height = 24;
+  const ctx = c.getContext('2d');
+  if (!ctx) return null;
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, c.width, c.height);
+  draw(ctx);
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function makeActionCueTextures(): Record<ActionCueKey, THREE.CanvasTexture | null> {
+  const outline = '#2d1f24';
+  return {
+    type: makePixelCueTexture((ctx) => {
+      ctx.fillStyle = outline; ctx.fillRect(6, 9, 20, 10);
+      ctx.fillStyle = '#324455'; ctx.fillRect(7, 10, 18, 7);
+      ctx.fillStyle = '#55c7df'; ctx.fillRect(9, 11, 14, 3);
+      ctx.fillStyle = '#e8dcc0'; ctx.fillRect(8, 18, 16, 2);
+      ctx.fillStyle = '#ffd84d'; ctx.fillRect(21, 12, 2, 2);
+    }),
+    coffee: makePixelCueTexture((ctx) => {
+      ctx.fillStyle = '#ded7c7'; ctx.fillRect(13, 5, 2, 4); ctx.fillRect(17, 3, 2, 5);
+      ctx.fillStyle = outline; ctx.fillRect(9, 10, 15, 10);
+      ctx.fillStyle = '#f2f0df'; ctx.fillRect(10, 11, 10, 8);
+      ctx.fillStyle = '#7c4c2b'; ctx.fillRect(11, 12, 8, 3);
+      ctx.fillStyle = outline; ctx.fillRect(20, 13, 4, 4);
+      ctx.fillStyle = '#f2f0df'; ctx.fillRect(21, 14, 2, 2);
+    }),
+    wash: makePixelCueTexture((ctx) => {
+      ctx.fillStyle = outline; ctx.fillRect(5, 11, 22, 9); ctx.fillRect(14, 5, 8, 3); ctx.fillRect(20, 7, 3, 5);
+      ctx.fillStyle = '#d7e7ea'; ctx.fillRect(6, 12, 20, 6);
+      ctx.fillStyle = '#61bddb'; ctx.fillRect(8, 13, 16, 4);
+      ctx.fillStyle = '#aee7f3'; ctx.fillRect(11, 8, 2, 3); ctx.fillRect(15, 9, 2, 5); ctx.fillRect(19, 9, 2, 3);
+      ctx.fillStyle = '#e7b68c'; ctx.fillRect(8, 17, 4, 2); ctx.fillRect(20, 17, 4, 2);
+    }),
+    sit: makePixelCueTexture((ctx) => {
+      ctx.fillStyle = outline; ctx.fillRect(8, 7, 16, 14); ctx.fillRect(6, 13, 20, 5); ctx.fillRect(9, 20, 3, 3); ctx.fillRect(20, 20, 3, 3);
+      ctx.fillStyle = '#5f4738'; ctx.fillRect(10, 8, 12, 7); ctx.fillRect(8, 14, 16, 3);
+      ctx.fillStyle = '#b99261'; ctx.fillRect(11, 9, 10, 3);
+    }),
+  };
+}
 
 /** Optionally tinted RGB hover ring, generated once. */
 function makeHoverRingTexture(): THREE.CanvasTexture | null {
@@ -209,6 +265,9 @@ interface CharacterRecord {
   /** Tint overlay for blocked flash. */
   tint: THREE.Mesh;
   tintMaterial: THREE.MeshBasicMaterial;
+  /** Explicit action prop cue for non-walk office actions. */
+  actionCue: THREE.Mesh;
+  actionCueMaterial: THREE.MeshBasicMaterial;
   /** Sheet textures for this character's palette: [dir][frame]. */
   sheet: THREE.Texture[][] | null;
   /** Last applied palette index for cheap re-key on rebuild. */
@@ -511,14 +570,20 @@ export class ThreeWorkshopRenderer {
       rec.ringMaterial.color.set(c.profile.color);
       rec.ring.visible = wantHover;
       // Frame texture
-      const state: 'idle' | 'walk' | 'type' | 'read' =
+      const state: 'idle' | 'walk' | 'type' | 'read' | 'sit' | 'coffee' | 'wash' =
         c.state === CharacterState.WALK
           ? 'walk'
           : c.state === CharacterState.TYPE
             ? 'type'
             : c.state === CharacterState.READ
               ? 'read'
-              : 'idle';
+              : c.state === CharacterState.SIT
+                ? 'sit'
+                : c.state === CharacterState.COFFEE
+                  ? 'coffee'
+                  : c.state === CharacterState.WASH
+                    ? 'wash'
+                    : 'idle';
       const frameIdx = spriteFrameIndex(state, c.frame);
       const dir = c.dir | 0;
       if (rec.sheet && (dir !== rec.lastDir || frameIdx !== rec.lastFrameIdx)) {
@@ -529,6 +594,28 @@ export class ThreeWorkshopRenderer {
         }
         rec.lastDir = dir;
         rec.lastFrameIdx = frameIdx;
+      }
+      const cueKey: ActionCueKey | null =
+        state === 'type'
+          ? 'type'
+          : state === 'coffee'
+            ? 'coffee'
+            : state === 'wash'
+              ? 'wash'
+              : state === 'sit'
+                ? 'sit'
+                : null;
+      const cueTexture = cueKey ? ACTION_CUE_TEXTURES[cueKey] : null;
+      if (cueTexture && rec.actionCueMaterial.map !== cueTexture) {
+        rec.actionCueMaterial.map = cueTexture;
+        rec.actionCueMaterial.needsUpdate = true;
+      }
+      rec.actionCue.visible = Boolean(cueTexture);
+      if (cueTexture) {
+        const cueX = c.x + CHAR_FRAME_W / 2 + (dir === Direction.LEFT ? -8 : dir === Direction.RIGHT ? 8 : 0);
+        const cueY = -(c.y + (state === 'sit' ? 25 : 18));
+        rec.actionCue.position.set(cueX, cueY, 0);
+        rec.actionCue.renderOrder = ORDER_SPRITE_BASE + footY + 0.75;
       }
       // Blocked flash tint
       rec.tint.position.set(sx, sy, 0);
@@ -809,6 +896,17 @@ export class ThreeWorkshopRenderer {
     tint.visible = false;
     this.scene.add(tint);
 
+    const actionCueGeom = new THREE.PlaneGeometry(16, 12);
+    const actionCueMat = new THREE.MeshBasicMaterial({
+      map: null,
+      transparent: true,
+      alphaTest: 0.05,
+      depthWrite: false,
+    });
+    const actionCue = new THREE.Mesh(actionCueGeom, actionCueMat);
+    actionCue.visible = false;
+    this.scene.add(actionCue);
+
     return {
       mesh,
       material: mat,
@@ -818,6 +916,8 @@ export class ThreeWorkshopRenderer {
       ringMaterial: ringMat,
       tint,
       tintMaterial: tintMat,
+      actionCue,
+      actionCueMaterial: actionCueMat,
       sheet,
       palette: c.palette,
       lastDir: -1,
@@ -830,6 +930,7 @@ export class ThreeWorkshopRenderer {
     this.scene.remove(rec.shadow);
     this.scene.remove(rec.ring);
     this.scene.remove(rec.tint);
+    this.scene.remove(rec.actionCue);
     rec.mesh.geometry.dispose();
     rec.material.dispose();
     rec.shadow.geometry.dispose();
@@ -838,6 +939,8 @@ export class ThreeWorkshopRenderer {
     rec.ringMaterial.dispose();
     rec.tint.geometry.dispose();
     rec.tintMaterial.dispose();
+    rec.actionCue.geometry.dispose();
+    rec.actionCueMaterial.dispose();
     if (rec.sheet) {
       for (const row of rec.sheet) {
         for (const t of row) t.dispose();

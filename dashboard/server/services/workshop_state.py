@@ -24,7 +24,7 @@ _ALLOWED_FIELDS: tuple[str, ...] = (
     "x", "y", "tileCol", "tileRow", "dir", "state",
 )
 _ALLOWED_DIRS: frozenset[int] = frozenset({0, 1, 2, 3})
-_ALLOWED_STATES: frozenset[str] = frozenset({"idle", "walk", "type", "read"})
+_ALLOWED_STATES: frozenset[str] = frozenset({"idle", "walk", "type", "read", "sit", "coffee", "wash"})
 # Soft bound on role string length to avoid memory growth from junk keys.
 _MAX_ROLE_LEN = 128
 # Soft bound on tile-coord magnitude (we only have ~30×20 maps in practice).

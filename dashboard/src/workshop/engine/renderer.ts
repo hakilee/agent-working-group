@@ -245,14 +245,20 @@ function drawCharacter(
     ctx.fillRect(c.x + 2, c.y + 12, 12, 18);
     return;
   }
-  const state: 'idle' | 'walk' | 'type' | 'read' =
+  const state: 'idle' | 'walk' | 'type' | 'read' | 'sit' | 'coffee' | 'wash' =
     c.state === CharacterState.WALK
       ? 'walk'
       : c.state === CharacterState.TYPE
         ? 'type'
         : c.state === CharacterState.READ
           ? 'read'
-          : 'idle';
+          : c.state === CharacterState.SIT
+            ? 'sit'
+            : c.state === CharacterState.COFFEE
+              ? 'coffee'
+              : c.state === CharacterState.WASH
+                ? 'wash'
+                : 'idle';
   const dir = c.dir as 0 | 1 | 2 | 3;
   const frameIdx = spriteFrameIndex(state, c.frame);
   const frame = sheet.byDirFrame[dir]?.[frameIdx];

@@ -54,7 +54,7 @@ POLISHED_ASSET_OVERRIDES = {
 EXPECTED_DIMENSIONS = {
     "walls/wall_0.png": (64, 128),
     **{f"floors/floor_{i}.png": (16, 16) for i in range(9)},
-    **{f"characters/char_{i}.png": (112, 96) for i in range(6)},
+    **{f"characters/char_{i}.png": (160, 96) for i in range(6)},
     "furniture/DESK/DESK_SIDE.png": (16, 64),
     "furniture/PC/PC_SIDE.png": (16, 32),
     "furniture/POT/POT.png": (16, 16),

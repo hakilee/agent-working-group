@@ -1,10 +1,16 @@
 import * as THREE from 'three';
 
-/** Frame W/H for a single character sprite within the 7×3 sheet. */
+const WORKSHOP_ASSET_REV = 'sprite-detail-actions-v1';
+
+function assetUrl(path: string): string {
+  return `${path}?v=${WORKSHOP_ASSET_REV}`;
+}
+
+/** Frame W/H for a single character sprite within the 10x3 sheet. */
 export const CHAR_FRAME_W = 16;
 export const CHAR_FRAME_H = 32;
-/** 7 frames wide × 3 directions tall (down/up/right). LEFT is RIGHT flipped. */
-export const CHAR_FRAMES_PER_DIR = 7;
+/** 10 frames wide x 3 directions tall (down/up/right). LEFT is RIGHT flipped. */
+export const CHAR_FRAMES_PER_DIR = 10;
 export const CHAR_DIRS_IN_SHEET = 3;
 export const CHAR_PALETTE_COUNT = 6;
 export const FLOOR_VARIANT_COUNT = 9;
@@ -140,11 +146,11 @@ export interface ThreeSpriteManager {
 export async function loadThreeSprites(): Promise<ThreeSpriteManager> {
   const charPromises: Promise<HTMLImageElement | null>[] = [];
   for (let i = 0; i < CHAR_PALETTE_COUNT; i++) {
-    charPromises.push(loadImageOptional(`/assets/characters/char_${i}.png`));
+    charPromises.push(loadImageOptional(assetUrl(`/assets/characters/char_${i}.png`)));
   }
   const floorPromises: Promise<HTMLImageElement | null>[] = [];
   for (let i = 0; i < FLOOR_VARIANT_COUNT; i++) {
-    floorPromises.push(loadImageOptional(`/assets/floors/floor_${i}.png`));
+    floorPromises.push(loadImageOptional(assetUrl(`/assets/floors/floor_${i}.png`)));
   }
   const furniturePaths: Record<string, string> = {
     deskFront: '/assets/furniture/DESK/DESK_FRONT.png',
@@ -179,8 +185,8 @@ export async function loadThreeSprites(): Promise<ThreeSpriteManager> {
     smallPainting: '/assets/furniture/SMALL_PAINTING/SMALL_PAINTING.png',
     largePainting: '/assets/furniture/LARGE_PAINTING/LARGE_PAINTING.png',
   };
-  const wallPromise = loadImageOptional('/assets/walls/wall_0.png');
-  const furnPromises = Object.values(furniturePaths).map(loadImageOptional);
+  const wallPromise = loadImageOptional(assetUrl('/assets/walls/wall_0.png'));
+  const furnPromises = Object.values(furniturePaths).map((path) => loadImageOptional(assetUrl(path)));
   const furnKeys = Object.keys(furniturePaths);
 
   const [wallImg, charImgs, floorImgs, furnImgs] = await Promise.all([

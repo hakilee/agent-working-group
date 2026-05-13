@@ -22,6 +22,8 @@ ARTIFACTS = ROOT / "artifacts"
 
 FRAME_W = 16
 FRAME_H = 32
+SOURCE_FRAMES_PER_DIR = 7
+CHAR_FRAMES_PER_DIR = 10
 SIDE_ROW_Y = FRAME_H * 2
 TRANSPARENT = (0, 0, 0, 0)
 
@@ -142,6 +144,10 @@ def draw_side_frame(frame: Image.Image, pal: dict[str, Color], frame_index: int)
     set_many(pix, [(5, 24), (10, 24), (4, 29), (11, 29)], o)
 
     # Side action frames: typing has a small screen; reading has a paper/book.
+    if frame_index == 9:
+        rect(pix, 4, 22, 11, 25, shade)
+        set_many(pix, [(3, 22), (12, 22), (3, 25), (12, 25), (5, 27), (9, 27)], o)
+        return out
     if frame_index in (3, 4):
         # Side-view terminal: thin angled slab, not a front-facing rectangle.
         set_many(pix, [(12, 18), (13, 18), (14, 19), (13, 20), (12, 20)], pal["screen"])
@@ -156,19 +162,80 @@ def draw_side_frame(frame: Image.Image, pal: dict[str, Color], frame_index: int)
         set_many(pix, [(10, 20), (11, 21)], skin)
         if frame_index == 6:
             pix[13, 20] = o
+    elif frame_index == 7:
+        set_many(pix, [(12, 18), (13, 18), (12, 19), (13, 19)], (124, 76, 43, 255))
+        set_many(pix, [(11, 17), (14, 17), (11, 19), (14, 19), (12, 20), (13, 20)], o)
+        set_many(pix, [(12, 15), (13, 14), (12, 13)], (224, 224, 210, 255))
+    elif frame_index == 8:
+        set_many(pix, [(12, 18), (13, 18), (14, 19), (12, 20), (13, 20)], (103, 188, 218, 255))
+        set_many(pix, [(11, 17), (14, 17), (15, 19), (11, 21), (12, 21), (13, 21), (14, 21)], o)
+        set_many(pix, [(12, 16), (14, 17), (13, 21), (14, 20)], (174, 225, 241, 255))
+        set_many(pix, [(11, 19), (12, 20)], skin)
 
     return out
 
 
+def draw_front_action_frame(base: Image.Image, pal: dict[str, Color], frame_index: int, row: int) -> Image.Image:
+    out = base.convert("RGBA").copy()
+    pix = out.load()
+    o = pal["outline"]
+    skin = pal["skin"]
+    shade = pal["shade"]
+    if frame_index in (3, 4):  # typing / console work
+        rect(pix, 5, 19, 12, 21, (54, 65, 78, 255))
+        set_many(pix, [(4, 18), (5, 18), (12, 18), (13, 18), (4, 21), (13, 21), (6, 22), (11, 22)], o)
+        set_many(pix, [(7, 19), (8, 19), (9, 19), (10, 19)], (74, 168, 190, 255))
+        if frame_index == 4:
+            pix[10, 20] = (255, 230, 112, 255)
+        set_many(pix, [(4, 20), (13, 20)], skin)
+    elif frame_index == 7:  # coffee
+        rect(pix, 10, 18, 12, 20, (124, 76, 43, 255))
+        set_many(pix, [(9, 18), (13, 18), (9, 20), (13, 20), (10, 21), (11, 21), (12, 21)], o)
+        set_many(pix, [(11, 15), (12, 14), (11, 13)], (224, 224, 210, 255))
+        set_many(pix, [(8, 19), (9, 20)], skin)
+    elif frame_index == 8:  # wash hands / water at a small basin
+        rect(pix, 6, 19, 13, 22, (76, 91, 101, 255))
+        set_many(pix, [(5, 18), (14, 18), (5, 22), (14, 22), (6, 23), (13, 23)], o)
+        set_many(pix, [(7, 19), (8, 20), (10, 19), (11, 20), (12, 19)], (103, 188, 218, 255))
+        set_many(pix, [(8, 17), (9, 16), (10, 17), (8, 21), (12, 21)], (174, 225, 241, 255))
+        set_many(pix, [(7, 18), (12, 18)], skin)
+    elif frame_index == 9:  # seated/resting pose: lower body tucked behind chair/desk
+        for y in range(24, 31):
+            for x in range(4, 12):
+                if pix[x, y][3] > 0:
+                    pix[x, y] = TRANSPARENT
+        rect(pix, 4, 23, 11, 26, shade)
+        set_many(pix, [(3, 23), (12, 23), (3, 26), (12, 26), (5, 28), (10, 28)], o)
+    if row == 1 and frame_index in (7, 8):
+        # Back-facing versions keep the prop slightly higher, as if used at a counter.
+        set_many(pix, [(7, 16), (8, 16), (9, 16)], skin)
+    return out
+
+
 def polish_character_sheet(path: Path) -> None:
-    sheet = Image.open(path).convert("RGBA")
-    if sheet.size != (FRAME_W * 7, FRAME_H * 3):
-        raise SystemExit(f"unexpected character sheet size for {path}: {sheet.size}")
-    pal = pick_palette(sheet)
-    for frame_index in range(7):
+    source = Image.open(path).convert("RGBA")
+    if source.size not in ((FRAME_W * SOURCE_FRAMES_PER_DIR, FRAME_H * 3), (FRAME_W * CHAR_FRAMES_PER_DIR, FRAME_H * 3)):
+        raise SystemExit(f"unexpected character sheet size for {path}: {source.size}")
+    pal = pick_palette(source)
+    sheet = Image.new("RGBA", (FRAME_W * CHAR_FRAMES_PER_DIR, FRAME_H * 3), TRANSPARENT)
+    # Preserve the original seven frames from the current/upstream sheet.
+    sheet.alpha_composite(source.crop((0, 0, FRAME_W * SOURCE_FRAMES_PER_DIR, FRAME_H * 3)), (0, 0))
+    for frame_index in range(SOURCE_FRAMES_PER_DIR):
         box = (frame_index * FRAME_W, SIDE_ROW_Y, (frame_index + 1) * FRAME_W, SIDE_ROW_Y + FRAME_H)
         src = sheet.crop(box)
         sheet.paste(draw_side_frame(src, pal, frame_index), box)
+    for frame_index in (3, 4):
+        sx = frame_index * FRAME_W
+        for row in (0, 1):
+            base = sheet.crop((0, row * FRAME_H, FRAME_W, (row + 1) * FRAME_H))
+            sheet.paste(draw_front_action_frame(base, pal, frame_index, row), (sx, row * FRAME_H))
+    for frame_index in range(SOURCE_FRAMES_PER_DIR, CHAR_FRAMES_PER_DIR):
+        sx = frame_index * FRAME_W
+        for row in (0, 1):
+            base = sheet.crop((0, row * FRAME_H, FRAME_W, (row + 1) * FRAME_H))
+            sheet.paste(draw_front_action_frame(base, pal, frame_index, row), (sx, row * FRAME_H))
+        side_base = sheet.crop((0, SIDE_ROW_Y, FRAME_W, SIDE_ROW_Y + FRAME_H))
+        sheet.paste(draw_side_frame(side_base, pal, frame_index), (sx, SIDE_ROW_Y))
     sheet.save(path)
 
 
@@ -372,7 +439,7 @@ def make_character_contact_sheet(output: Path) -> None:
     scale = 6
     pad = 10
     label_h = 18
-    cell_w = FRAME_W * 7 * scale
+    cell_w = FRAME_W * CHAR_FRAMES_PER_DIR * scale
     cell_h = FRAME_H * 3 * scale + label_h
     out = Image.new("RGBA", (cell_w + pad * 2, cell_h * len(sheets) + pad * 2), (24, 24, 28, 255))
     from PIL import ImageDraw
@@ -384,7 +451,7 @@ def make_character_contact_sheet(output: Path) -> None:
         preview = sheet.resize((cell_w, FRAME_H * 3 * scale), Image.Resampling.NEAREST)
         out.alpha_composite(preview, (pad, y + label_h))
         for row in range(3):
-            for col in range(7):
+            for col in range(CHAR_FRAMES_PER_DIR):
                 x0 = pad + col * FRAME_W * scale
                 y0 = y + label_h + row * FRAME_H * scale
                 draw.rectangle((x0, y0, x0 + FRAME_W * scale - 1, y0 + FRAME_H * scale - 1), outline=(255, 255, 255, 60))

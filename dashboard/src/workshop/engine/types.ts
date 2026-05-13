@@ -22,6 +22,9 @@ export const CharacterState = {
   WALK: 'walk',
   TYPE: 'type',
   READ: 'read',
+  SIT: 'sit',
+  COFFEE: 'coffee',
+  WASH: 'wash',
 } as const;
 export type CharacterState = (typeof CharacterState)[keyof typeof CharacterState];
 

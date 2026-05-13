@@ -65,7 +65,10 @@ function coerceState(value: unknown): CState | undefined {
     value === CharacterState.IDLE ||
     value === CharacterState.WALK ||
     value === CharacterState.TYPE ||
-    value === CharacterState.READ
+    value === CharacterState.READ ||
+    value === CharacterState.SIT ||
+    value === CharacterState.COFFEE ||
+    value === CharacterState.WASH
   ) {
     return value;
   }
@@ -108,7 +111,11 @@ export function createCharacter(
   // because the engine will re-validate seat assignment on the next decision.
   const restoredState = restore?.state;
   const state: CState =
-    restoredState === CharacterState.TYPE || restoredState === CharacterState.READ
+    restoredState === CharacterState.TYPE ||
+    restoredState === CharacterState.READ ||
+    restoredState === CharacterState.SIT ||
+    restoredState === CharacterState.COFFEE ||
+    restoredState === CharacterState.WASH
       ? restoredState
       : CharacterState.IDLE;
 
@@ -157,7 +164,11 @@ export function restoreCharacterState(c: EngineCharacter, restore: CharacterRest
   c.moveProgress = 0;
   const incoming = restore.state;
   c.state =
-    incoming === CharacterState.TYPE || incoming === CharacterState.READ
+    incoming === CharacterState.TYPE ||
+    incoming === CharacterState.READ ||
+    incoming === CharacterState.SIT ||
+    incoming === CharacterState.COFFEE ||
+    incoming === CharacterState.WASH
       ? incoming
       : CharacterState.IDLE;
   c.frame = 0;
@@ -195,7 +206,7 @@ function intentFor(state: RoomState): EngineCharacter['intent'] {
 function seatedAnimFor(state: RoomState): CState {
   if (state === 'reviewing' || state === 'responding') return CharacterState.READ;
   if (state === 'working' || state === 'dispatching') return CharacterState.TYPE;
-  return CharacterState.IDLE;
+  return CharacterState.SIT;
 }
 
 /** Update the character's roomState (called when AWG data refreshes). */
