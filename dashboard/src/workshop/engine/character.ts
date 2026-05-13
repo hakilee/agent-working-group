@@ -503,7 +503,7 @@ function roomIdAt(layout: OfficeLayout, col: number, row: number): string | unde
 }
 
 function roomIdForIntent(c: EngineCharacter, layout: OfficeLayout): string | undefined {
-  if (c.intent === 'meeting') return 'meeting';
+  if (c.intent === 'meeting') return 'meeting-lounge';
   if (c.intent === 'wander') return roomIdAt(layout, c.tileCol, c.tileRow);
   const seat = findTargetSeat(c, layout.seats);
   return seat ? roomIdAt(layout, seat.col, seat.row) : roomIdAt(layout, c.tileCol, c.tileRow);
