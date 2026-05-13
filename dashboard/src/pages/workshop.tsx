@@ -249,7 +249,7 @@ export default function Workshop() {
 
   return (
     <Page>
-      <PageHeader eyebrow="Workshop" title="Pixel office">
+      <PageHeader eyebrow="Workshop" title="Office">
         <span className="text-[10px] uppercase tracking-widest text-ops-muted dark:text-[#839087]">
           {rooms.length} {rooms.length === 1 ? 'agent' : 'agents'}
         </span>
