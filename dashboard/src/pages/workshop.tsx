@@ -38,9 +38,19 @@ const MAP_PIXEL_H = LAYOUT_TILE_ROWS * TILE_SIZE;
 const POSITION_UPDATE_THROTTLE_MS = 400;
 const ENGINE_READY_TIMEOUT_MS = 1500;
 const STAGE_HEIGHT_CSS = 'min(70vh, 640px)';
-const CAMERA_TOUR_INTERVAL_MS = 7500;
-const CAMERA_LERP_PER_SEC = 2.4;
-const CAMERA_ROOM_TOUR_ORDER = ['focus', 'meeting', 'ops', 'reception', 'lounge', 'library'] as const;
+const CAMERA_TOUR_INTERVAL_MS = 9000;
+const CAMERA_LERP_PER_SEC = 1.8;
+const CAMERA_SNAP_THRESHOLD_PX = 0.4;
+const CAMERA_TARGET_DEADZONE_PX = 2;
+const CAMERA_ROOM_TOUR_ORDER = [
+  'central-garden',
+  'north-workshop',
+  'east-studio',
+  'meeting-lounge',
+  'garden-cafe',
+  'reception',
+  'west-open-office',
+] as const;
 
 function detectDarkMode(): boolean {
   if (typeof document === 'undefined') return false;
@@ -578,13 +588,26 @@ export default function Workshop() {
         if (cam && charactersRef.current.length > 0) {
           const desired = computeCameraTarget(nowMs);
           const current = cameraTargetRef.current ?? desired;
-          const blend = reducedMotionRef.current ? 1 : 1 - Math.exp(-CAMERA_LERP_PER_SEC * dt);
-          const target = {
-            x: lerpNumber(current.x, desired.x, blend),
-            y: lerpNumber(current.y, desired.y, blend),
-          };
-          cameraTargetRef.current = target;
-          updateCamera(cam, target.x, target.y, MAP_PIXEL_W, MAP_PIXEL_H);
+          // Critically-damped follow: blend rate is independent of frame time
+          // so pans look identical at 60Hz and 30Hz. A tiny dead-zone keeps
+          // the camera still when characters jitter under the focus point.
+          const dx = desired.x - current.x;
+          const dy = desired.y - current.y;
+          const dist = Math.hypot(dx, dy);
+          let nextTarget: { x: number; y: number };
+          if (reducedMotionRef.current || dist >= 64) {
+            nextTarget = desired;
+          } else if (dist <= CAMERA_TARGET_DEADZONE_PX) {
+            nextTarget = current;
+          } else {
+            const blend = 1 - Math.exp(-CAMERA_LERP_PER_SEC * dt);
+            const nextX = lerpNumber(current.x, desired.x, blend);
+            const nextY = lerpNumber(current.y, desired.y, blend);
+            const remaining = Math.hypot(desired.x - nextX, desired.y - nextY);
+            nextTarget = remaining < CAMERA_SNAP_THRESHOLD_PX ? desired : { x: nextX, y: nextY };
+          }
+          cameraTargetRef.current = nextTarget;
+          updateCamera(cam, nextTarget.x, nextTarget.y, MAP_PIXEL_W, MAP_PIXEL_H);
         }
       }
 
