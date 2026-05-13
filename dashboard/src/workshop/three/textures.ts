@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const WORKSHOP_ASSET_REV = 'sprite-detail-actions-v1';
+const WORKSHOP_ASSET_REV = 'sprite-identity-collision-v2';
 
 function assetUrl(path: string): string {
   return `${path}?v=${WORKSHOP_ASSET_REV}`;

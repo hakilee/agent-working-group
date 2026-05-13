@@ -151,8 +151,8 @@ function addFocusTopDesk(b: Builder, leftCol: number): void {
   addFurniture(b, {
     id: `pc-${seatId}`, kind: 'pc', variant: 'back',
     col: leftCol + 1, row: FOCUS_TOP_DESK_ROW - 1, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
-  }, false);
+    spriteOverhangRows: 1, blocking: true,
+  });
   addFurniture(b, {
     id: `chair-${seatId}`, kind: 'chair', variant: 'front',
     col: leftCol + 1, row: FOCUS_TOP_CHAIR_ROW, w: 1, h: 1,
@@ -218,8 +218,8 @@ function addReceptionDesk(b: Builder): void {
   addFurniture(b, {
     id: `pc-${seatId}`, kind: 'pc', variant: 'front',
     col: leftCol + 1, row: deskRow - 1, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false, animated: true,
-  }, false);
+    spriteOverhangRows: 1, blocking: true, animated: true,
+  });
   addFurniture(b, {
     id: `chair-${seatId}`, kind: 'chair', variant: 'back',
     col: leftCol + 1, row: deskRow - 2, w: 1, h: 1,
@@ -230,13 +230,15 @@ function addReceptionDesk(b: Builder): void {
 
 /** Decorate the meeting room: central table, whiteboard, plants, bookshelf. */
 function buildMeetingRoom(b: Builder): void {
-  // Central conference table (3×1) — agents gather around for dispatching.
+  // Central conference table (3x1). Also block the north visual edge so
+  // 32px-tall characters cannot appear to walk through the tabletop.
   const tableCol = 19;
   const tableRow = 6;
   addFurniture(b, {
     id: 'meeting-table', kind: 'table', variant: 'front',
     col: tableCol, row: tableRow, w: 3, h: 1, blocking: true,
   });
+  pushBlocked(b, tableCol, tableRow - 1, 3, 1);
   // Wall-mounted whiteboard above the table (sprite overhangs into row 0).
   addFurniture(b, {
     id: 'meeting-whiteboard', kind: 'whiteboard', variant: 'front',
@@ -391,6 +393,8 @@ function buildLoungeRoom(b: Builder): void {
     id: 'lounge-coffee-maker', kind: 'coffee', variant: 'front',
     col: 24, row: 19, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
   });
+  // The coffee sprite overhangs upward/downward visually; reserve the counter
+  // tile and interact from the side rather than standing inside the pot.
   addFurniture(b, {
     id: 'lounge-wash-counter', kind: 'small_table', variant: 'front',
     col: 24, row: 22, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
@@ -540,8 +544,8 @@ function fallbackSpot(layout: OfficeLayout): MeetingSpot {
 export function meetingSpotFor(layout: OfficeLayout, index: number): MeetingSpot {
   const spots: MeetingSpot[] = [
     { col: 19, row: 7 }, { col: 20, row: 7 }, { col: 21, row: 7 },
-    { col: 19, row: 5 }, { col: 20, row: 5 }, { col: 21, row: 5 },
     { col: 18, row: 6 }, { col: 22, row: 6 },
+    { col: 18, row: 7 }, { col: 22, row: 7 },
   ];
   const ok = spots.filter((spot) => isWalkable(layout, spot));
   if (ok.length === 0) return fallbackSpot(layout);
@@ -554,8 +558,8 @@ function officeActivities(layout: Pick<OfficeLayout, 'cols' | 'rows' | 'tiles' |
     { id: 'ops-console', label: 'Check console', col: 36, row: 3, facingDir: Direction.RIGHT, state: CharacterState.TYPE, durationSec: 3.5 },
     { id: 'ops-file', label: 'File notes', col: 31, row: 11, facingDir: Direction.LEFT, state: CharacterState.READ, durationSec: 3.2 },
     { id: 'front-desk', label: 'Sort mail', col: 12, row: 19, facingDir: Direction.LEFT, state: CharacterState.READ, durationSec: 3.0 },
-    { id: 'coffee-maker', label: 'Pour coffee', col: 24, row: 20, facingDir: Direction.UP, state: CharacterState.COFFEE, durationSec: 2.8 },
-    { id: 'wash-station', label: 'Wash hands', col: 24, row: 23, facingDir: Direction.UP, state: CharacterState.WASH, durationSec: 3.0 },
+    { id: 'coffee-maker', label: 'Pour coffee', col: 25, row: 19, facingDir: Direction.LEFT, state: CharacterState.COFFEE, durationSec: 2.8 },
+    { id: 'wash-station', label: 'Wash hands', col: 25, row: 22, facingDir: Direction.LEFT, state: CharacterState.WASH, durationSec: 3.0 },
     { id: 'library-reference', label: 'Find reference', col: 34, row: 17, facingDir: Direction.RIGHT, state: CharacterState.READ, durationSec: 4.0 },
     { id: 'lounge-read', label: 'Read brief', col: 16, row: 19, facingDir: Direction.DOWN, state: CharacterState.READ, durationSec: 3.6 },
   ];

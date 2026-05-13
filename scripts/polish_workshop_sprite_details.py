@@ -175,6 +175,58 @@ def draw_side_frame(frame: Image.Image, pal: dict[str, Color], frame_index: int)
     return out
 
 
+
+def draw_quarter_side_frame(base: Image.Image, pal: dict[str, Color], frame_index: int) -> Image.Image:
+    """Turn the front/down frame into a conservative side frame.
+
+    This keeps the exact character hair/body silhouette family from the front
+    row and only adds small directional cues. A full redrawn profile drifted too
+    far and made characters read like different creatures.
+    """
+    out = base.convert("RGBA").copy()
+    pix = out.load()
+    o = pal["outline"]
+    skin = pal["skin"]
+    hair = pal["hair"]
+    shade = pal["shade"]
+    pants = pal["pants"]
+
+    # Face cue: one visible eye and a two-pixel nose/mouth on the facing side.
+    # Keep it tiny so hair style and head size stay anchored to the front frame.
+    for y in range(7, 13):
+        for x in range(4, 9):
+            if pix[x, y][3] > 0:
+                pix[x, y] = skin
+    if luma(hair) < 70:
+        # Dark-haired sprites had bright front-view highlights that read like
+        # animal eyes when reused in side motion. Collapse those pixels back
+        # into the hair mass before drawing the single human eye cue.
+        for y in range(4, 10):
+            for x in range(4, 11):
+                if pix[x, y][3] > 0 and luma(pix[x, y]) > 150:
+                    pix[x, y] = hair
+    set_many(pix, [(10, 10), (12, 11)], o)
+    set_many(pix, [(11, 11), (12, 10)], skin)
+    # Small facing-side hair edge. This uses the sampled hair color, so each
+    # palette keeps its own hairstyle instead of adopting a generic profile.
+    set_many(pix, [(4, 7), (4, 8), (5, 6), (5, 12)], hair)
+
+    # Right-side arm/shoulder cue and a darker trailing torso edge.
+    set_many(pix, [(11, 17), (11, 18), (11, 19), (10, 20)], shade)
+    set_many(pix, [(12, 18), (12, 19)], skin)
+
+    # Directional feet: retain the original front walk cadence but point toes
+    # sideways so lateral movement no longer reads as a pure front walk.
+    if frame_index % 3 == 1:
+        set_many(pix, [(4, 29), (5, 29), (10, 30), (11, 30)], o)
+        set_many(pix, [(5, 28), (10, 29)], pants)
+    elif frame_index % 3 == 2:
+        set_many(pix, [(5, 30), (6, 30), (9, 29), (10, 29)], o)
+        set_many(pix, [(6, 29), (9, 28)], pants)
+    else:
+        set_many(pix, [(5, 29), (6, 29), (9, 29), (10, 29)], o)
+    return out
+
 def draw_front_action_frame(base: Image.Image, pal: dict[str, Color], frame_index: int, row: int) -> Image.Image:
     out = base.convert("RGBA").copy()
     pix = out.load()
@@ -191,7 +243,6 @@ def draw_front_action_frame(base: Image.Image, pal: dict[str, Color], frame_inde
     elif frame_index == 7:  # coffee
         rect(pix, 10, 18, 12, 20, (124, 76, 43, 255))
         set_many(pix, [(9, 18), (13, 18), (9, 20), (13, 20), (10, 21), (11, 21), (12, 21)], o)
-        set_many(pix, [(11, 15), (12, 14), (11, 13)], (224, 224, 210, 255))
         set_many(pix, [(8, 19), (9, 20)], skin)
     elif frame_index == 8:  # wash hands / water at a small basin
         rect(pix, 6, 19, 13, 22, (76, 91, 101, 255))
@@ -212,29 +263,106 @@ def draw_front_action_frame(base: Image.Image, pal: dict[str, Color], frame_inde
     return out
 
 
+
+CHARACTER_PALETTES: list[dict[str, Color]] = [
+    {"skin": (232, 178, 132, 255), "hair": (92, 54, 35, 255), "hair2": (124, 76, 47, 255), "cloth": (58, 116, 166, 255), "pants": (45, 58, 82, 255)},
+    {"skin": (210, 151, 105, 255), "hair": (62, 43, 31, 255), "hair2": (92, 67, 43, 255), "cloth": (153, 87, 61, 255), "pants": (52, 63, 73, 255)},
+    {"skin": (238, 190, 145, 255), "hair": (33, 31, 35, 255), "hair2": (68, 60, 62, 255), "cloth": (64, 142, 112, 255), "pants": (50, 60, 78, 255)},
+    {"skin": (196, 134, 94, 255), "hair": (41, 34, 30, 255), "hair2": (72, 54, 40, 255), "cloth": (122, 88, 160, 255), "pants": (43, 52, 70, 255)},
+    {"skin": (236, 181, 128, 255), "hair": (154, 104, 49, 255), "hair2": (202, 147, 71, 255), "cloth": (186, 96, 72, 255), "pants": (62, 71, 88, 255)},
+    {"skin": (226, 166, 118, 255), "hair": (28, 28, 32, 255), "hair2": (62, 62, 68, 255), "cloth": (76, 111, 184, 255), "pants": (39, 45, 62, 255)},
+]
+
+
+def draw_human_frame(pal: dict[str, Color], row: int, frame_index: int) -> Image.Image:
+    img = Image.new("RGBA", (FRAME_W, FRAME_H), TRANSPARENT)
+    pix = img.load()
+    o = (38, 28, 32, 255)
+    skin = pal["skin"]
+    hair = pal["hair"]
+    hair2 = pal["hair2"]
+    cloth = pal["cloth"]
+    pants = pal["pants"]
+    shade = tuple(max(0, int(c * 0.72)) for c in cloth[:3]) + (255,)
+    shoe = (34, 31, 35, 255)
+
+    # Head outline shared by every direction, so silhouette identity is stable.
+    set_many(pix, [(5, 3), (6, 2), (7, 2), (8, 2), (9, 3), (4, 4), (10, 4), (3, 6), (11, 6), (3, 10), (11, 10), (4, 12), (10, 12), (5, 13), (9, 13)], o)
+    rect(pix, 4, 5, 10, 11, skin)
+    rect(pix, 5, 4, 9, 5, hair)
+    set_many(pix, [(4, 4), (5, 3), (6, 3), (7, 3), (8, 3), (9, 4), (3, 7), (3, 8), (4, 6), (10, 6)], hair)
+    set_many(pix, [(5, 4), (8, 4), (9, 5)], hair2)
+
+    if row == 0:  # front/down
+        set_many(pix, [(6, 8), (9, 8)], o)
+        set_many(pix, [(7, 11), (8, 11)], o)
+    elif row == 1:  # back/up
+        # Short cap shape matching the front hairline; avoid long hood/bob mass.
+        rect(pix, 4, 4, 10, 8, hair)
+        set_many(pix, [(5, 4), (8, 4), (9, 6), (4, 7)], hair2)
+        set_many(pix, [(5, 9), (6, 9), (7, 9), (8, 9), (9, 9)], skin)
+    else:  # quarter-side/right
+        # Keep the same short-cap hair mass, but show one eye and a small nose.
+        rect(pix, 4, 5, 7, 8, hair)
+        set_many(pix, [(9, 8), (11, 9)], o)
+        set_many(pix, [(10, 9), (11, 8), (7, 9)], skin)
+
+    # Neck / torso.
+    rect(pix, 6, 13, 8, 15, skin)
+    set_many(pix, [(4, 15), (10, 15), (3, 16), (11, 16), (3, 22), (11, 22), (4, 23), (10, 23)], o)
+    rect(pix, 4, 16, 10, 22, cloth)
+    rect(pix, 4, 19, 5, 22, shade)
+    if row == 2:
+        set_many(pix, [(11, 18), (11, 19), (10, 20)], skin)
+    else:
+        set_many(pix, [(3, 18), (11, 18)], skin)
+
+    # Legs / walk cadence.
+    if frame_index % 4 == 1:
+        left = [(5, 23), (5, 24), (4, 25), (4, 26), (4, 27), (3, 28)]
+        right = [(9, 23), (9, 24), (10, 25), (10, 26), (10, 27), (11, 28)]
+    elif frame_index % 4 == 2:
+        left = [(5, 23), (6, 24), (6, 25), (7, 26), (7, 27), (7, 28)]
+        right = [(9, 23), (8, 24), (8, 25), (7, 26), (6, 27), (5, 28)]
+    else:
+        left = [(5, 23), (5, 24), (5, 25), (5, 26), (5, 27), (4, 28)]
+        right = [(9, 23), (9, 24), (9, 25), (9, 26), (9, 27), (10, 28)]
+    set_many(pix, left + right, pants)
+    set_many(pix, [(4, 29), (5, 29), (9, 29), (10, 29)], shoe)
+    set_many(pix, [(4, 28), (10, 28)], o)
+
+    return img
+
+
+def compose_action_frame(base: Image.Image, pal: dict[str, Color], frame_index: int, row: int) -> Image.Image:
+    img = base.copy()
+    if frame_index in (3, 4, 7, 8, 9):
+        img = draw_front_action_frame(img, {
+            "outline": (38, 28, 32, 255),
+            "skin": pal["skin"],
+            "hair": pal["hair"],
+            "cloth": pal["cloth"],
+            "shade": tuple(max(0, int(c * 0.72)) for c in pal["cloth"][:3]) + (255,),
+            "pants": pal["pants"],
+            "hair_highlight": pal["hair2"],
+            "paper": (238, 226, 190, 255),
+            "screen": (74, 168, 190, 255),
+        }, frame_index, row)
+    return img
+
 def polish_character_sheet(path: Path) -> None:
-    source = Image.open(path).convert("RGBA")
-    if source.size not in ((FRAME_W * SOURCE_FRAMES_PER_DIR, FRAME_H * 3), (FRAME_W * CHAR_FRAMES_PER_DIR, FRAME_H * 3)):
-        raise SystemExit(f"unexpected character sheet size for {path}: {source.size}")
-    pal = pick_palette(source)
+    try:
+        idx = int(path.stem.split("_")[-1])
+    except ValueError:
+        idx = 0
+    pal = CHARACTER_PALETTES[idx % len(CHARACTER_PALETTES)]
     sheet = Image.new("RGBA", (FRAME_W * CHAR_FRAMES_PER_DIR, FRAME_H * 3), TRANSPARENT)
-    # Preserve the original seven frames from the current/upstream sheet.
-    sheet.alpha_composite(source.crop((0, 0, FRAME_W * SOURCE_FRAMES_PER_DIR, FRAME_H * 3)), (0, 0))
-    # Preserve upstream side-walk frames. They already match the front/back
-    # character identity better than a generated profile pass. Only add action
-    # overlays on top of matching upstream frames.
-    for frame_index in (3, 4):
-        sx = frame_index * FRAME_W
-        for row in (0, 1):
-            base = sheet.crop((0, row * FRAME_H, FRAME_W, (row + 1) * FRAME_H))
-            sheet.paste(draw_front_action_frame(base, pal, frame_index, row), (sx, row * FRAME_H))
-    for frame_index in range(SOURCE_FRAMES_PER_DIR, CHAR_FRAMES_PER_DIR):
-        sx = frame_index * FRAME_W
-        for row in (0, 1):
-            base = sheet.crop((0, row * FRAME_H, FRAME_W, (row + 1) * FRAME_H))
-            sheet.paste(draw_front_action_frame(base, pal, frame_index, row), (sx, row * FRAME_H))
-        side_base = sheet.crop((0, SIDE_ROW_Y, FRAME_W, SIDE_ROW_Y + FRAME_H))
-        sheet.paste(draw_front_action_frame(side_base, pal, frame_index, 2), (sx, SIDE_ROW_Y))
+    for frame_index in range(CHAR_FRAMES_PER_DIR):
+        source_frame = frame_index if frame_index < SOURCE_FRAMES_PER_DIR else 0
+        for row in range(3):
+            base = draw_human_frame(pal, row, source_frame)
+            frame = compose_action_frame(base, pal, frame_index, row)
+            sheet.alpha_composite(frame, (frame_index * FRAME_W, row * FRAME_H))
     sheet.save(path)
 
 
@@ -309,6 +437,25 @@ def polish_furniture_details() -> None:
     add_rect(px, 4, 23, 11, 24, (96, 83, 76, 255))
     add_rect(px, 6, 27, 9, 29, outline)
     draw_px_sprite((16, 32), px, ASSETS / "furniture" / "PC" / "PC_SIDE.png")
+
+    # Coffee maker: exaggerated spout, carafe, handle, hot plate, and steam so
+    # it reads clearly at 16x16 instead of as an abstract gray block.
+    px = {}
+    add_rect(px, 4, 2, 11, 4, outline)
+    add_rect(px, 5, 3, 10, 4, metal)
+    add_rect(px, 3, 5, 12, 11, outline)
+    add_rect(px, 4, 5, 8, 10, (86, 96, 101, 255))
+    add_rect(px, 9, 5, 11, 7, (196, 207, 202, 255))
+    add_rect(px, 9, 8, 11, 10, (80, 50, 31, 255))
+    add_rect(px, 12, 7, 14, 10, outline)
+    add_rect(px, 13, 8, 13, 9, (196, 207, 202, 255))
+    add_rect(px, 5, 12, 12, 13, outline)
+    add_rect(px, 6, 12, 11, 12, (45, 35, 31, 255))
+    add_rect(px, 2, 6, 3, 7, outline)
+    px[(2, 8)] = (214, 214, 202, 255)
+    for pt in [(6, 0), (9, 0), (7, 1), (10, 1)]:
+        px[pt] = (218, 218, 202, 255)
+    draw_px_sprite((16, 16), px, ASSETS / "furniture" / "COFFEE" / "COFFEE.png")
 
     # Pot: separate rim, belly, inner shadow, and small highlight.
     px = {}
