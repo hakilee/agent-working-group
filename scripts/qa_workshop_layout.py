@@ -82,6 +82,12 @@ def main() -> int:
 
     require(bool(find_garden_zone(source)),
             "layout must include a named central garden zone", failures)
+    require("id: 'meeting-lounge'" in source and "label: 'Meeting Lounge'" in source and "floorVariant: 3" in source,
+            "meeting lounge must use an indoor floor, not the garden grass tile", failures)
+    require("const isStoneRing" in source and "return isStoneRing ? 8 : 4" in source,
+            "central garden must use a paver transition ring before grass", failures)
+    require("save_paver_variant(8" in (ROOT / "scripts" / "polish_workshop_sprite_details.py").read_text(encoding="utf-8"),
+            "floor variant 8 must be a dedicated paver transition tile", failures)
     require("kind: 'fountain_tower'" in source,
             "layout must include a fountain tower", failures)
     require(bool(re.search(r"kind:\s*'garden_bed'", source)),

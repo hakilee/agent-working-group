@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const WORKSHOP_ASSET_REV = 'office-garden-v5';
+const WORKSHOP_ASSET_REV = 'office-garden-v6';
 
 function assetUrl(path: string): string {
   return `${path}?v=${WORKSHOP_ASSET_REV}`;

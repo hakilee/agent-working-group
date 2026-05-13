@@ -618,6 +618,27 @@ def save_deck_variant(index: int, base: Color, plank: Color, seam: Color) -> Non
     img.save(ASSETS / "floors" / f"floor_{index}.png")
 
 
+def save_paver_variant(index: int, base: Color, seam: Color, moss: Color) -> None:
+    img = Image.new("RGBA", (16, 16), base)
+    pix = img.load()
+    for y in range(16):
+        for x in range(16):
+            pix[x, y] = texture_noise_color(base, x + index * 13, y + index * 17, 4)
+    # Offset stone slabs make the atrium border read like a deliberate paving
+    # transition instead of grass abruptly touching office carpet.
+    for y in (0, 7, 15):
+        for x in range(16):
+            pix[x, y] = seam
+    for x, y0, y1 in [(5, 1, 6), (11, 1, 6), (3, 8, 14), (9, 8, 14), (14, 8, 14)]:
+        for y in range(y0, y1 + 1):
+            pix[x, y] = seam
+    for x, y in [(2, 2), (13, 3), (6, 10), (12, 12), (4, 14)]:
+        pix[x, y] = moss
+        if x + 1 < 16:
+            pix[x + 1, y] = texture_noise_color(moss, x, y, 5)
+    img.save(ASSETS / "floors" / f"floor_{index}.png")
+
+
 def polish_floor_and_wall_details() -> None:
     # Indoor + outdoor floor family: concrete, epoxy, mats, plates,
     # plus dedicated grass (variant 4) for the central garden and decking
@@ -631,7 +652,7 @@ def polish_floor_and_wall_details() -> None:
         ((104, 99, 86, 255), (82, 78, 70, 255), "plate"),
         ((88, 91, 97, 255), (69, 72, 78, 255), "plate"),
         None,  # variant 7 handled by save_deck_variant
-        ((98, 91, 80, 255), (133, 113, 72, 255), "epoxy"),
+        None,  # variant 8 handled by save_paver_variant
     ]
     for i, spec in enumerate(floor_specs):
         if spec is None:
@@ -640,6 +661,7 @@ def polish_floor_and_wall_details() -> None:
         save_floor_variant(i, base, accent, mode)
     save_grass_variant(4, (62, 108, 64, 255), (78, 132, 70, 255), (118, 178, 102, 255))
     save_deck_variant(7, (110, 78, 52, 255), (148, 102, 60, 255), (74, 47, 30, 255))
+    save_paver_variant(8, (125, 112, 94, 255), (82, 73, 64, 255), (83, 130, 80, 255))
 
     # Horizontally seamless wall: neutral edges, internal panels, cap, shadow, conduit.
     img = Image.new("RGBA", (64, 128), (0, 0, 0, 0))
