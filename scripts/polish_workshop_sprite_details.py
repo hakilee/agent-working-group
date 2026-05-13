@@ -515,6 +515,32 @@ def polish_furniture_details() -> None:
     add_rect(px, 5, 12, 10, 13, outline)
     draw_px_sprite((16, 16), px, ASSETS / "furniture" / "POT" / "POT.png")
 
+    # Gather-like wall panels/windows: repeated along room walls to make the
+    # office read as tiled architecture instead of loose furniture on a plane.
+    glass = (99, 148, 164, 255)
+    glass_hi = (173, 205, 202, 255)
+    frame = (70, 80, 78, 255)
+    px = {}
+    add_rect(px, 2, 7, 13, 22, outline)
+    add_rect(px, 3, 8, 12, 21, frame)
+    add_rect(px, 4, 9, 11, 19, glass)
+    add_rect(px, 5, 10, 10, 11, glass_hi)
+    add_rect(px, 4, 14, 11, 15, frame)
+    add_rect(px, 7, 9, 8, 19, frame)
+    add_rect(px, 3, 22, 12, 23, (48, 54, 55, 255))
+    draw_px_sprite((16, 32), px, ASSETS / "furniture" / "SMALL_PAINTING" / "SMALL_PAINTING.png")
+
+    px = {}
+    add_rect(px, 3, 6, 28, 23, outline)
+    add_rect(px, 4, 7, 27, 22, frame)
+    for x0 in (5, 13, 21):
+        add_rect(px, x0, 8, x0 + 5, 19, glass)
+        add_rect(px, x0 + 1, 9, x0 + 4, 10, glass_hi)
+    add_rect(px, 11, 8, 12, 20, frame)
+    add_rect(px, 19, 8, 20, 20, frame)
+    add_rect(px, 4, 23, 27, 24, (48, 54, 55, 255))
+    draw_px_sprite((32, 32), px, ASSETS / "furniture" / "LARGE_PAINTING" / "LARGE_PAINTING.png")
+
 
 
 def texture_noise_color(base: Color, dx: int, dy: int, delta: int) -> Color:
@@ -649,13 +675,13 @@ def polish_floor_and_wall_details() -> None:
     # Gather-style material family: most rooms share a cool plaza paver,
     # while rugs/deck/grass act as intentional themed islands.
     floor_specs = [
-        ((132, 149, 154, 255), (82, 99, 106, 255), "gather_stone"),
-        ((123, 140, 147, 255), (77, 94, 103, 255), "gather_stone"),
-        ((143, 158, 159, 255), (91, 104, 108, 255), "gather_stone"),
+        ((146, 151, 146, 255), (104, 111, 108, 255), "gather_stone"),
+        ((137, 145, 142, 255), (98, 106, 104, 255), "gather_stone"),
+        ((154, 158, 151, 255), (108, 113, 108, 255), "gather_stone"),
         ((116, 94, 87, 255), (162, 116, 68, 255), "rug"),
         None,  # variant 4 handled by save_grass_variant
         ((112, 105, 98, 255), (74, 72, 68, 255), "plate"),
-        ((127, 141, 148, 255), (78, 94, 102, 255), "gather_stone"),
+        ((142, 148, 145, 255), (100, 108, 106, 255), "gather_stone"),
         None,  # variant 7 handled by save_deck_variant
         None,  # variant 8 handled by save_paver_variant
     ]
@@ -664,20 +690,20 @@ def polish_floor_and_wall_details() -> None:
             continue
         base, accent, mode = spec
         save_floor_variant(i, base, accent, mode)
-    save_grass_variant(4, (47, 116, 68, 255), (75, 140, 79, 255), (128, 185, 100, 255))
-    save_deck_variant(7, (104, 76, 55, 255), (136, 92, 63, 255), (76, 56, 43, 255))
-    save_paver_variant(8, (137, 128, 112, 255), (82, 76, 70, 255), (75, 118, 78, 255))
+    save_grass_variant(4, (56, 124, 76, 255), (82, 145, 86, 255), (129, 182, 104, 255))
+    save_deck_variant(7, (112, 82, 58, 255), (146, 100, 70, 255), (82, 61, 47, 255))
+    save_paver_variant(8, (146, 139, 124, 255), (98, 91, 83, 255), (82, 124, 82, 255))
 
     # Horizontally seamless wall: neutral edges, internal panels, cap, shadow, conduit.
     img = Image.new("RGBA", (64, 128), (0, 0, 0, 0))
     pix = img.load()
-    wall = (154, 162, 158, 255)
-    wall_alt = (139, 150, 148, 255)
-    cap = (198, 204, 194, 255)
-    shadow = (70, 79, 80, 255)
-    trim = (91, 103, 104, 255)
-    dark = (45, 52, 55, 255)
-    blue = (104, 143, 154, 255)
+    wall = (178, 184, 176, 255)
+    wall_alt = (164, 173, 168, 255)
+    cap = (218, 222, 210, 255)
+    shadow = (105, 114, 112, 255)
+    trim = (118, 130, 128, 255)
+    dark = (70, 78, 80, 255)
+    blue = (129, 165, 174, 255)
     for y in range(128):
         for x in range(64):
             if y < 12:

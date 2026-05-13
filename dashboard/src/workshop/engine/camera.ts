@@ -34,7 +34,7 @@ export interface Camera {
  */
 const MIN_VISIBLE_W_PX = 640; // 40 tiles at 16 px
 const MIN_VISIBLE_H_PX = 416; // 26 tiles at 16 px
-const MAX_GATHER_SCALE = 2;
+const MAX_GATHER_SCALE = 1.5;
 
 /** Create a camera sized to the canvas (logical/CSS pixels). */
 export function createCamera(

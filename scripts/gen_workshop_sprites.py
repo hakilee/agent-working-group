@@ -39,6 +39,8 @@ POLISHED_ASSET_OVERRIDES = {
     "furniture/DESK/DESK_SIDE.png",
     "furniture/PC/PC_SIDE.png",
     "furniture/POT/POT.png",
+    "furniture/SMALL_PAINTING/SMALL_PAINTING.png",
+    "furniture/LARGE_PAINTING/LARGE_PAINTING.png",
     "furniture/SMALL_TABLE/SMALL_TABLE_SIDE.png",
     "walls/wall_0.png",
     "floors/floor_0.png",
@@ -60,6 +62,8 @@ EXPECTED_DIMENSIONS = {
     "furniture/DESK/DESK_SIDE.png": (16, 64),
     "furniture/PC/PC_SIDE.png": (16, 32),
     "furniture/POT/POT.png": (16, 16),
+    "furniture/SMALL_PAINTING/SMALL_PAINTING.png": (16, 32),
+    "furniture/LARGE_PAINTING/LARGE_PAINTING.png": (32, 32),
     "furniture/SMALL_TABLE/SMALL_TABLE_SIDE.png": (16, 48),
 }
 
