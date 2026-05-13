@@ -15,40 +15,28 @@ import {
   createLayout,
   getCharacters,
   getLayout,
-  loadSprites,
-  render,
   resizeCamera,
   restoreCharacterState,
   sanitizeRestore,
-  screenToWorld,
   setCharacters,
   setLayout,
   setRooms,
-  startGameLoop,
   updateCamera,
   updateCharacter,
+  worldToScreen,
   type Camera,
   type EngineCharacter,
   type OfficeLayout,
-  type SpriteManager,
   type TaskPulse,
 } from '../workshop/engine';
+import { ThreeWorkshopRenderer } from '../workshop/three/renderer';
+import { loadThreeSprites, type ThreeSpriteManager } from '../workshop/three/textures';
 
 const MAP_PIXEL_W = LAYOUT_TILE_COLS * TILE_SIZE;
 const MAP_PIXEL_H = LAYOUT_TILE_ROWS * TILE_SIZE;
 
-/** Min ms between throttled in-walk WS position updates per agent. */
 const POSITION_UPDATE_THROTTLE_MS = 400;
-
-/** Wait this long for both an initial workshop snapshot AND the first queues
- *  frame before showing the canvas anyway. Avoids two visible jitter sources
- *  on refresh: (a) a momentary "facing front" flash from default state, and
- *  (b) a camera snap when characters spawn into the world after reveal. */
 const ENGINE_READY_TIMEOUT_MS = 1500;
-
-/** Fixed stage height so layout is stable from the very first paint — the
- *  canvas occupies this exact box before sprites/snapshot are ready, so
- *  there's no top-to-bottom shift when content swaps in. */
 const STAGE_HEIGHT_CSS = 'min(70vh, 640px)';
 
 function detectDarkMode(): boolean {
@@ -167,17 +155,70 @@ function AgentTooltip({ room, target }: { room: AgentRoom; target: HoverTarget }
   );
 }
 
+interface BubbleOverlay {
+  role: string;
+  x: number;
+  y: number;
+  label?: string;
+  glyph?: string;
+  color: string;
+  blocked: boolean;
+}
+
+function AgentBubbles({ overlays }: { overlays: BubbleOverlay[] }) {
+  return (
+    <>
+      {overlays.map((o) => (
+        <Fragment key={o.role}>
+          {o.label && (
+            <div
+              className="pointer-events-none absolute z-[5] -translate-x-1/2 -translate-y-full rounded border bg-ops-panel/95 px-1.5 py-0.5 font-mono text-[8px] leading-none text-ops-ink shadow-sm backdrop-blur-sm dark:bg-[#1e2722]/95 dark:text-[#eef3ec]"
+              style={{ left: o.x, top: o.y - 14, borderColor: o.color }}
+            >
+              {o.label}
+            </div>
+          )}
+          {o.glyph && (
+            <div
+              className="pointer-events-none absolute z-[6] flex h-3 w-3 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[8px] font-bold text-white shadow-sm"
+              style={{ left: o.x, top: o.y - 4, background: o.blocked ? '#dc2626' : o.color }}
+            >
+              {o.glyph}
+            </div>
+          )}
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
+function bubbleGlyphForState(state: AgentRoom['state']): string | undefined {
+  switch (state) {
+    case 'dispatching':
+      return '!';
+    case 'reviewing':
+      return '?';
+    case 'responding':
+      return '↩';
+    case 'blocked':
+      return '×';
+    default:
+      return undefined;
+  }
+}
+
 export default function Workshop() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const ws = useWorkshopWS();
-  const [sprites, setSprites] = useState<SpriteManager | null>(null);
+  const [sprites, setSprites] = useState<ThreeSpriteManager | null>(null);
   const [engineReady, setEngineReady] = useState(false);
   const [hoverTarget, setHoverTarget] = useState<HoverTarget | null>(null);
+  const [bubbles, setBubbles] = useState<BubbleOverlay[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    loadSprites().then((mgr) => {
+    loadThreeSprites().then((mgr) => {
       if (!cancelled) setSprites(mgr);
     });
     return () => {
@@ -185,15 +226,6 @@ export default function Workshop() {
     };
   }, []);
 
-  // Mark the engine ready only once we have:
-  //   - sprites loaded (no missing-tile fallback flash), AND
-  //   - the initial position snapshot (no "facing front" flash), AND
-  //   - the initial queues frame (so character set is known and the camera
-  //     centroid is computed on the real cast before reveal — prevents a
-  //     visible camera jump from map-center → character-centroid right after
-  //     the loading overlay disappears).
-  // A timeout still uncovers the canvas if the server is unreachable, so the
-  // empty office can be shown rather than spinning indefinitely.
   useEffect(() => {
     if (engineReady) return;
     if (!sprites) return;
@@ -211,12 +243,12 @@ export default function Workshop() {
     return rooms.find((r) => r.role === hoverTarget.role) ?? null;
   }, [hoverTarget, rooms]);
 
-  // Refs sourced from module-level state so they survive page navigation.
   const charactersRef = useRef<EngineCharacter[]>(getCharacters());
   const layoutRef = useRef<OfficeLayout | null>(getLayout());
   const darkModeRef = useRef<boolean>(detectDarkMode());
   const reducedMotionRef = useRef<boolean>(detectReducedMotion());
   const cameraRef = useRef<Camera | null>(null);
+  const rendererRef = useRef<ThreeWorkshopRenderer | null>(null);
   const agentPositionsRef = useRef(ws.agentPositions);
   const sendAgentUpdateRef = useRef(ws.sendAgentUpdate);
   const engineReadyRef = useRef(engineReady);
@@ -225,6 +257,7 @@ export default function Workshop() {
   const prevCountsRef = useRef<Map<string, CountSnapshot>>(new Map());
   const taskPulsesRef = useRef<TaskPulse[]>([]);
   const taskPulseSeqRef = useRef(0);
+  const bubbleFlushRef = useRef(0);
 
   useEffect(() => {
     agentPositionsRef.current = ws.agentPositions;
@@ -294,16 +327,16 @@ export default function Workshop() {
     return () => obs.disconnect();
   }, []);
 
-  // Reflect rooms into refs and reconcile characters / seats.
   useEffect(() => {
     setRooms(rooms);
     if (!sprites) return;
-    const palCount = Math.max(sprites.characters.length, 1);
+    const palCount = Math.max(sprites.characterSheetSrc.length, 1);
     const needed = rooms.length;
 
     if (!layoutRef.current || layoutRef.current.seats.length < needed) {
       layoutRef.current = createLayout(needed);
       setLayout(layoutRef.current);
+      rendererRef.current?.syncLayout(layoutRef.current);
     }
 
     const existing = new Map(charactersRef.current.map((c) => [c.role, c]));
@@ -322,8 +355,6 @@ export default function Workshop() {
     }
     charactersRef.current = next;
     setCharacters(next);
-    // Trim per-agent throttle state for any role that no longer exists so the
-    // map can't grow unbounded across long-lived sessions.
     const liveRoles = new Set(next.map((c) => c.role));
     for (const k of [...lastSentRef.current.keys()]) {
       if (!liveRoles.has(k)) lastSentRef.current.delete(k);
@@ -331,11 +362,9 @@ export default function Workshop() {
     if (layoutRef.current) {
       assignSeats(charactersRef.current, layoutRef.current);
     }
+    rendererRef.current?.syncCharacters(next);
   }, [rooms, sprites]);
 
-  // On authoritative snapshot arrival: reconcile characters to server state.
-  // Reads from refs (not directly from props) so we don't fire on every local
-  // optimistic position write.
   useEffect(() => {
     if (ws.snapshotNonce === 0) return;
     const positions = agentPositionsRef.current;
@@ -347,36 +376,14 @@ export default function Workshop() {
     }
   }, [ws.snapshotNonce]);
 
-  // Pointer tracking → hover tooltip. Hit-tests in world space using the
-  // current camera transform; reads from refs so we never go stale on
-  // re-renders.
   const handlePointer = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    const cam = cameraRef.current;
-    if (!canvas || !cam || !sprites) return;
+    const renderer = rendererRef.current;
+    if (!canvas || !renderer || !sprites) return;
     const rect = canvas.getBoundingClientRect();
-    // Camera math is in CSS px; pointer coords are CSS px relative to canvas.
     const sx = e.clientX - rect.left;
     const sy = e.clientY - rect.top;
-    const world = screenToWorld(cam, sx, sy);
-    let hit: string | null = null;
-    // Walk reverse so the topmost (drawn last) wins ties.
-    const list = charactersRef.current;
-    for (let i = list.length - 1; i >= 0; i--) {
-      const c = list[i];
-      const x0 = c.x;
-      const y0 = c.y;
-      // Slight expansion makes hover feel less finicky on tiny sprites.
-      if (
-        world.x >= x0 - 1 &&
-        world.x < x0 + sprites.charFrameW + 1 &&
-        world.y >= y0 - 1 &&
-        world.y < y0 + sprites.charFrameH + 1
-      ) {
-        hit = c.role;
-        break;
-      }
-    }
+    const hit = renderer.pickCharacter(sx, sy);
     hoveredRoleRef.current = hit;
     if (!hit) {
       setHoverTarget(null);
@@ -429,44 +436,60 @@ export default function Workshop() {
       return { x: sx / chars.length, y: sy / chars.length };
     };
 
+    const dprInitial = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
+    const cssW0 = Math.max(1, Math.floor(container.clientWidth));
+    const cssH0 = Math.max(1, Math.floor(container.clientHeight));
+    cameraRef.current = createCamera(cssW0, cssH0, MAP_PIXEL_W, MAP_PIXEL_H, dprInitial);
+    const tgt0 = computeCameraTarget();
+    updateCamera(cameraRef.current, tgt0.x, tgt0.y, MAP_PIXEL_W, MAP_PIXEL_H);
+
+    const renderer = new ThreeWorkshopRenderer({
+      canvas,
+      sprites,
+      mapPixelW: MAP_PIXEL_W,
+      mapPixelH: MAP_PIXEL_H,
+      cssW: cssW0,
+      cssH: cssH0,
+      dpr: dprInitial,
+    });
+    rendererRef.current = renderer;
+    renderer.applyEngineCamera(cameraRef.current);
+    if (layoutRef.current) renderer.syncLayout(layoutRef.current);
+    renderer.syncCharacters(charactersRef.current);
+
     const syncSize = () => {
-      // Track device pixel ratio so pixel-art stays crisp on HiDPI displays.
-      // The CSS size still matches the container; only the backing store grows.
       const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
       const cssW = Math.max(1, Math.floor(container.clientWidth));
       const cssH = Math.max(1, Math.floor(container.clientHeight));
-      const w = Math.max(1, Math.floor(cssW * dpr));
-      const h = Math.max(1, Math.floor(cssH * dpr));
-      if (canvas.width !== w) canvas.width = w;
-      if (canvas.height !== h) canvas.height = h;
-      if (!cameraRef.current) {
-        cameraRef.current = createCamera(cssW, cssH, MAP_PIXEL_W, MAP_PIXEL_H, dpr);
-      } else {
-        resizeCamera(cameraRef.current, cssW, cssH, MAP_PIXEL_W, MAP_PIXEL_H, dpr);
+      const cam = cameraRef.current;
+      if (cam) {
+        resizeCamera(cam, cssW, cssH, MAP_PIXEL_W, MAP_PIXEL_H, dpr);
       }
-      // Seed the camera on the real character centroid (or map center if
-      // there are no characters yet) so the very first paint after reveal is
-      // already in the right place — no "snap" from map-center to centroid
-      // when the game loop's first tick fires.
+      renderer.resize(cssW, cssH, dpr);
       const target = computeCameraTarget();
-      updateCamera(cameraRef.current, target.x, target.y, MAP_PIXEL_W, MAP_PIXEL_H);
+      if (cam) updateCamera(cam, target.x, target.y, MAP_PIXEL_W, MAP_PIXEL_H);
     };
     syncSize();
 
     const ro = new ResizeObserver(() => syncSize());
     ro.observe(container);
 
-    const stop = startGameLoop(canvas, {
-      update: (dt) => {
-        // Don't run any character AI or camera motion before reveal — this
-        // keeps the (still-hidden) canvas in a deterministic, fully-settled
-        // state so the first visible frame after the loading curtain lifts
-        // is the same as the last hidden frame: no apparent motion.
-        if (!engineReadyRef.current) return;
+    let last = performance.now();
+    let raf = 0;
+    let stopped = false;
+
+    const tick = (now: number) => {
+      if (stopped) return;
+      const rawDt = (now - last) / 1000;
+      last = now;
+      const dt = Math.min(rawDt, 0.1);
+
+      if (engineReadyRef.current && layoutRef.current) {
         const layout = layoutRef.current;
-        if (!layout) return;
-        const now = performance.now();
-        taskPulsesRef.current = taskPulsesRef.current.filter((pulse) => now - pulse.startedAt <= pulse.durationMs);
+        const nowMs = performance.now();
+        taskPulsesRef.current = taskPulsesRef.current.filter(
+          (pulse) => nowMs - pulse.startedAt <= pulse.durationMs,
+        );
         for (const c of charactersRef.current) {
           const prevState = c.state;
           const prevTileCol = c.tileCol;
@@ -477,14 +500,13 @@ export default function Workshop() {
             reducedMotion: reducedMotionRef.current,
           });
 
-          // Persist on tile crossing during a walk (throttled per agent).
           if (
             c.state === CharacterState.WALK &&
             (c.tileCol !== prevTileCol || c.tileRow !== prevTileRow)
           ) {
-            const last = lastSentRef.current.get(c.role) ?? 0;
-            if (now - last >= POSITION_UPDATE_THROTTLE_MS) {
-              lastSentRef.current.set(c.role, now);
+            const lastSent = lastSentRef.current.get(c.role) ?? 0;
+            if (nowMs - lastSent >= POSITION_UPDATE_THROTTLE_MS) {
+              lastSentRef.current.set(c.role, nowMs);
               sendAgentUpdateRef.current(c.role, {
                 x: Math.round(c.x),
                 y: Math.round(c.y),
@@ -495,9 +517,8 @@ export default function Workshop() {
               });
             }
           }
-          // Always persist on transition out of WALK (arrival, blocked stop).
           if (prevState === CharacterState.WALK && c.state !== CharacterState.WALK) {
-            lastSentRef.current.set(c.role, now);
+            lastSentRef.current.set(c.role, nowMs);
             sendAgentUpdateRef.current(c.role, {
               x: Math.round(c.x),
               y: Math.round(c.y),
@@ -508,44 +529,68 @@ export default function Workshop() {
             });
           }
         }
-        // Camera follow: center on character centroid. Only adjust once
-        // there are characters — otherwise leave the camera at whatever
-        // syncSize() seeded it with (map center) so we never snap.
         const cam = cameraRef.current;
         if (cam && charactersRef.current.length > 0) {
           const target = computeCameraTarget();
           updateCamera(cam, target.x, target.y, MAP_PIXEL_W, MAP_PIXEL_H);
         }
-      },
-      render: (ctx) => {
-        if (!engineReadyRef.current) {
-          // Clear to letterbox color so the canvas isn't transparent before
-          // we have the first authoritative state.
-          ctx.save();
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.fillStyle = darkModeRef.current ? '#06090a' : '#1c1a14';
-          ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-          ctx.restore();
-          return;
+      }
+
+      const cam = cameraRef.current;
+      if (cam) renderer.applyEngineCamera(cam);
+
+      if (!engineReadyRef.current) {
+        renderer.render();
+      } else {
+        renderer.update(
+          {
+            layout: layoutRef.current,
+            characters: charactersRef.current,
+            darkMode: darkModeRef.current,
+            camera: cam!,
+            hoveredRole: hoveredRoleRef.current,
+            taskPulses: taskPulsesRef.current,
+            nowMs: performance.now(),
+          },
+          dt,
+        );
+        renderer.render();
+
+        // Refresh bubble overlays at ~8fps to limit React churn.
+        bubbleFlushRef.current += dt;
+        if (bubbleFlushRef.current >= 0.12) {
+          bubbleFlushRef.current = 0;
+          const list: BubbleOverlay[] = [];
+          for (const c of charactersRef.current) {
+            const center = { x: c.x + 8, y: c.y };
+            const screen = cam ? worldToScreen(cam, center.x, center.y) : { x: 0, y: 0 };
+            const glyph = bubbleGlyphForState(c.roomState);
+            const label = c.currentActivity && c.actionTimer > 0 ? c.currentActivity.label : undefined;
+            if (!glyph && !label) continue;
+            list.push({
+              role: c.role,
+              x: screen.x,
+              y: screen.y,
+              label,
+              glyph,
+              color: c.profile.color,
+              blocked: c.isBlocked,
+            });
+          }
+          setBubbles(list);
         }
-        const layout = layoutRef.current;
-        const cam = cameraRef.current;
-        if (!layout || !sprites || !cam) return;
-        render(ctx, {
-          layout,
-          characters: charactersRef.current,
-          sprites,
-          darkMode: darkModeRef.current,
-          camera: cam,
-          hoveredRole: hoveredRoleRef.current,
-          taskPulses: taskPulsesRef.current,
-          nowMs: performance.now(),
-        });
-      },
-    });
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
     return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
       ro.disconnect();
-      stop();
+      renderer.dispose();
+      rendererRef.current = null;
     };
   }, [sprites, rooms.length]);
 
@@ -608,6 +653,7 @@ export default function Workshop() {
           onPointerMove={handlePointer}
           onPointerLeave={handlePointerLeave}
         />
+        <AgentBubbles overlays={bubbles} />
         {hoveredRoom && hoverTarget && <AgentTooltip room={hoveredRoom} target={hoverTarget} />}
         {(!sprites || !engineReady) && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-[10px] uppercase tracking-widest text-white">
