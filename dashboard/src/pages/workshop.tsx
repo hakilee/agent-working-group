@@ -12,8 +12,13 @@ import {
   assignSeats,
   createCharacter,
   createLayout,
+  getCharacters,
+  getLayout,
   loadSprites,
   render,
+  setCharacters,
+  setLayout,
+  setRooms,
   startGameLoop,
   updateCharacter,
   type EngineCharacter,
@@ -23,6 +28,9 @@ import {
 
 const CANVAS_W = LAYOUT_TILE_COLS * TILE_SIZE;
 const CANVAS_H = LAYOUT_TILE_ROWS * TILE_SIZE;
+
+/** Max display width in px — keeps the canvas a sensible size on large monitors. */
+const MAX_DISPLAY_W = 960;
 
 function detectDarkMode(): boolean {
   if (typeof document === 'undefined') return false;
@@ -41,7 +49,6 @@ export default function Workshop() {
   const [error, setError] = useState<string | null>(null);
   const [sprites, setSprites] = useState<SpriteManager | null>(null);
 
-  // Initial fetch
   useEffect(() => {
     let cancelled = false;
     api
@@ -57,7 +64,6 @@ export default function Workshop() {
     };
   }, []);
 
-  // Stream updates
   useEffect(() => {
     const streamAgents = stream.data?.agents;
     if (streamAgents && streamAgents.length > 0) {
@@ -66,7 +72,6 @@ export default function Workshop() {
     }
   }, [stream.data]);
 
-  // Load sprites once
   useEffect(() => {
     let cancelled = false;
     loadSprites().then((mgr) => {
@@ -79,14 +84,13 @@ export default function Workshop() {
 
   const rooms = useMemo(() => deriveRooms(agents), [agents]);
 
-  // Mutable refs for the loop
-  const layoutRef = useRef<OfficeLayout | null>(null);
-  const charactersRef = useRef<EngineCharacter[]>([]);
+  // Refs sourced from module-level state so they survive page navigation.
+  const charactersRef = useRef<EngineCharacter[]>(getCharacters());
+  const layoutRef = useRef<OfficeLayout | null>(getLayout());
   const roomsRef = useRef<AgentRoom[]>(rooms);
   const darkModeRef = useRef<boolean>(detectDarkMode());
   const reducedMotionRef = useRef<boolean>(detectReducedMotion());
 
-  // Watch theme changes (re-evaluate dark mode each frame is cheap, but keep ref updated via observer).
   useEffect(() => {
     const root = document.documentElement;
     const obs = new MutationObserver(() => {
@@ -96,15 +100,17 @@ export default function Workshop() {
     return () => obs.disconnect();
   }, []);
 
-  // Reflect rooms into refs and reconcile characters / seats.
+  // Reflect rooms into refs and reconcile characters / seats; persist via module state.
   useEffect(() => {
     roomsRef.current = rooms;
+    setRooms(rooms);
     if (!sprites) return;
     const palCount = Math.max(sprites.characters.length, 1);
     const needed = rooms.length;
 
     if (!layoutRef.current || layoutRef.current.seats.length < needed) {
       layoutRef.current = createLayout(needed);
+      setLayout(layoutRef.current);
     }
 
     const existing = new Map(charactersRef.current.map((c) => [c.role, c]));
@@ -115,19 +121,18 @@ export default function Workshop() {
         applyRoomState(found, room);
         next.push(found);
       } else {
-        // Spawn at a doorway-ish tile (centered along the bottom wall, just inside).
         const spawnCol = Math.floor(LAYOUT_TILE_COLS / 2);
         const spawnRow = LAYOUT_TILE_ROWS - 2;
         next.push(createCharacter(room, palCount, { col: spawnCol, row: spawnRow }));
       }
     }
     charactersRef.current = next;
+    setCharacters(next);
     if (layoutRef.current) {
       assignSeats(charactersRef.current, layoutRef.current);
     }
   }, [rooms, sprites]);
 
-  // Main loop
   useEffect(() => {
     if (!sprites) return;
     const canvas = canvasRef.current;
@@ -137,6 +142,7 @@ export default function Workshop() {
 
     if (!layoutRef.current) {
       layoutRef.current = createLayout(Math.max(rooms.length, 2));
+      setLayout(layoutRef.current);
     }
 
     const stop = startGameLoop(canvas, {
@@ -179,15 +185,20 @@ export default function Workshop() {
         </div>
       )}
 
-      <div className="relative overflow-hidden rounded-none border border-ops-line bg-black/5 dark:border-white/15 dark:bg-white/5">
+      <div
+        className="relative mx-auto overflow-auto rounded-none border border-ops-line bg-black/5 dark:border-white/15 dark:bg-white/5"
+        style={{ maxWidth: MAX_DISPLAY_W }}
+      >
         <canvas
           ref={canvasRef}
           aria-label="Agent workshop office"
-          className="block w-full"
+          className="mx-auto block"
           style={{
             imageRendering: 'pixelated',
-            aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
+            width: '100%',
+            maxWidth: MAX_DISPLAY_W,
             height: 'auto',
+            aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
           }}
         />
         {!sprites && (

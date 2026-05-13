@@ -25,7 +25,25 @@ export const CharacterState = {
 } as const;
 export type CharacterState = (typeof CharacterState)[keyof typeof CharacterState];
 
-export type FurnitureKind = 'desk' | 'pc' | 'chair' | 'table';
+export type FurnitureKind =
+  | 'desk'
+  | 'pc'
+  | 'chair'
+  | 'table'
+  | 'whiteboard'
+  | 'bookshelf'
+  | 'double_bookshelf'
+  | 'plant'
+  | 'large_plant'
+  | 'hanging_plant'
+  | 'cactus'
+  | 'sofa'
+  | 'coffee_table'
+  | 'cushioned_bench'
+  | 'small_table'
+  | 'clock'
+  | 'small_painting'
+  | 'large_painting';
 export type FurnitureVariant = 'front' | 'back' | 'side' | 'side-mirror';
 
 export interface FurnitureInstance {
@@ -113,10 +131,24 @@ export interface SpriteSheet {
 }
 
 export interface FurnitureSprites {
-  desk: { front: HTMLImageElement | null };
-  pc: { front: HTMLImageElement | null; back: HTMLImageElement | null };
-  chair: { front: HTMLImageElement | null; back: HTMLImageElement | null };
+  desk: { front: HTMLImageElement | null; side: HTMLImageElement | null };
+  pc: { front: HTMLImageElement | null; back: HTMLImageElement | null; side: HTMLImageElement | null };
+  chair: { front: HTMLImageElement | null; back: HTMLImageElement | null; side: HTMLImageElement | null };
   table: { front: HTMLImageElement | null };
+  whiteboard: HTMLImageElement | null;
+  bookshelf: HTMLImageElement | null;
+  doubleBookshelf: HTMLImageElement | null;
+  plant: HTMLImageElement | null;
+  largePlant: HTMLImageElement | null;
+  hangingPlant: HTMLImageElement | null;
+  cactus: HTMLImageElement | null;
+  sofa: { front: HTMLImageElement | null; back: HTMLImageElement | null; side: HTMLImageElement | null };
+  coffeeTable: HTMLImageElement | null;
+  cushionedBench: HTMLImageElement | null;
+  smallTable: { front: HTMLImageElement | null; side: HTMLImageElement | null };
+  clock: HTMLImageElement | null;
+  smallPainting: HTMLImageElement | null;
+  largePainting: HTMLImageElement | null;
 }
 
 export interface SpriteManager {

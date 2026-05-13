@@ -17,3 +17,12 @@ export {
 } from './character';
 export { findPath, isWalkable } from './pathfinding';
 export { render } from './renderer';
+export {
+  getCharacters,
+  setCharacters,
+  getLayout,
+  setLayout,
+  getRooms,
+  setRooms,
+  resetWorkshopState,
+} from './state';

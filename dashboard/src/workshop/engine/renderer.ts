@@ -86,22 +86,88 @@ function drawFurnitureSprite(
   const dh = (f.h + overhang) * TILE_SIZE;
 
   let img: HTMLImageElement | null = null;
+  let flipX = false;
   switch (f.kind) {
     case 'desk':
-      img = sprites.furniture.desk.front;
+      img = f.variant === 'side' ? sprites.furniture.desk.side : sprites.furniture.desk.front;
       break;
     case 'pc':
-      img = f.variant === 'back' ? sprites.furniture.pc.back : sprites.furniture.pc.front;
+      if (f.variant === 'back') img = sprites.furniture.pc.back;
+      else if (f.variant === 'side') img = sprites.furniture.pc.side;
+      else if (f.variant === 'side-mirror') {
+        img = sprites.furniture.pc.side;
+        flipX = true;
+      } else img = sprites.furniture.pc.front;
       break;
     case 'chair':
-      img = f.variant === 'back' ? sprites.furniture.chair.back : sprites.furniture.chair.front;
+      if (f.variant === 'back') img = sprites.furniture.chair.back;
+      else if (f.variant === 'side') img = sprites.furniture.chair.side;
+      else if (f.variant === 'side-mirror') {
+        img = sprites.furniture.chair.side;
+        flipX = true;
+      } else img = sprites.furniture.chair.front;
       break;
     case 'table':
       img = sprites.furniture.table.front;
       break;
+    case 'whiteboard':
+      img = sprites.furniture.whiteboard;
+      break;
+    case 'bookshelf':
+      img = sprites.furniture.bookshelf;
+      break;
+    case 'double_bookshelf':
+      img = sprites.furniture.doubleBookshelf;
+      break;
+    case 'plant':
+      img = sprites.furniture.plant;
+      break;
+    case 'large_plant':
+      img = sprites.furniture.largePlant;
+      break;
+    case 'hanging_plant':
+      img = sprites.furniture.hangingPlant;
+      break;
+    case 'cactus':
+      img = sprites.furniture.cactus;
+      break;
+    case 'sofa':
+      if (f.variant === 'back') img = sprites.furniture.sofa.back;
+      else if (f.variant === 'side') img = sprites.furniture.sofa.side;
+      else if (f.variant === 'side-mirror') {
+        img = sprites.furniture.sofa.side;
+        flipX = true;
+      } else img = sprites.furniture.sofa.front;
+      break;
+    case 'coffee_table':
+      img = sprites.furniture.coffeeTable;
+      break;
+    case 'cushioned_bench':
+      img = sprites.furniture.cushionedBench;
+      break;
+    case 'small_table':
+      img = f.variant === 'side' ? sprites.furniture.smallTable.side : sprites.furniture.smallTable.front;
+      break;
+    case 'clock':
+      img = sprites.furniture.clock;
+      break;
+    case 'small_painting':
+      img = sprites.furniture.smallPainting;
+      break;
+    case 'large_painting':
+      img = sprites.furniture.largePainting;
+      break;
   }
   if (img) {
-    ctx.drawImage(img, dx, dy, dw, dh);
+    if (flipX) {
+      ctx.save();
+      ctx.translate(dx + dw, dy);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, 0, 0, dw, dh);
+      ctx.restore();
+    } else {
+      ctx.drawImage(img, dx, dy, dw, dh);
+    }
   } else {
     // Fallback placeholder.
     ctx.fillStyle = f.kind === 'desk' || f.kind === 'table' ? '#8a5a2b' : '#444';
