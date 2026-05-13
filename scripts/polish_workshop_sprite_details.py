@@ -277,124 +277,106 @@ CHARACTER_PALETTES: list[dict[str, Color]] = [
 def draw_human_frame(pal: dict[str, Color], row: int, frame_index: int) -> Image.Image:
     img = Image.new("RGBA", (FRAME_W, FRAME_H), TRANSPARENT)
     pix = img.load()
-    o = (38, 28, 32, 255)
+    o = (42, 33, 38, 255)
     skin = pal["skin"]
     hair = pal["hair"]
     hair2 = pal["hair2"]
     cloth = pal["cloth"]
     pants = pal["pants"]
-    shade = tuple(max(0, int(c * 0.72)) for c in cloth[:3]) + (255,)
-    shoe = (34, 31, 35, 255)
+    shade = tuple(max(0, int(c * 0.70)) for c in cloth[:3]) + (255,)
+    shoe = (35, 32, 36, 255)
 
-    # Fuller 16x32 proportions: deliberately chibi and closer to the original
-    # pixel-agents mass. Keep front/back/side on the same head/body footprint.
-    set_many(pix, [(4, 2), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (11, 2), (3, 3), (12, 3), (2, 5), (13, 5), (2, 10), (13, 10), (3, 13), (12, 13), (4, 14), (11, 14)], o)
-    rect(pix, 3, 4, 12, 12, skin)
-    rect(pix, 4, 3, 11, 5, hair)
-    set_many(pix, [(3, 3), (4, 2), (5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (10, 2), (11, 3), (2, 6), (2, 7), (3, 5), (12, 5)], hair)
-    set_many(pix, [(5, 3), (9, 3), (10, 3), (11, 4)], hair2)
+    # Gather-like compact avatar: small head, short body, strong outline, and
+    # plenty of transparent frame space so one tile reads smaller on screen.
+    head_y = 7
+    body_y = 18
+    foot_y = 28
+
+    # Head outline / face block.
+    set_many(pix, [(5, head_y), (6, head_y - 1), (7, head_y - 1), (8, head_y - 1), (9, head_y - 1), (10, head_y),
+                   (4, head_y + 1), (11, head_y + 1), (4, head_y + 6), (11, head_y + 6),
+                   (5, head_y + 7), (6, head_y + 8), (7, head_y + 8), (8, head_y + 8), (9, head_y + 8), (10, head_y + 7)], o)
+    rect(pix, 5, head_y + 1, 10, head_y + 7, skin)
+    rect(pix, 5, head_y, 10, head_y + 2, hair)
+    set_many(pix, [(4, head_y + 2), (5, head_y - 1), (6, head_y - 1), (7, head_y - 1), (8, head_y - 1),
+                   (9, head_y - 1), (10, head_y), (11, head_y + 2)], hair)
+    set_many(pix, [(6, head_y), (9, head_y), (10, head_y + 1)], hair2)
 
     if row == 0:
-        set_many(pix, [(5, 8), (10, 8)], o)
-        set_many(pix, [(7, 12), (8, 12), (9, 12)], o)
+        set_many(pix, [(6, head_y + 4), (9, head_y + 4)], o)
+        set_many(pix, [(7, head_y + 6), (8, head_y + 6)], o)
     elif row == 1:
-        rect(pix, 3, 4, 12, 9, hair)
-        set_many(pix, [(5, 3), (9, 3), (11, 6), (3, 8)], hair2)
-        set_many(pix, [(4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (10, 10), (11, 10)], skin)
+        rect(pix, 5, head_y + 1, 10, head_y + 5, hair)
+        set_many(pix, [(6, head_y), (9, head_y), (10, head_y + 3)], hair2)
+        set_many(pix, [(6, head_y + 6), (7, head_y + 6), (8, head_y + 6), (9, head_y + 6)], skin)
     else:
-        rect(pix, 3, 4, 8, 9, hair)
-        set_many(pix, [(10, 8), (13, 9)], o)
-        set_many(pix, [(9, 9), (10, 9), (11, 8), (12, 8), (11, 10), (8, 10)], skin)
-        set_many(pix, [(4, 5), (5, 4), (6, 4)], hair2)
+        rect(pix, 5, head_y + 1, 8, head_y + 5, hair)
+        set_many(pix, [(9, head_y + 4), (11, head_y + 5)], o)
+        set_many(pix, [(9, head_y + 5), (10, head_y + 5), (10, head_y + 6)], skin)
+        set_many(pix, [(6, head_y), (7, head_y)], hair2)
 
-    rect(pix, 6, 14, 9, 16, skin)
-    set_many(pix, [(2, 15), (13, 15), (1, 16), (14, 16), (1, 23), (14, 23), (2, 24), (13, 24)], o)
-    rect(pix, 2, 16, 13, 23, cloth)
-    rect(pix, 2, 19, 5, 23, shade)
-    rect(pix, 10, 19, 13, 23, shade)
+    # Neck and compact torso.
+    rect(pix, 7, body_y - 2, 8, body_y - 1, skin)
+    set_many(pix, [(4, body_y), (11, body_y), (3, body_y + 1), (12, body_y + 1), (3, body_y + 6), (12, body_y + 6)], o)
+    rect(pix, 4, body_y, 11, body_y + 6, cloth)
+    rect(pix, 4, body_y + 3, 5, body_y + 6, shade)
+    rect(pix, 10, body_y + 3, 11, body_y + 6, shade)
+
     if row == 2:
-        # Side profile keeps the same overall torso footprint as the front
-        # view (so the head/silhouette QA stays within drift bounds), but the
-        # back half is darkened to read as a profile and a swinging arm is
-        # carved out of the front face so side walking has visible motion.
-        far_torso = tuple(max(0, int(c * 0.78)) for c in cloth[:3]) + (255,)
-        for y in range(17, 23):
-            for x in range(2, 6):
-                if pix[x, y][3] > 0:
-                    pix[x, y] = far_torso
-        set_many(pix, [(13, 18), (13, 19), (12, 20), (12, 21), (11, 22)], skin)
-        # Swinging arm cue on the leading (right) side of the torso.
+        far_torso = tuple(max(0, int(c * 0.76)) for c in cloth[:3]) + (255,)
+        for y in range(body_y + 1, body_y + 6):
+            for x in range(4, 7):
+                pix[x, y] = far_torso
         arm_phase = frame_index % 4
         if arm_phase == 1:
-            arm = [(11, 17), (12, 18), (13, 19), (13, 20)]
-            hand = (13, 21)
+            arm = [(10, body_y + 1), (11, body_y + 2), (12, body_y + 3)]
+            hand = (12, body_y + 4)
         elif arm_phase == 2:
-            arm = [(11, 17), (11, 18), (12, 19), (12, 20)]
-            hand = (12, 21)
+            arm = [(10, body_y + 1), (10, body_y + 2), (11, body_y + 3)]
+            hand = (11, body_y + 4)
         else:
-            arm = [(11, 17), (12, 18), (12, 19), (13, 20)]
-            hand = (13, 21)
+            arm = [(10, body_y + 1), (11, body_y + 2), (11, body_y + 3)]
+            hand = (12, body_y + 4)
         set_many(pix, arm, cloth)
         pix[hand[0], hand[1]] = skin
     else:
-        set_many(pix, [(1, 18), (14, 18), (1, 19), (14, 19), (2, 20), (13, 20)], skin)
+        set_many(pix, [(3, body_y + 2), (12, body_y + 2), (3, body_y + 3), (12, body_y + 3)], skin)
 
     if row == 2:
         far = tuple(max(0, int(c * 0.58)) for c in pants[:3]) + (255,)
-        near_hi = tuple(min(255, int(c * 1.22)) for c in pants[:3]) + (255,)
-        rear_shoe = tuple(max(0, int(c * 0.68)) for c in shoe[:3]) + (255,)
-        shoe_hi = (76, 72, 76, 255)
-        # Right-facing profile: legs overlap along the travel axis instead of
-        # forming a front-view A-stance. LEFT is generated by horizontal flip.
-        # Keep a one-pixel dark air gap between the rear and near leg so the
-        # walk does not collapse into a single front-facing dark cluster.
+        near_hi = tuple(min(255, int(c * 1.18)) for c in pants[:3]) + (255,)
         if frame_index % 4 == 1:
-            rear = [(6, 24), (6, 25), (5, 26), (5, 27)]
-            near = [(9, 24), (10, 24), (10, 25), (11, 25), (11, 26), (12, 26), (12, 27)]
-            near_highlight = [(10, 24), (11, 25), (12, 26)]
-            rear_foot = [(4, 28), (5, 28), (6, 28)]
-            near_foot = [(11, 28), (12, 28), (13, 28), (14, 28)]
-            air_gap = [(8, 24), (8, 25), (8, 26)]
-            foot_hi = [(13, 28)]
+            rear = [(6, body_y + 7), (6, body_y + 8), (5, body_y + 9)]
+            near = [(9, body_y + 7), (10, body_y + 8), (11, body_y + 9)]
+            feet = [(5, foot_y), (6, foot_y), (10, foot_y), (11, foot_y), (12, foot_y)]
         elif frame_index % 4 == 2:
-            rear = [(7, 24), (7, 25), (7, 26), (7, 27)]
-            near = [(9, 24), (9, 25), (9, 26), (9, 27)]
-            near_highlight = [(9, 24), (9, 25), (9, 26)]
-            rear_foot = [(6, 28), (7, 28), (8, 28)]
-            near_foot = [(9, 28), (10, 28), (11, 28)]
-            air_gap = [(8, 24), (8, 25), (8, 26), (8, 27)]
-            foot_hi = [(10, 28)]
+            rear = [(7, body_y + 7), (7, body_y + 8), (7, body_y + 9)]
+            near = [(9, body_y + 7), (9, body_y + 8), (9, body_y + 9)]
+            feet = [(6, foot_y), (7, foot_y), (9, foot_y), (10, foot_y)]
         else:
-            rear = [(7, 24), (7, 25), (7, 26), (7, 27)]
-            near = [(9, 24), (10, 24), (9, 25), (10, 25), (9, 26), (10, 26), (9, 27), (10, 27)]
-            near_highlight = [(10, 24), (10, 25), (10, 26)]
-            rear_foot = [(6, 28), (7, 28), (8, 28)]
-            near_foot = [(9, 28), (10, 28), (11, 28), (12, 28)]
-            air_gap = [(8, 24), (8, 25), (8, 26), (8, 27)]
-            foot_hi = [(11, 28)]
+            rear = [(7, body_y + 7), (7, body_y + 8), (7, body_y + 9)]
+            near = [(9, body_y + 7), (10, body_y + 8), (10, body_y + 9)]
+            feet = [(6, foot_y), (7, foot_y), (9, foot_y), (10, foot_y), (11, foot_y)]
         set_many(pix, rear, far)
         set_many(pix, near, pants)
-        set_many(pix, near_highlight, near_hi)
-        set_many(pix, air_gap, o)
-        set_many(pix, rear_foot, rear_shoe)
-        set_many(pix, near_foot, shoe)
-        set_many(pix, foot_hi, shoe_hi)
+        set_many(pix, near[:2], near_hi)
+        set_many(pix, feet, shoe)
     else:
         if frame_index % 4 == 1:
-            left = [(5, 24), (6, 24), (5, 25), (6, 25), (5, 26), (6, 26), (4, 27), (5, 27)]
-            right = [(9, 24), (10, 24), (9, 25), (10, 25), (9, 26), (10, 26), (10, 27), (11, 27)]
-            feet = [(3, 28), (4, 28), (5, 28), (6, 28), (9, 28), (10, 28), (11, 28), (12, 28)]
+            left = [(5, body_y + 7), (5, body_y + 8), (4, body_y + 9)]
+            right = [(9, body_y + 7), (10, body_y + 8), (10, body_y + 9)]
+            feet = [(4, foot_y), (5, foot_y), (9, foot_y), (10, foot_y), (11, foot_y)]
         elif frame_index % 4 == 2:
-            left = [(5, 24), (6, 24), (6, 25), (7, 25), (6, 26), (7, 26), (6, 27), (7, 27)]
-            right = [(9, 24), (10, 24), (8, 25), (9, 25), (8, 26), (9, 26), (8, 27), (9, 27)]
-            feet = [(5, 28), (6, 28), (7, 28), (8, 28), (9, 28), (10, 28)]
+            left = [(6, body_y + 7), (7, body_y + 8), (7, body_y + 9)]
+            right = [(9, body_y + 7), (8, body_y + 8), (8, body_y + 9)]
+            feet = [(6, foot_y), (7, foot_y), (8, foot_y), (9, foot_y)]
         else:
-            left = [(5, 24), (6, 24), (5, 25), (6, 25), (5, 26), (6, 26), (5, 27), (6, 27)]
-            right = [(9, 24), (10, 24), (9, 25), (10, 25), (9, 26), (10, 26), (9, 27), (10, 27)]
-            feet = [(4, 28), (5, 28), (6, 28), (7, 28), (8, 28), (9, 28), (10, 28), (11, 28)]
+            left = [(6, body_y + 7), (6, body_y + 8), (6, body_y + 9)]
+            right = [(9, body_y + 7), (9, body_y + 8), (9, body_y + 9)]
+            feet = [(5, foot_y), (6, foot_y), (8, foot_y), (9, foot_y), (10, foot_y)]
         set_many(pix, left + right, pants)
         set_many(pix, feet, shoe)
-        set_many(pix, [(7, 25), (8, 25), (7, 26), (8, 26)], o)
+        set_many(pix, [(7, body_y + 8), (8, body_y + 8)], o)
 
     return img
 
@@ -552,18 +534,17 @@ def save_floor_variant(index: int, base: Color, accent: Color, mode: str) -> Non
             if x + 1 < 16:
                 pix[x + 1, y] = texture_noise_color(accent, x, y, 8)
     elif mode == "gather_stone":
-        for y in (0, 8):
+        # Smaller 8x8 sub-tiles make each logical cell feel closer to Gather's
+        # dense tilesheets instead of one large chunky 16px slab.
+        seam = texture_noise_color(accent, index, index, 6)
+        for y in (0, 7, 8, 15):
             for x in range(16):
-                pix[x, y] = accent
-        for x in (0, 7, 15):
+                pix[x, y] = seam
+        for x in (0, 7, 8, 15):
             for y in range(16):
-                pix[x, y] = accent
-        for x in (3, 11):
-            for y in range(1, 8):
-                pix[x, y] = texture_noise_color(accent, x, y, 2)
-        for x in (5, 13):
-            for y in range(9, 15):
-                pix[x, y] = texture_noise_color(accent, x, y, 2)
+                pix[x, y] = seam
+        for x, y in [(2, 2), (5, 5), (11, 3), (13, 6), (3, 11), (6, 13), (10, 10), (14, 14)]:
+            pix[x, y] = texture_noise_color(accent, x, y, 8)
     elif mode == "rug":
         border = accent
         thread = texture_noise_color(base, index, index, 10)
@@ -668,13 +649,13 @@ def polish_floor_and_wall_details() -> None:
     # Gather-style material family: most rooms share a cool plaza paver,
     # while rugs/deck/grass act as intentional themed islands.
     floor_specs = [
-        ((156, 174, 181, 255), (98, 118, 127, 255), "gather_stone"),
-        ((149, 166, 174, 255), (92, 110, 120, 255), "gather_stone"),
-        ((161, 179, 185, 255), (104, 124, 132, 255), "gather_stone"),
-        ((126, 109, 94, 255), (172, 129, 72, 255), "rug"),
+        ((132, 149, 154, 255), (82, 99, 106, 255), "gather_stone"),
+        ((123, 140, 147, 255), (77, 94, 103, 255), "gather_stone"),
+        ((143, 158, 159, 255), (91, 104, 108, 255), "gather_stone"),
+        ((116, 94, 87, 255), (162, 116, 68, 255), "rug"),
         None,  # variant 4 handled by save_grass_variant
-        ((130, 116, 102, 255), (82, 78, 70, 255), "plate"),
-        ((139, 154, 164, 255), (92, 108, 118, 255), "gather_stone"),
+        ((112, 105, 98, 255), (74, 72, 68, 255), "plate"),
+        ((127, 141, 148, 255), (78, 94, 102, 255), "gather_stone"),
         None,  # variant 7 handled by save_deck_variant
         None,  # variant 8 handled by save_paver_variant
     ]
@@ -683,20 +664,20 @@ def polish_floor_and_wall_details() -> None:
             continue
         base, accent, mode = spec
         save_floor_variant(i, base, accent, mode)
-    save_grass_variant(4, (54, 128, 72, 255), (84, 151, 84, 255), (142, 201, 112, 255))
-    save_deck_variant(7, (118, 84, 58, 255), (151, 103, 68, 255), (82, 58, 42, 255))
-    save_paver_variant(8, (156, 142, 119, 255), (91, 82, 73, 255), (83, 130, 80, 255))
+    save_grass_variant(4, (47, 116, 68, 255), (75, 140, 79, 255), (128, 185, 100, 255))
+    save_deck_variant(7, (104, 76, 55, 255), (136, 92, 63, 255), (76, 56, 43, 255))
+    save_paver_variant(8, (137, 128, 112, 255), (82, 76, 70, 255), (75, 118, 78, 255))
 
     # Horizontally seamless wall: neutral edges, internal panels, cap, shadow, conduit.
     img = Image.new("RGBA", (64, 128), (0, 0, 0, 0))
     pix = img.load()
-    wall = (188, 178, 154, 255)
-    wall_alt = (174, 166, 146, 255)
-    cap = (215, 201, 171, 255)
-    shadow = (91, 78, 66, 255)
-    trim = (122, 96, 73, 255)
-    dark = (55, 43, 38, 255)
-    blue = (111, 144, 151, 255)
+    wall = (154, 162, 158, 255)
+    wall_alt = (139, 150, 148, 255)
+    cap = (198, 204, 194, 255)
+    shadow = (70, 79, 80, 255)
+    trim = (91, 103, 104, 255)
+    dark = (45, 52, 55, 255)
+    blue = (104, 143, 154, 255)
     for y in range(128):
         for x in range(64):
             if y < 12:
@@ -704,24 +685,27 @@ def polish_floor_and_wall_details() -> None:
             elif y < 19:
                 c = trim
             elif y < 103:
-                c = wall if ((x // 8 + y // 16) % 2 == 0) else wall_alt
+                c = wall if ((x // 16 + y // 16) % 2 == 0) else wall_alt
             elif y < 111:
                 c = shadow
             else:
                 c = (68, 58, 52, 255)
             pix[x, y] = texture_noise_color(c, x, y, 3)
     # Internal panels, deliberately away from x=0/63 so horizontal tiling stays clean.
-    for x0, x1 in [(10, 25), (39, 54)]:
-        for y in range(30, 76):
+    for x0, x1 in [(8, 23), (40, 55)]:
+        for y in range(28, 82):
             pix[x0, y] = pix[x1, y] = trim
         for x in range(x0, x1 + 1):
-            pix[x, 30] = trim
-            pix[x, 76] = shadow
-        for y in range(34, 70):
+            pix[x, 28] = cap
+            pix[x, 82] = shadow
+        for y in range(33, 76):
             for x in range(x0 + 2, x1 - 1):
-                pix[x, y] = texture_noise_color(blue, x, y, 4)
+                pix[x, y] = texture_noise_color(blue, x, y, 5)
         for x in range(x0 + 3, x1 - 2):
-            pix[x, 36] = (164, 188, 188, 255)
+            pix[x, 36] = (170, 194, 194, 255)
+        for y in range(44, 76, 12):
+            for x in range(x0 + 2, x1 - 1):
+                pix[x, y] = trim
     # Pegboard / conduit / small signage details.
     for y in range(35, 70, 8):
         for x in range(29, 36, 3):

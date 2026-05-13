@@ -68,6 +68,10 @@ function isWall(col: number, row: number): boolean {
   if (row === 11 && col >= 32 && col <= 50 && !(col >= 39 && col <= 45)) return true;
   if (row === 23 && col >= 1 && col <= 18 && !(col >= 7 && col <= 12) && ![17, 18].includes(col)) return true;
   if (row === 23 && col >= 32 && col <= 50 && !(col >= 32 && col <= 44)) return true;
+  if (row === 11 && col >= 20 && col <= 31 && !(col >= 24 && col <= 27)) return true;
+  if (row === 23 && col >= 20 && col <= 31 && !(col >= 24 && col <= 27)) return true;
+  if (col === 20 && row >= 12 && row <= 22 && !(row >= 15 && row <= 18)) return true;
+  if (col === 31 && row >= 12 && row <= 22 && !(row >= 15 && row <= 18)) return true;
   if (col === 20 && row >= 1 && row <= 7 && !(row >= 4 && row <= 7)) return true;
   if (col === 31 && row >= 1 && row <= 7 && !(row >= 4 && row <= 7)) return true;
   if (col === 20 && row >= 25 && row <= 32 && !(row >= 27 && row <= 30)) return true;

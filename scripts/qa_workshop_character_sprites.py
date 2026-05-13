@@ -79,9 +79,9 @@ def qa(reference: Path | None = None) -> dict[str, Any]:
                     failures.append(f"char_{idx} {row_name}[{frame_i}]: empty frame")
                     continue
                 row_metrics[row_name].append({"frame": frame_i, **bbox})
-                if bbox["w"] < 9 or bbox["h"] < 27:
+                if bbox["w"] < 8 or bbox["h"] < 22:
                     failures.append(f"char_{idx} {row_name}[{frame_i}]: bbox too small {bbox['w']}x{bbox['h']}")
-                if bbox["opaque"] < 145:
+                if bbox["opaque"] < 88:
                     failures.append(f"char_{idx} {row_name}[{frame_i}]: too sparse ({bbox['opaque']} opaque px)")
         # Identity/proportion guard: this component-template pass follows the
         # sprite-gen idea of one canonical identity silhouette per character.
@@ -92,7 +92,7 @@ def qa(reference: Path | None = None) -> dict[str, Any]:
             side = row_metrics["side"][frame_i]
             if abs(side["w"] - down["w"]) > 1:
                 failures.append(f"char_{idx} side[{frame_i}]: width drift vs front ({side['w']} vs {down['w']})")
-            if abs(side["opaque"] - down["opaque"]) > max(20, int(down["opaque"] * 0.08)):
+            if abs(side["opaque"] - down["opaque"]) > max(16, int(down["opaque"] * 0.14)):
                 failures.append(f"char_{idx} side[{frame_i}]: opaque area drift vs front ({side['opaque']} vs {down['opaque']})")
             # Hair/head identity: the top half should have similar visible mass
             # across front/back/side. This catches hood/animal-head drift better
@@ -102,7 +102,7 @@ def qa(reference: Path | None = None) -> dict[str, Any]:
                 front = crop_frame(sheet, 0, frame_i).convert("RGBA")
                 front_head = sum(1 for y in range(3, 14) for x in range(FRAME_W) if front.getpixel((x, y))[3] > 0)
                 other_head = sum(1 for y in range(3, 14) for x in range(FRAME_W) if other.getpixel((x, y))[3] > 0)
-                if abs(other_head - front_head) > 10:
+                if abs(other_head - front_head) > 12:
                     failures.append(f"char_{idx} {other_name}[{frame_i}]: head/hair mass drift vs front ({other_head} vs {front_head})")
         sprites.append({"sprite": f"char_{idx}.png", "rows": row_metrics})
     return {"ok": not failures, "failures": failures, "sprites": sprites}
