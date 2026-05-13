@@ -286,53 +286,50 @@ def draw_human_frame(pal: dict[str, Color], row: int, frame_index: int) -> Image
     shade = tuple(max(0, int(c * 0.72)) for c in cloth[:3]) + (255,)
     shoe = (34, 31, 35, 255)
 
-    # Head outline shared by every direction, so silhouette identity is stable.
-    set_many(pix, [(5, 3), (6, 2), (7, 2), (8, 2), (9, 3), (4, 4), (10, 4), (3, 6), (11, 6), (3, 10), (11, 10), (4, 12), (10, 12), (5, 13), (9, 13)], o)
-    rect(pix, 4, 5, 10, 11, skin)
-    rect(pix, 5, 4, 9, 5, hair)
-    set_many(pix, [(4, 4), (5, 3), (6, 3), (7, 3), (8, 3), (9, 4), (3, 7), (3, 8), (4, 6), (10, 6)], hair)
-    set_many(pix, [(5, 4), (8, 4), (9, 5)], hair2)
+    # Fuller 16x32 proportions: broad head and jacket match the earlier
+    # pixel-agents feel while still sharing one construction across directions.
+    set_many(pix, [(5, 2), (6, 1), (7, 1), (8, 1), (9, 1), (10, 2), (4, 3), (11, 3), (3, 5), (12, 5), (3, 10), (12, 10), (4, 13), (11, 13), (5, 14), (10, 14)], o)
+    rect(pix, 4, 4, 11, 12, skin)
+    rect(pix, 5, 3, 10, 5, hair)
+    set_many(pix, [(4, 3), (5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (10, 3), (3, 6), (3, 7), (4, 5), (11, 5)], hair)
+    set_many(pix, [(6, 3), (9, 3), (10, 4)], hair2)
 
-    if row == 0:  # front/down
-        set_many(pix, [(6, 8), (9, 8)], o)
-        set_many(pix, [(7, 11), (8, 11)], o)
-    elif row == 1:  # back/up
-        # Short cap shape matching the front hairline; avoid long hood/bob mass.
-        rect(pix, 4, 4, 10, 8, hair)
-        set_many(pix, [(5, 4), (8, 4), (9, 6), (4, 7)], hair2)
-        set_many(pix, [(5, 9), (6, 9), (7, 9), (8, 9), (9, 9)], skin)
-    else:  # quarter-side/right
-        # Keep the same short-cap hair mass, but show one eye and a small nose.
-        rect(pix, 4, 5, 7, 8, hair)
-        set_many(pix, [(9, 8), (11, 9)], o)
-        set_many(pix, [(10, 9), (11, 8), (7, 9)], skin)
+    if row == 0:
+        set_many(pix, [(6, 8), (10, 8)], o)
+        set_many(pix, [(7, 12), (8, 12), (9, 12)], o)
+    elif row == 1:
+        rect(pix, 4, 4, 11, 9, hair)
+        set_many(pix, [(6, 3), (9, 3), (10, 6), (4, 8)], hair2)
+        set_many(pix, [(5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (10, 10)], skin)
+    else:
+        rect(pix, 4, 4, 8, 9, hair)
+        set_many(pix, [(10, 8), (12, 9)], o)
+        set_many(pix, [(9, 9), (10, 9), (11, 8), (11, 10), (8, 10)], skin)
+        set_many(pix, [(5, 5), (6, 4)], hair2)
 
-    # Neck / torso.
-    rect(pix, 6, 13, 8, 15, skin)
-    set_many(pix, [(4, 15), (10, 15), (3, 16), (11, 16), (3, 22), (11, 22), (4, 23), (10, 23)], o)
-    rect(pix, 4, 16, 10, 22, cloth)
-    rect(pix, 4, 19, 5, 22, shade)
+    rect(pix, 6, 14, 9, 16, skin)
+    set_many(pix, [(3, 15), (12, 15), (2, 16), (13, 16), (2, 23), (13, 23), (3, 24), (12, 24)], o)
+    rect(pix, 3, 16, 12, 23, cloth)
+    rect(pix, 3, 19, 5, 23, shade)
     if row == 2:
-        set_many(pix, [(11, 18), (11, 19), (10, 20)], skin)
+        set_many(pix, [(12, 18), (12, 19), (11, 20), (11, 21)], skin)
     else:
-        set_many(pix, [(3, 18), (11, 18)], skin)
+        set_many(pix, [(2, 18), (13, 18), (2, 19), (13, 19)], skin)
 
-    # Legs / walk cadence.
     if frame_index % 4 == 1:
-        left = [(5, 23), (5, 24), (4, 25), (4, 26), (4, 27), (3, 28)]
-        right = [(9, 23), (9, 24), (10, 25), (10, 26), (10, 27), (11, 28)]
+        left = [(5, 24), (5, 25), (4, 26), (4, 27), (3, 28)]
+        right = [(10, 24), (10, 25), (11, 26), (11, 27), (12, 28)]
     elif frame_index % 4 == 2:
-        left = [(5, 23), (6, 24), (6, 25), (7, 26), (7, 27), (7, 28)]
-        right = [(9, 23), (8, 24), (8, 25), (7, 26), (6, 27), (5, 28)]
+        left = [(5, 24), (6, 25), (6, 26), (7, 27), (7, 28)]
+        right = [(10, 24), (9, 25), (9, 26), (8, 27), (8, 28)]
     else:
-        left = [(5, 23), (5, 24), (5, 25), (5, 26), (5, 27), (4, 28)]
-        right = [(9, 23), (9, 24), (9, 25), (9, 26), (9, 27), (10, 28)]
+        left = [(5, 24), (5, 25), (5, 26), (5, 27), (4, 28)]
+        right = [(10, 24), (10, 25), (10, 26), (10, 27), (11, 28)]
     set_many(pix, left + right, pants)
-    set_many(pix, [(4, 29), (5, 29), (9, 29), (10, 29)], shoe)
-    set_many(pix, [(4, 28), (10, 28)], o)
+    set_many(pix, [(3, 29), (4, 29), (5, 29), (10, 29), (11, 29), (12, 29)], shoe)
+    set_many(pix, [(4, 28), (11, 28)], o)
 
     return img
-
 
 def compose_action_frame(base: Image.Image, pal: dict[str, Color], frame_index: int, row: int) -> Image.Image:
     img = base.copy()

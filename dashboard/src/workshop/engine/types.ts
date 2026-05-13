@@ -51,7 +51,9 @@ export type FurnitureKind =
   | 'large_painting'
   | 'queue_board'
   | 'status_wall'
-  | 'review_terminal';
+  | 'review_terminal'
+  | 'garden_bed'
+  | 'fountain_tower';
 export type FurnitureVariant = 'front' | 'back' | 'side' | 'side-mirror';
 
 export interface FurnitureInstance {

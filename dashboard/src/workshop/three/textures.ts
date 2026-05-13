@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const WORKSHOP_ASSET_REV = 'sprite-identity-collision-v2';
+const WORKSHOP_ASSET_REV = 'office-garden-v1';
 
 function assetUrl(path: string): string {
   return `${path}?v=${WORKSHOP_ASSET_REV}`;
@@ -58,13 +58,49 @@ function pixelTextureFromCanvas(canvas: HTMLCanvasElement): THREE.Texture {
   return tex;
 }
 
-function makeWorkshopPropTexture(kind: 'queue_board' | 'status_wall' | 'review_terminal'): THREE.Texture {
+function makeWorkshopPropTexture(kind: 'queue_board' | 'status_wall' | 'review_terminal' | 'garden_bed' | 'fountain_tower'): THREE.Texture {
   const canvas = document.createElement('canvas');
-  canvas.width = kind === 'review_terminal' ? 32 : 48;
-  canvas.height = kind === 'review_terminal' ? 32 : 24;
+  canvas.width = kind === 'review_terminal' ? 32 : kind === 'fountain_tower' ? 48 : 48;
+  canvas.height = kind === 'review_terminal' ? 32 : kind === 'fountain_tower' ? 64 : 24;
   const ctx = canvas.getContext('2d');
   if (!ctx) return pixelTextureFromCanvas(canvas);
   ctx.imageSmoothingEnabled = false;
+
+  if (kind === 'garden_bed') {
+    ctx.fillStyle = '#3b2b1f';
+    ctx.fillRect(0, 10, 48, 14);
+    ctx.fillStyle = '#7b4f2d';
+    ctx.fillRect(2, 11, 44, 11);
+    ctx.fillStyle = '#2f7d4d';
+    for (let x = 4; x < 46; x += 5) ctx.fillRect(x, 4 + ((x / 5) % 3), 3, 8);
+    ctx.fillStyle = '#8fce62';
+    for (let x = 6; x < 44; x += 9) ctx.fillRect(x, 5, 2, 3);
+    return pixelTextureFromCanvas(canvas);
+  }
+
+  if (kind === 'fountain_tower') {
+    ctx.fillStyle = '#263644';
+    ctx.fillRect(6, 45, 36, 13);
+    ctx.fillStyle = '#5d7f93';
+    ctx.fillRect(8, 43, 32, 12);
+    ctx.fillStyle = '#a7d8dd';
+    ctx.fillRect(12, 45, 24, 5);
+    ctx.fillStyle = '#6c8797';
+    ctx.fillRect(18, 18, 12, 30);
+    ctx.fillRect(14, 30, 20, 8);
+    ctx.fillStyle = '#d8f3ee';
+    ctx.fillRect(21, 8, 6, 14);
+    ctx.fillRect(19, 22, 10, 3);
+    ctx.fillStyle = '#77c7d8';
+    ctx.fillRect(16, 27, 3, 19);
+    ctx.fillRect(29, 27, 3, 19);
+    ctx.fillRect(22, 24, 4, 24);
+    ctx.fillStyle = '#f5fbef';
+    ctx.fillRect(23, 3, 2, 5);
+    ctx.fillRect(20, 11, 2, 6);
+    ctx.fillRect(27, 11, 2, 6);
+    return pixelTextureFromCanvas(canvas);
+  }
 
   const frame = kind === 'review_terminal' ? '#34465f' : '#5a3b24';
   const face = kind === 'status_wall' ? '#14372f' : kind === 'queue_board' ? '#1f2b45' : '#0b1826';
@@ -135,6 +171,8 @@ export interface ThreeSpriteManager {
     queueBoard: THREE.Texture | null;
     statusWall: THREE.Texture | null;
     reviewTerminal: THREE.Texture | null;
+    gardenBed: THREE.Texture | null;
+    fountainTower: THREE.Texture | null;
   };
   floor: (HTMLImageElement | null)[];
   wall: HTMLImageElement | null;
@@ -211,6 +249,8 @@ export async function loadThreeSprites(): Promise<ThreeSpriteManager> {
   furniture.queueBoard = makeWorkshopPropTexture('queue_board');
   furniture.statusWall = makeWorkshopPropTexture('status_wall');
   furniture.reviewTerminal = makeWorkshopPropTexture('review_terminal');
+  furniture.gardenBed = makeWorkshopPropTexture('garden_bed');
+  furniture.fountainTower = makeWorkshopPropTexture('fountain_tower');
 
   return {
     characterImages: charImgs,

@@ -232,6 +232,10 @@ function pickFurnitureTexture(
       return { texture: fur.statusWall, flipX: false };
     case 'review_terminal':
       return { texture: fur.reviewTerminal, flipX: false };
+    case 'garden_bed':
+      return { texture: fur.gardenBed, flipX: false };
+    case 'fountain_tower':
+      return { texture: fur.fountainTower, flipX: false };
     default:
       return { texture: null, flipX: false };
   }
