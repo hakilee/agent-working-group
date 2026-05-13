@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Page, PageHeader } from '../components/ui/page';
 import { useWorkshopWS } from '../hooks/use-workshop-ws';
 import { deriveRooms } from '../workshop/room-state';
 import type { AgentRoom } from '../workshop/types';
 import {
+  CharacterState,
   LAYOUT_TILE_COLS,
   LAYOUT_TILE_ROWS,
   TILE_SIZE,
@@ -17,11 +18,13 @@ import {
   loadSprites,
   render,
   resizeCamera,
+  restoreCharacterState,
+  sanitizeRestore,
+  screenToWorld,
   setCharacters,
   setLayout,
   setRooms,
   startGameLoop,
-  teleportTo,
   updateCamera,
   updateCharacter,
   type Camera,
@@ -33,6 +36,13 @@ import {
 const MAP_PIXEL_W = LAYOUT_TILE_COLS * TILE_SIZE;
 const MAP_PIXEL_H = LAYOUT_TILE_ROWS * TILE_SIZE;
 
+/** Min ms between throttled in-walk WS position updates per agent. */
+const POSITION_UPDATE_THROTTLE_MS = 400;
+
+/** Wait this long for the initial server snapshot before showing the canvas
+ *  anyway. Prevents a momentary "facing front" flash from default state. */
+const ENGINE_READY_TIMEOUT_MS = 1200;
+
 function detectDarkMode(): boolean {
   if (typeof document === 'undefined') return false;
   return document.documentElement.getAttribute('data-theme') === 'dark';
@@ -43,11 +53,79 @@ function detectReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 }
 
+interface HoveredAgent {
+  room: AgentRoom;
+  screenX: number;
+  screenY: number;
+}
+
+function stateLabel(state: AgentRoom['state']): string {
+  switch (state) {
+    case 'working': return 'working';
+    case 'dispatching': return 'dispatching';
+    case 'reviewing': return 'reviewing';
+    case 'responding': return 'responding';
+    case 'blocked': return 'blocked';
+    case 'idle':
+    default: return 'idle';
+  }
+}
+
+function stateAccentClass(state: AgentRoom['state']): string {
+  switch (state) {
+    case 'working': return 'text-emerald-600 dark:text-emerald-300';
+    case 'dispatching': return 'text-amber-600 dark:text-amber-300';
+    case 'reviewing': return 'text-sky-600 dark:text-sky-300';
+    case 'responding': return 'text-violet-600 dark:text-violet-300';
+    case 'blocked': return 'text-rose-600 dark:text-rose-300';
+    case 'idle':
+    default: return 'text-ops-muted dark:text-[#839087]';
+  }
+}
+
+function AgentTooltip({ hovered }: { hovered: HoveredAgent }) {
+  const { room, screenX, screenY } = hovered;
+  // Offset slightly above-right of cursor; flip to left when near right edge.
+  const dx = 14;
+  const dy = -8;
+  return (
+    <div
+      className="pointer-events-none absolute z-10 select-none rounded-sm border border-ops-line bg-ops-panel/95 px-2 py-1.5 text-[10px] leading-tight text-ops-ink shadow-md backdrop-blur-sm dark:border-white/15 dark:bg-[#1e2722]/95 dark:text-[#eef3ec]"
+      style={{
+        left: screenX + dx,
+        top: screenY + dy,
+        transform: 'translate(0, -100%)',
+        maxWidth: 200,
+      }}
+    >
+      <div className="flex items-center gap-1.5 font-bold tracking-wide">
+        <span aria-hidden>{room.profile.emoji}</span>
+        <span style={{ color: room.profile.color }}>{room.profile.displayName}</span>
+      </div>
+      <div className="mt-0.5 text-[9px] uppercase tracking-widest text-ops-muted dark:text-[#839087]">
+        {room.role}
+      </div>
+      <div className={`mt-1 font-semibold uppercase tracking-wider ${stateAccentClass(room.state)}`}>
+        {stateLabel(room.state)}
+      </div>
+      <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-[9px] text-ops-muted dark:text-[#839087]">
+        <span>pending</span><span className="text-right text-ops-ink dark:text-[#eef3ec]">{room.counts.pending}</span>
+        <span>processing</span><span className="text-right text-ops-ink dark:text-[#eef3ec]">{room.counts.processing}</span>
+        <span>processed</span><span className="text-right text-ops-ink dark:text-[#eef3ec]">{room.counts.processed}</span>
+        <span>dead</span><span className="text-right text-ops-ink dark:text-[#eef3ec]">{room.counts.dead}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function Workshop() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const ws = useWorkshopWS();
   const [sprites, setSprites] = useState<SpriteManager | null>(null);
+  const [engineReady, setEngineReady] = useState(false);
+  const [hoveredRole, setHoveredRole] = useState<string | null>(null);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +137,25 @@ export default function Workshop() {
     };
   }, []);
 
+  // Mark the engine ready once we have the initial server snapshot, or after
+  // a short timeout if the snapshot is taking too long. Until ready we hide
+  // the canvas behind a loading overlay so the user never sees a default-
+  // facing flash before persisted state lands.
+  useEffect(() => {
+    if (engineReady) return;
+    if (ws.snapshotNonce > 0) {
+      setEngineReady(true);
+      return;
+    }
+    const t = window.setTimeout(() => setEngineReady(true), ENGINE_READY_TIMEOUT_MS);
+    return () => window.clearTimeout(t);
+  }, [ws.snapshotNonce, engineReady]);
+
   const rooms = useMemo(() => deriveRooms(ws.queueAgents), [ws.queueAgents]);
+  const hoveredRoom = useMemo<AgentRoom | null>(() => {
+    if (!hoveredRole) return null;
+    return rooms.find((r) => r.role === hoveredRole) ?? null;
+  }, [hoveredRole, rooms]);
 
   // Refs sourced from module-level state so they survive page navigation.
   const charactersRef = useRef<EngineCharacter[]>(getCharacters());
@@ -70,7 +166,10 @@ export default function Workshop() {
   const cameraRef = useRef<Camera | null>(null);
   const agentPositionsRef = useRef(ws.agentPositions);
   const sendAgentUpdateRef = useRef(ws.sendAgentUpdate);
-  const arrivedAtRef = useRef<Map<string, string>>(new Map());
+  const engineReadyRef = useRef(engineReady);
+  const hoveredRoleRef = useRef<string | null>(null);
+  const pointerScreenRef = useRef<{ x: number; y: number } | null>(null);
+  const lastSentRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     agentPositionsRef.current = ws.agentPositions;
@@ -79,6 +178,10 @@ export default function Workshop() {
   useEffect(() => {
     sendAgentUpdateRef.current = ws.sendAgentUpdate;
   }, [ws.sendAgentUpdate]);
+
+  useEffect(() => {
+    engineReadyRef.current = engineReady;
+  }, [engineReady]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -104,52 +207,104 @@ export default function Workshop() {
 
     const existing = new Map(charactersRef.current.map((c) => [c.role, c]));
     const next: EngineCharacter[] = [];
-    const activeRoles = new Set<string>();
     for (const room of rooms) {
-      activeRoles.add(room.role);
       const found = existing.get(room.role);
       if (found) {
         applyRoomState(found, room);
         next.push(found);
       } else {
-        const stored = agentPositionsRef.current[room.role];
-        const spawnCol =
-          typeof stored?.tileCol === 'number' ? stored.tileCol : Math.floor(LAYOUT_TILE_COLS / 2);
-        const spawnRow =
-          typeof stored?.tileRow === 'number' ? stored.tileRow : LAYOUT_TILE_ROWS - 2;
-        next.push(createCharacter(room, palCount, { col: spawnCol, row: spawnRow }));
+        const stored = sanitizeRestore(agentPositionsRef.current[room.role]);
+        const spawnCol = stored?.tileCol ?? Math.floor(LAYOUT_TILE_COLS / 2);
+        const spawnRow = stored?.tileRow ?? LAYOUT_TILE_ROWS - 2;
+        next.push(createCharacter(room, palCount, { col: spawnCol, row: spawnRow }, stored));
       }
-    }
-    // Drop tracking entries for agents that no longer exist so the map can't
-    // grow unbounded across long-lived sessions.
-    for (const role of arrivedAtRef.current.keys()) {
-      if (!activeRoles.has(role)) arrivedAtRef.current.delete(role);
     }
     charactersRef.current = next;
     setCharacters(next);
+    // Trim per-agent throttle state for any role that no longer exists so the
+    // map can't grow unbounded across long-lived sessions.
+    const liveRoles = new Set(next.map((c) => c.role));
+    for (const k of [...lastSentRef.current.keys()]) {
+      if (!liveRoles.has(k)) lastSentRef.current.delete(k);
+    }
     if (layoutRef.current) {
       assignSeats(charactersRef.current, layoutRef.current);
     }
   }, [rooms, sprites]);
 
-  // On authoritative snapshot arrival (initial REST, first WS frame, or any
-  // subsequent server-pushed snapshot): snap characters to server positions.
-  // Reads from agentPositionsRef so this does NOT fire on local optimistic
-  // updates, which would risk teleporting mid-walk.
+  // On authoritative snapshot arrival: reconcile characters to server state.
+  // Reads from refs (not directly from props) so we don't fire on every local
+  // optimistic position write.
   useEffect(() => {
     if (ws.snapshotNonce === 0) return;
     const positions = agentPositionsRef.current;
     for (const c of charactersRef.current) {
-      const stored = positions[c.role];
+      const stored = sanitizeRestore(positions[c.role]);
       if (!stored) continue;
-      const tc = typeof stored.tileCol === 'number' ? stored.tileCol : null;
-      const tr = typeof stored.tileRow === 'number' ? stored.tileRow : null;
-      if (tc === null || tr === null) continue;
-      if (tc !== c.tileCol || tr !== c.tileRow) {
-        teleportTo(c, tc, tr);
+      // If the character is mid-walk locally and the snapshot is consistent
+      // (same tile), don't disrupt the in-flight motion. Otherwise hard-snap.
+      if (
+        c.state === CharacterState.WALK &&
+        stored.tileCol === c.tileCol &&
+        stored.tileRow === c.tileRow
+      ) {
+        continue;
       }
+      restoreCharacterState(c, stored);
     }
   }, [ws.snapshotNonce]);
+
+  // Pointer tracking → hover tooltip. Hit-tests in world space using the
+  // current camera transform; reads from refs so we never go stale on
+  // re-renders.
+  const handlePointer = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const cam = cameraRef.current;
+    if (!canvas || !cam || !sprites) return;
+    const rect = canvas.getBoundingClientRect();
+    // Camera math is in CSS px; pointer coords are CSS px relative to canvas.
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    pointerScreenRef.current = { x: sx, y: sy };
+
+    const world = screenToWorld(cam, sx, sy);
+    let hit: string | null = null;
+    // Walk reverse so the topmost (drawn last) wins ties.
+    const list = charactersRef.current;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const c = list[i];
+      const x0 = c.x;
+      const y0 = c.y;
+      // Slight expansion makes hover feel less finicky on tiny sprites.
+      if (
+        world.x >= x0 - 1 &&
+        world.x < x0 + sprites.charFrameW + 1 &&
+        world.y >= y0 - 1 &&
+        world.y < y0 + sprites.charFrameH + 1
+      ) {
+        hit = c.role;
+        break;
+      }
+    }
+    if (hit !== hoveredRoleRef.current) {
+      hoveredRoleRef.current = hit;
+      setHoveredRole(hit);
+    }
+    if (hit) {
+      setHoverPos({ x: sx, y: sy });
+    } else if (hoverPos !== null) {
+      setHoverPos(null);
+    }
+  }, [sprites, hoverPos]);
+
+  const handlePointerLeave = useCallback(() => {
+    pointerScreenRef.current = null;
+    if (hoveredRoleRef.current !== null) {
+      hoveredRoleRef.current = null;
+      setHoveredRole(null);
+    }
+    if (hoverPos !== null) setHoverPos(null);
+  }, [hoverPos]);
 
   useEffect(() => {
     if (!sprites) return;
@@ -162,17 +317,20 @@ export default function Workshop() {
       setLayout(layoutRef.current);
     }
 
-    // Size the backing canvas to the container's pixel size; create/resize
-    // the camera to match. The camera is in native-map pixel space.
     const syncSize = () => {
-      const w = Math.max(1, Math.floor(container.clientWidth));
-      const h = Math.max(1, Math.floor(container.clientHeight));
+      // Track device pixel ratio so pixel-art stays crisp on HiDPI displays.
+      // The CSS size still matches the container; only the backing store grows.
+      const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
+      const cssW = Math.max(1, Math.floor(container.clientWidth));
+      const cssH = Math.max(1, Math.floor(container.clientHeight));
+      const w = Math.max(1, Math.floor(cssW * dpr));
+      const h = Math.max(1, Math.floor(cssH * dpr));
       if (canvas.width !== w) canvas.width = w;
       if (canvas.height !== h) canvas.height = h;
       if (!cameraRef.current) {
-        cameraRef.current = createCamera(w, h, MAP_PIXEL_W, MAP_PIXEL_H);
+        cameraRef.current = createCamera(cssW, cssH, MAP_PIXEL_W, MAP_PIXEL_H, dpr);
       } else {
-        resizeCamera(cameraRef.current, w, h, MAP_PIXEL_W, MAP_PIXEL_H);
+        resizeCamera(cameraRef.current, cssW, cssH, MAP_PIXEL_W, MAP_PIXEL_H, dpr);
       }
     };
     syncSize();
@@ -184,33 +342,49 @@ export default function Workshop() {
       update: (dt) => {
         const layout = layoutRef.current;
         if (!layout) return;
+        const now = performance.now();
         for (const c of charactersRef.current) {
           const prevState = c.state;
+          const prevTileCol = c.tileCol;
+          const prevTileRow = c.tileRow;
           updateCharacter(c, dt, {
             layout,
             characters: charactersRef.current,
             reducedMotion: reducedMotionRef.current,
           });
-          // Detect "just arrived" (was WALK, now not WALK, path empty) and
-          // notify the server so positions persist across restarts.
+
+          // Persist on tile crossing during a walk (throttled per agent).
           if (
-            prevState === 'walk' &&
-            c.state !== 'walk' &&
-            c.path.length === 0
+            c.state === CharacterState.WALK &&
+            (c.tileCol !== prevTileCol || c.tileRow !== prevTileRow)
           ) {
-            const key = `${c.tileCol},${c.tileRow}`;
-            if (arrivedAtRef.current.get(c.role) !== key) {
-              arrivedAtRef.current.set(c.role, key);
+            const last = lastSentRef.current.get(c.role) ?? 0;
+            if (now - last >= POSITION_UPDATE_THROTTLE_MS) {
+              lastSentRef.current.set(c.role, now);
               sendAgentUpdateRef.current(c.role, {
+                x: Math.round(c.x),
+                y: Math.round(c.y),
                 tileCol: c.tileCol,
                 tileRow: c.tileRow,
                 dir: c.dir,
-                state: c.state,
+                state: 'walk',
               });
             }
           }
+          // Always persist on transition out of WALK (arrival, blocked stop).
+          if (prevState === CharacterState.WALK && c.state !== CharacterState.WALK) {
+            lastSentRef.current.set(c.role, now);
+            sendAgentUpdateRef.current(c.role, {
+              x: Math.round(c.x),
+              y: Math.round(c.y),
+              tileCol: c.tileCol,
+              tileRow: c.tileRow,
+              dir: c.dir,
+              state: c.state,
+            });
+          }
         }
-        // Pan camera to follow the cluster of characters (or map center).
+        // Camera follow: center on cluster of characters, fall back to map center.
         const cam = cameraRef.current;
         if (cam) {
           let tx = MAP_PIXEL_W / 2;
@@ -229,6 +403,16 @@ export default function Workshop() {
         }
       },
       render: (ctx) => {
+        if (!engineReadyRef.current) {
+          // Clear to letterbox color so the canvas isn't transparent before
+          // we have the first authoritative state.
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.fillStyle = darkModeRef.current ? '#06090a' : '#1c1a14';
+          ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+          ctx.restore();
+          return;
+        }
         const layout = layoutRef.current;
         const cam = cameraRef.current;
         if (!layout || !sprites || !cam) return;
@@ -238,6 +422,7 @@ export default function Workshop() {
           sprites,
           darkMode: darkModeRef.current,
           camera: cam,
+          hoveredRole: hoveredRoleRef.current,
         });
       },
     });
@@ -247,12 +432,41 @@ export default function Workshop() {
     };
   }, [sprites, rooms.length]);
 
+  // On unmount, push any in-flight position so a quick refresh during walk
+  // captures the latest sample.
+  useEffect(() => {
+    return () => {
+      for (const c of getCharacters()) {
+        sendAgentUpdateRef.current(c.role, {
+          x: Math.round(c.x),
+          y: Math.round(c.y),
+          tileCol: c.tileCol,
+          tileRow: c.tileRow,
+          dir: c.dir,
+          state: c.state === CharacterState.WALK ? 'idle' : c.state,
+        });
+      }
+    };
+  }, []);
+
   return (
     <Page>
       <PageHeader eyebrow="Workshop" title="Office">
-        <span className="text-[10px] uppercase tracking-widest text-ops-muted dark:text-[#839087]">
-          {rooms.length} {rooms.length === 1 ? 'agent' : 'agents'}
-        </span>
+        <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-ops-muted dark:text-[#839087]">
+          <span
+            className={
+              ws.connected
+                ? 'text-emerald-600 dark:text-emerald-300'
+                : 'text-amber-600 dark:text-amber-300'
+            }
+            title={ws.connected ? 'live connection' : 'reconnecting'}
+          >
+            {ws.connected ? '● live' : '○ reconnecting'}
+          </span>
+          <span>
+            {rooms.length} {rooms.length === 1 ? 'agent' : 'agents'}
+          </span>
+        </div>
       </PageHeader>
 
       {ws.error && !ws.connected && (
@@ -269,16 +483,23 @@ export default function Workshop() {
         <canvas
           ref={canvasRef}
           aria-label="Agent workshop office"
-          className="block"
+          className="block cursor-default"
           style={{
             imageRendering: 'pixelated',
             width: '100%',
             height: '100%',
           }}
+          onPointerMove={handlePointer}
+          onPointerLeave={handlePointerLeave}
         />
-        {!sprites && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30 text-xs text-white">
-            Loading sprites…
+        {hoveredRoom && hoverPos && (
+          <AgentTooltip
+            hovered={{ room: hoveredRoom, screenX: hoverPos.x, screenY: hoverPos.y }}
+          />
+        )}
+        {(!sprites || !engineReady) && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-[10px] uppercase tracking-widest text-white">
+            {!sprites ? 'Loading sprites…' : 'Connecting…'}
           </div>
         )}
       </div>

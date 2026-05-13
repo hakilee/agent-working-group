@@ -18,6 +18,42 @@ logger = logging.getLogger(__name__)
 
 STATE_FILE_NAME = "workshop-state.json"
 
+# Whitelist of fields a client is allowed to persist for an agent. Anything
+# else is dropped so a misbehaving client can't grow records unboundedly.
+_ALLOWED_FIELDS: tuple[str, ...] = (
+    "x", "y", "tileCol", "tileRow", "dir", "state",
+)
+_ALLOWED_DIRS: frozenset[int] = frozenset({0, 1, 2, 3})
+_ALLOWED_STATES: frozenset[str] = frozenset({"idle", "walk", "type", "read"})
+# Soft bound on role string length to avoid memory growth from junk keys.
+_MAX_ROLE_LEN = 128
+# Soft bound on tile-coord magnitude (we only have ~30×20 maps in practice).
+_MAX_TILE = 1024
+
+
+def _sanitize_agent_payload(raw: Any) -> dict[str, Any]:
+    """Coerce an incoming WS payload into the allowed shape; drop garbage."""
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, Any] = {}
+    for key in _ALLOWED_FIELDS:
+        if key not in raw:
+            continue
+        value = raw[key]
+        if key in ("x", "y"):
+            if isinstance(value, (int, float)) and abs(value) < 1_000_000:
+                out[key] = float(value)
+        elif key in ("tileCol", "tileRow"):
+            if isinstance(value, (int, float)) and abs(value) <= _MAX_TILE:
+                out[key] = int(value)
+        elif key == "dir":
+            if isinstance(value, (int, float)) and int(value) in _ALLOWED_DIRS:
+                out[key] = int(value)
+        elif key == "state":
+            if isinstance(value, str) and value in _ALLOWED_STATES:
+                out[key] = value
+    return out
+
 
 class WorkshopState:
     """In-memory workshop state backed by an optional JSON file."""
@@ -42,8 +78,13 @@ class WorkshopState:
 
     def update_agent(self, role: str, data: dict[str, Any]) -> None:
         """Merge incoming agent state. Called from WebSocket messages."""
+        if not isinstance(role, str) or not role or len(role) > _MAX_ROLE_LEN:
+            return
+        clean = _sanitize_agent_payload(data)
+        if not clean:
+            return
         existing = self._agents.get(role, {})
-        existing.update(data)
+        existing.update(clean)
         existing["updatedAt"] = time.time()
         self._agents[role] = existing
         self._maybe_save()

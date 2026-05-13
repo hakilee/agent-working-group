@@ -16,6 +16,8 @@ export interface RenderOptions {
   sprites: SpriteManager;
   darkMode: boolean;
   camera: Camera;
+  /** Role of the currently hovered character, if any. */
+  hoveredRole?: string | null;
 }
 
 interface Drawable {
@@ -32,7 +34,6 @@ function drawTiled(
   dw: number,
   dh: number,
 ): void {
-  // Use top-left 16x16 if image is larger than a tile.
   const sw = Math.min(img.width, TILE_SIZE);
   const sh = Math.min(img.height, TILE_SIZE);
   ctx.drawImage(img, 0, 0, sw, sh, dx, dy, dw, dh);
@@ -171,7 +172,6 @@ function drawFurnitureSprite(
       ctx.drawImage(img, dx, dy, dw, dh);
     }
   } else {
-    // Fallback placeholder.
     ctx.fillStyle = f.kind === 'desk' || f.kind === 'table' ? '#8a5a2b' : '#444';
     ctx.fillRect(dx, dy, dw, dh);
   }
@@ -181,10 +181,10 @@ function drawCharacter(
   ctx: CanvasRenderingContext2D,
   c: EngineCharacter,
   sprites: SpriteManager,
+  highlighted: boolean,
 ): void {
   const sheet = sprites.characters[c.palette];
   if (!sheet) {
-    // Fallback square so something is visible
     ctx.fillStyle = c.profile.color;
     ctx.fillRect(c.x + 2, c.y + 12, 12, 18);
     return;
@@ -202,37 +202,33 @@ function drawCharacter(
   const frame = sheet.byDirFrame[dir]?.[frameIdx];
   if (!frame) return;
 
-  // Flash red overlay when blocked.
-  ctx.drawImage(frame, Math.round(c.x), Math.round(c.y));
+  const px = Math.round(c.x);
+  const py = Math.round(c.y);
 
-  if (c.isBlocked && (c.flashTimer < 0.5)) {
+  if (highlighted) {
+    // Soft outline ring for hover affordance.
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = c.profile.color;
+    const ringR = sprites.charFrameW / 2 - 1;
+    const cx = px + sprites.charFrameW / 2;
+    const cy = py + sprites.charFrameH - 4;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, ringR, ringR * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.drawImage(frame, px, py);
+
+  if (c.isBlocked && c.flashTimer < 0.5) {
     ctx.save();
     ctx.globalCompositeOperation = 'source-atop';
     ctx.globalAlpha = 0.45;
     ctx.fillStyle = '#dc2626';
-    ctx.fillRect(Math.round(c.x), Math.round(c.y), sprites.charFrameW, sprites.charFrameH);
+    ctx.fillRect(px, py, sprites.charFrameW, sprites.charFrameH);
     ctx.restore();
   }
-}
-
-function drawNameLabel(
-  ctx: CanvasRenderingContext2D,
-  c: EngineCharacter,
-): void {
-  const text = c.profile.displayName;
-  ctx.save();
-  ctx.font = '6px monospace';
-  ctx.textBaseline = 'bottom';
-  ctx.textAlign = 'center';
-  const cx = c.x + 8;
-  const ly = c.y - 1;
-  const metrics = ctx.measureText(text);
-  const w = Math.ceil(metrics.width) + 4;
-  ctx.fillStyle = 'rgba(0,0,0,0.65)';
-  ctx.fillRect(Math.round(cx - w / 2), Math.round(ly - 7), w, 7);
-  ctx.fillStyle = '#fff';
-  ctx.fillText(text, Math.round(cx), Math.round(ly - 1));
-  ctx.restore();
 }
 
 function drawStateBubble(
@@ -272,71 +268,95 @@ function drawStateBubble(
 }
 
 export function render(ctx: CanvasRenderingContext2D, opts: RenderOptions): void {
-  const { layout, characters, sprites, darkMode, camera } = opts;
+  const { layout, characters, sprites, darkMode, camera, hoveredRole } = opts;
   const canvas = ctx.canvas;
   const canvasW = canvas.width;
   const canvasH = canvas.height;
 
-  // Clear full canvas in screen space (camera may not cover everything).
+  // 1) Clear letterbox area in screen space.
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = darkMode ? '#0e1411' : '#f3f0e8';
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = darkMode ? '#06090a' : '#1c1a14';
   ctx.fillRect(0, 0, canvasW, canvasH);
   ctx.restore();
 
-  // Camera → screen transform.
-  const scaleX = canvasW / camera.width;
-  const scaleY = canvasH / camera.height;
+  // 2) Apply uniform world→screen transform. Render factor folds in DPR so
+  //    pixels land on the backing store at the same logical position.
+  const { scale, offsetX, offsetY, dpr } = camera;
+  const renderScale = scale * dpr;
+  const renderOffsetX = offsetX * dpr;
+  const renderOffsetY = offsetY * dpr;
+  const renderedW = camera.width * scale * dpr;
+  const renderedH = camera.height * scale * dpr;
+
   ctx.save();
-  ctx.setTransform(scaleX, 0, 0, scaleY, -camera.x * scaleX, -camera.y * scaleY);
+  // Clip world rendering to the view rect (backing px) so sprites can't bleed
+  // into the letterbox bars.
+  ctx.beginPath();
+  ctx.rect(renderOffsetX, renderOffsetY, renderedW, renderedH);
+  ctx.clip();
+
+  ctx.setTransform(
+    renderScale, 0, 0, renderScale,
+    renderOffsetX - camera.x * renderScale,
+    renderOffsetY - camera.y * renderScale,
+  );
   ctx.imageSmoothingEnabled = false;
 
-  // Floor tiles
-  for (let r = 0; r < layout.rows; r++) {
-    for (let c = 0; c < layout.cols; c++) {
-      if (layout.tiles[r][c] === TileType.FLOOR) {
+  // World background fills the view rect (covers everything outside the map).
+  ctx.fillStyle = darkMode ? '#0e1411' : '#f3f0e8';
+  ctx.fillRect(camera.x, camera.y, camera.width, camera.height);
+
+  // Only draw tiles that intersect the view rect — cheap culling.
+  const minCol = Math.max(0, Math.floor(camera.x / TILE_SIZE));
+  const maxCol = Math.min(layout.cols - 1, Math.floor((camera.x + camera.width - 1) / TILE_SIZE));
+  const minRow = Math.max(0, Math.floor(camera.y / TILE_SIZE));
+  const maxRow = Math.min(layout.rows - 1, Math.floor((camera.y + camera.height - 1) / TILE_SIZE));
+
+  for (let r = minRow; r <= maxRow; r++) {
+    for (let c = minCol; c <= maxCol; c++) {
+      const tile = layout.tiles[r][c];
+      if (tile === TileType.FLOOR) {
         drawFloorTile(ctx, sprites.floor, c * TILE_SIZE, r * TILE_SIZE, darkMode);
       }
     }
   }
-
-  // Wall tiles
-  for (let r = 0; r < layout.rows; r++) {
-    for (let c = 0; c < layout.cols; c++) {
-      if (layout.tiles[r][c] === TileType.WALL) {
+  for (let r = minRow; r <= maxRow; r++) {
+    for (let c = minCol; c <= maxCol; c++) {
+      const tile = layout.tiles[r][c];
+      if (tile === TileType.WALL) {
         drawWallTile(ctx, sprites.wall, c * TILE_SIZE, r * TILE_SIZE, darkMode);
       }
     }
   }
 
-  // Build z-sorted drawables (furniture + characters).
+  // Build z-sorted drawables (furniture + characters). Don't bother culling
+  // furniture — instance count is small.
   const drawables: Drawable[] = [];
   for (const f of layout.furniture) {
     const zY = (f.row + f.h) * TILE_SIZE;
     drawables.push({
       zY,
-      draw: (c) => drawFurnitureSprite(c, f, sprites),
+      draw: (g) => drawFurnitureSprite(g, f, sprites),
     });
   }
   for (const c of characters) {
     const zY = c.y + sprites.charFrameH;
     drawables.push({
       zY,
-      draw: (g) => drawCharacter(g, c, sprites),
+      draw: (g) => drawCharacter(g, c, sprites, hoveredRole === c.role),
     });
   }
   drawables.sort((a, b) => a.zY - b.zY);
   for (const d of drawables) d.draw(ctx);
 
-  // Labels and bubbles on top.
-  for (const c of characters) {
-    drawNameLabel(ctx, c);
-    drawStateBubble(ctx, c);
-  }
+  // State bubbles on top of world content.
+  for (const c of characters) drawStateBubble(ctx, c);
 
   ctx.restore();
 
-  // Subtle scanline overlay in screen space, after camera transform is reset.
+  // 3) Subtle scanline overlay in screen space, after camera transform reset.
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 0.05;

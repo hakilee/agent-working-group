@@ -12,8 +12,11 @@ export {
   applyRoomState,
   assignSeats,
   createCharacter,
+  restoreCharacterState,
+  sanitizeRestore,
   teleportTo,
   updateCharacter,
+  type CharacterRestore,
   type UpdateContext,
 } from './character';
 export { findPath, isWalkable } from './pathfinding';
@@ -22,6 +25,7 @@ export {
   createCamera,
   updateCamera,
   resizeCamera,
+  screenToWorld,
   worldToScreen,
   type Camera,
 } from './camera';

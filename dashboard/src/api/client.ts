@@ -264,6 +264,8 @@ export function workshopStreamUrl(): string {
 }
 
 export interface WorkshopAgentState {
+  x?: number;
+  y?: number;
   tileCol?: number;
   tileRow?: number;
   dir?: number;

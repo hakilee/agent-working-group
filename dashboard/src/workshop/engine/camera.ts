@@ -1,36 +1,109 @@
 /**
- * Camera/viewport over the native map. All coords are in native map pixels.
+ * Camera / viewport.
  *
- * The camera defines which rectangular region of the map is visible. The
- * renderer scales this region to fill the canvas, so tile size on screen
- * stays consistent regardless of canvas size: small canvas → camera shows
- * a smaller portion of the map; large canvas → camera shows more (and
- * everything stays the same number of CSS pixels per tile).
+ * The camera defines an axis-aligned rectangle in world (map-pixel) space and
+ * a uniform integer scale from world pixels → logical (CSS) screen pixels.
+ * The renderer multiplies by `dpr` to draw into the backing store. A single
+ * uniform scale is used in both axes so pixels are always square — no
+ * axis-independent stretching. When the view doesn't cover the canvas,
+ * letterbox/pillarbox bars fill the remainder.
  */
 export interface Camera {
+  /** View rect top-left in world (map-pixel) coords. */
   x: number;
   y: number;
+  /** View rect size in world pixels. */
   width: number;
   height: number;
-}
-
-/** Create a camera sized to the canvas, clamped to the map bounds. */
-export function createCamera(
-  canvasWidth: number,
-  canvasHeight: number,
-  mapPixelW: number,
-  mapPixelH: number,
-): Camera {
-  const w = Math.min(canvasWidth, mapPixelW);
-  const h = Math.min(canvasHeight, mapPixelH);
-  const x = clamp((mapPixelW - w) / 2, 0, Math.max(0, mapPixelW - w));
-  const y = clamp((mapPixelH - h) / 2, 0, Math.max(0, mapPixelH - h));
-  return { x, y, width: w, height: h };
+  /** Uniform world-px → logical (CSS) px scale (integer, ≥1). */
+  scale: number;
+  /** CSS-pixel offset from canvas top-left to view rect's top-left. */
+  offsetX: number;
+  offsetY: number;
+  /** Last logical canvas size used to compute this camera. */
+  cssW: number;
+  cssH: number;
+  /** Device pixel ratio the renderer should multiply by for backing-store output. */
+  dpr: number;
 }
 
 /**
- * Pan the camera so (targetX, targetY) is centered, clamped to map bounds.
- * Both inputs and the resulting camera are in native map pixel space.
+ * Minimum world region (in world px) to keep visible. We never scale up so
+ * much that fewer than this many world pixels fit on screen — past that we
+ * letterbox instead.
+ */
+const MIN_VISIBLE_W_PX = 320; // 20 tiles at 16 px
+const MIN_VISIBLE_H_PX = 224; // 14 tiles at 16 px
+
+/** Create a camera sized to the canvas (logical/CSS pixels). */
+export function createCamera(
+  cssWidth: number,
+  cssHeight: number,
+  mapPixelW: number,
+  mapPixelH: number,
+  dpr = 1,
+): Camera {
+  const cam: Camera = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    cssW: 0,
+    cssH: 0,
+    dpr: 1,
+  };
+  resizeCamera(cam, cssWidth, cssHeight, mapPixelW, mapPixelH, dpr);
+  return cam;
+}
+
+/**
+ * Resize the camera. Picks the largest integer scale such that at least
+ * MIN_VISIBLE_* world pixels fit, then sizes the view rect to the canvas
+ * (clamped to the map). Preserves the camera's previous world-space center.
+ */
+export function resizeCamera(
+  cam: Camera,
+  cssWidth: number,
+  cssHeight: number,
+  mapPixelW: number,
+  mapPixelH: number,
+  dpr = 1,
+): void {
+  const cw = Math.max(1, cssWidth);
+  const ch = Math.max(1, cssHeight);
+
+  const rawScale = Math.min(cw / MIN_VISIBLE_W_PX, ch / MIN_VISIBLE_H_PX);
+  const scale = Math.max(1, Math.floor(rawScale));
+
+  const viewW = Math.min(cw / scale, mapPixelW);
+  const viewH = Math.min(ch / scale, mapPixelH);
+
+  const renderedW = viewW * scale;
+  const renderedH = viewH * scale;
+  const offsetX = Math.floor((cw - renderedW) / 2);
+  const offsetY = Math.floor((ch - renderedH) / 2);
+
+  const cx = cam.width > 0 ? cam.x + cam.width / 2 : mapPixelW / 2;
+  const cy = cam.height > 0 ? cam.y + cam.height / 2 : mapPixelH / 2;
+
+  cam.width = viewW;
+  cam.height = viewH;
+  cam.scale = scale;
+  cam.offsetX = offsetX;
+  cam.offsetY = offsetY;
+  cam.cssW = cw;
+  cam.cssH = ch;
+  cam.dpr = Math.max(1, dpr);
+
+  updateCamera(cam, cx, cy, mapPixelW, mapPixelH);
+}
+
+/**
+ * Pan camera so (targetX, targetY) is the view-center, clamped to map bounds.
+ * View origin is rounded to whole world pixels to keep blits crisp.
  */
 export function updateCamera(
   cam: Camera,
@@ -41,36 +114,34 @@ export function updateCamera(
 ): void {
   const maxX = Math.max(0, mapPixelW - cam.width);
   const maxY = Math.max(0, mapPixelH - cam.height);
-  cam.x = clamp(targetX - cam.width / 2, 0, maxX);
-  cam.y = clamp(targetY - cam.height / 2, 0, maxY);
+  const x = clamp(targetX - cam.width / 2, 0, maxX);
+  const y = clamp(targetY - cam.height / 2, 0, maxY);
+  cam.x = Math.round(x);
+  cam.y = Math.round(y);
 }
 
-/** Resize a camera (e.g. after canvas resize). Keeps it centered on its previous center. */
-export function resizeCamera(
-  cam: Camera,
-  canvasWidth: number,
-  canvasHeight: number,
-  mapPixelW: number,
-  mapPixelH: number,
-): void {
-  const cx = cam.x + cam.width / 2;
-  const cy = cam.y + cam.height / 2;
-  cam.width = Math.min(canvasWidth, mapPixelW);
-  cam.height = Math.min(canvasHeight, mapPixelH);
-  updateCamera(cam, cx, cy, mapPixelW, mapPixelH);
-}
-
-/** Convert native-map world coords to screen coords given the canvas size. */
+/** Map world-pixel coords → logical (CSS) canvas-pixel coords. */
 export function worldToScreen(
   cam: Camera,
   worldX: number,
   worldY: number,
-  canvasWidth: number,
-  canvasHeight: number,
 ): { x: number; y: number } {
-  const sx = (worldX - cam.x) * (canvasWidth / cam.width);
-  const sy = (worldY - cam.y) * (canvasHeight / cam.height);
-  return { x: sx, y: sy };
+  return {
+    x: cam.offsetX + (worldX - cam.x) * cam.scale,
+    y: cam.offsetY + (worldY - cam.y) * cam.scale,
+  };
+}
+
+/** Map logical (CSS) canvas-pixel coords → world-pixel coords. */
+export function screenToWorld(
+  cam: Camera,
+  screenX: number,
+  screenY: number,
+): { x: number; y: number } {
+  return {
+    x: (screenX - cam.offsetX) / cam.scale + cam.x,
+    y: (screenY - cam.offsetY) / cam.scale + cam.y,
+  };
 }
 
 function clamp(v: number, lo: number, hi: number): number {

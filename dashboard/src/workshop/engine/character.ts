@@ -27,23 +27,91 @@ function hashStr(s: string): number {
   return h;
 }
 
+/**
+ * Persisted state shape used to bootstrap or restore a character without
+ * flashing a default direction or replaying old movement. All fields are
+ * optional — missing fields fall back to `spawn` defaults.
+ */
+export interface CharacterRestore {
+  x?: number;
+  y?: number;
+  tileCol?: number;
+  tileRow?: number;
+  dir?: Dir;
+  state?: CState;
+}
+
+/** Coerce an unknown `dir`/`state` payload to a safe engine value. */
+function coerceDir(value: unknown): Dir | undefined {
+  if (value === Direction.DOWN || value === Direction.LEFT || value === Direction.RIGHT || value === Direction.UP) {
+    return value;
+  }
+  return undefined;
+}
+
+function coerceState(value: unknown): CState | undefined {
+  if (
+    value === CharacterState.IDLE ||
+    value === CharacterState.WALK ||
+    value === CharacterState.TYPE ||
+    value === CharacterState.READ
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
+/** Sanitize an arbitrary persisted payload into a CharacterRestore. */
+export function sanitizeRestore(raw: unknown): CharacterRestore | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const out: CharacterRestore = {};
+  if (typeof r.x === 'number' && Number.isFinite(r.x)) out.x = r.x;
+  if (typeof r.y === 'number' && Number.isFinite(r.y)) out.y = r.y;
+  if (typeof r.tileCol === 'number' && Number.isFinite(r.tileCol)) out.tileCol = Math.trunc(r.tileCol);
+  if (typeof r.tileRow === 'number' && Number.isFinite(r.tileRow)) out.tileRow = Math.trunc(r.tileRow);
+  const d = coerceDir(r.dir);
+  if (d !== undefined) out.dir = d;
+  const s = coerceState(r.state);
+  if (s !== undefined) out.state = s;
+  return out;
+}
+
 export function createCharacter(
   room: AgentRoom,
   paletteCount: number,
   spawn: { col: number; row: number },
+  restore?: CharacterRestore | null,
 ): EngineCharacter {
   const palette = Math.abs(hashStr(room.role)) % Math.max(paletteCount, 1);
+
+  const tileCol = restore?.tileCol ?? spawn.col;
+  const tileRow = restore?.tileRow ?? spawn.row;
+  // Snap pixel position to the saved tile so the engine can resume path-
+  // finding cleanly from a known cell — exact x/y from a throttled walk
+  // sample would leave the sprite between tiles for the first idle frames.
+  const x = tileCol * TILE_SIZE;
+  const y = (tileRow - 1) * TILE_SIZE;
+  const dir = restore?.dir ?? Direction.DOWN;
+  // WALK can't be resumed (no path persisted); seated animations are safe
+  // because the engine will re-validate seat assignment on the next decision.
+  const restoredState = restore?.state;
+  const state: CState =
+    restoredState === CharacterState.TYPE || restoredState === CharacterState.READ
+      ? restoredState
+      : CharacterState.IDLE;
+
   return {
     id: room.role,
     role: room.role,
     profile: room.profile,
     palette,
-    state: CharacterState.IDLE,
-    dir: Direction.DOWN,
-    x: spawn.col * TILE_SIZE,
-    y: (spawn.row - 1) * TILE_SIZE,
-    tileCol: spawn.col,
-    tileRow: spawn.row,
+    state,
+    dir,
+    x,
+    y,
+    tileCol,
+    tileRow,
     path: [],
     moveProgress: 0,
     frame: 0,
@@ -55,6 +123,31 @@ export function createCharacter(
     flashTimer: 0,
     isBlocked: room.state === 'blocked',
   };
+}
+
+/**
+ * Apply a persisted restore payload to an existing character without
+ * resetting unrelated bookkeeping. Used to reconcile to server state on
+ * (re)connect snapshots.
+ */
+export function restoreCharacterState(c: EngineCharacter, restore: CharacterRestore): void {
+  if (typeof restore.tileCol === 'number') c.tileCol = restore.tileCol;
+  if (typeof restore.tileRow === 'number') c.tileRow = restore.tileRow;
+  c.x = c.tileCol * TILE_SIZE;
+  c.y = (c.tileRow - 1) * TILE_SIZE;
+  if (restore.dir !== undefined) c.dir = restore.dir;
+  c.path = [];
+  c.moveProgress = 0;
+  const incoming = restore.state;
+  c.state =
+    incoming === CharacterState.TYPE || incoming === CharacterState.READ
+      ? incoming
+      : CharacterState.IDLE;
+  c.frame = 0;
+  c.frameTimer = 0;
+  // Give the engine a brief beat before deciding the next action so the
+  // restored pose is visible to the user.
+  c.wanderTimer = 0.4 + Math.random() * 0.6;
 }
 
 /** Pick a wander interval. */
