@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate Japanese 1990s office pixel-art sprite set for the Workshop dashboard.
+Generate 1990s office pixel-art sprite set for the Workshop dashboard.
 
 Outputs into dashboard/public/assets/ using existing filename conventions so the
 engine sprite loader picks them up without changes.
@@ -8,7 +8,7 @@ engine sprite loader picks them up without changes.
 Style:
   - 16px tile grid; pixel-perfect (no anti-aliasing).
   - Cohesive 1990s salaryman palette: warm fluorescents + cool gray-blues +
-    navy/charcoal suits + filing-cabinet metallics + Japanese terra-cotta/jade
+    navy/charcoal suits + filing-cabinet metallics + terra-cotta/jade
     accents on plants and wall art.
   - Consistent top-left light source.
   - All sprites on transparent backgrounds.
@@ -22,7 +22,7 @@ from PIL import Image, ImageDraw
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, "dashboard", "public", "assets")
 
-# ─── Cohesive 32-color Japanese-office palette ────────────────────────────────
+# ─── Cohesive 32-color office palette ────────────────────────────────
 TRANSPARENT = (0, 0, 0, 0)
 OUTLINE = (20, 22, 28, 255)
 DEEP_SHADOW = (32, 36, 44, 255)
@@ -150,7 +150,7 @@ SMOKE_LT = (220, 222, 224, 180)
 SMOKE_MD = (190, 192, 196, 150)
 SMOKE_DK = (160, 162, 168, 110)
 
-# Accent — Japanese red / jade for paintings
+# Accent — red / jade for paintings
 PAINT_RED = (172, 56, 50, 255)
 PAINT_JADE = (74, 132, 110, 255)
 PAINT_GOLD = (208, 168, 96, 255)
@@ -823,7 +823,7 @@ def make_character(
 # ─── FURNITURE ────────────────────────────────────────────────────────────────
 
 def furniture_desk_front() -> Image.Image:
-    """48x32 — 1990s Japanese metal-frame office desk, front view.
+    """48x32 — 1990s metal-frame office desk, front view.
     Top row (16px) is the laminate desk surface; bottom row (16px) is the metal
     frame + drawers + chair clearance gap.
     """
@@ -1843,7 +1843,7 @@ def furniture_clock() -> Image.Image:
 
 
 def furniture_small_painting() -> Image.Image:
-    """16x32 — small Japanese scroll painting (1×1 tile with overhang up)."""
+    """16x32 — small scroll painting (1×1 tile with overhang up)."""
     img = _new(16, 32); px = img.load()
     # Outer frame (rows 0..16)
     for y in range(2, 18):
@@ -2033,7 +2033,7 @@ def main() -> None:
     _save(furniture_small_painting(), "furniture", "SMALL_PAINTING_2", "SMALL_PAINTING_2.png")
     _save(furniture_large_painting(), "furniture", "LARGE_PAINTING", "LARGE_PAINTING.png")
 
-    print("Generated all Japanese office sprites.")
+    print("Generated all office sprites.")
 
 
 if __name__ == "__main__":

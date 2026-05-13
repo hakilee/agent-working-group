@@ -855,7 +855,7 @@ export class ThreeWorkshopRenderer {
 
   private computeSmokeOrigins(layout: OfficeLayout): void {
     // Use the office's bin / coffee instances as smoke emitter spots
-    // (re-skinned to ashtray / vending steam for the Japanese theme).
+    // (re-skinned to ashtray / vending steam for the office theme).
     this.smokeOrigins = [];
     for (const f of layout.furniture) {
       if (f.kind === 'bin' || f.kind === 'coffee') {
