@@ -17,9 +17,9 @@ const WALK_SPEED_TILES_PER_SEC = 3.2;
 const WALK_FRAME_INTERVAL = 0.16;
 const TYPE_FRAME_INTERVAL = 0.45;
 const READ_FRAME_INTERVAL = 0.6;
-const WANDER_INTERVAL_MIN = 4;
-const WANDER_INTERVAL_MAX = 9;
-const IDLE_ERRAND_CHANCE = 0.35;
+const WANDER_INTERVAL_MIN = 2.5;
+const WANDER_INTERVAL_MAX = 6;
+const IDLE_ERRAND_CHANCE = 0.78;
 const RESTORED_DECISION_DELAY = 2.2;
 const RESTORED_DECISION_JITTER = 1.2;
 const ROLE_MOVE_PRIORITY: Record<string, number> = { lead: 0, worker: 1 };
@@ -65,7 +65,10 @@ function coerceState(value: unknown): CState | undefined {
     value === CharacterState.IDLE ||
     value === CharacterState.WALK ||
     value === CharacterState.TYPE ||
-    value === CharacterState.READ
+    value === CharacterState.READ ||
+    value === CharacterState.SIT ||
+    value === CharacterState.COFFEE ||
+    value === CharacterState.WASH
   ) {
     return value;
   }
@@ -108,7 +111,11 @@ export function createCharacter(
   // because the engine will re-validate seat assignment on the next decision.
   const restoredState = restore?.state;
   const state: CState =
-    restoredState === CharacterState.TYPE || restoredState === CharacterState.READ
+    restoredState === CharacterState.TYPE ||
+    restoredState === CharacterState.READ ||
+    restoredState === CharacterState.SIT ||
+    restoredState === CharacterState.COFFEE ||
+    restoredState === CharacterState.WASH
       ? restoredState
       : CharacterState.IDLE;
 
@@ -157,7 +164,11 @@ export function restoreCharacterState(c: EngineCharacter, restore: CharacterRest
   c.moveProgress = 0;
   const incoming = restore.state;
   c.state =
-    incoming === CharacterState.TYPE || incoming === CharacterState.READ
+    incoming === CharacterState.TYPE ||
+    incoming === CharacterState.READ ||
+    incoming === CharacterState.SIT ||
+    incoming === CharacterState.COFFEE ||
+    incoming === CharacterState.WASH
       ? incoming
       : CharacterState.IDLE;
   c.frame = 0;
@@ -195,7 +206,7 @@ function intentFor(state: RoomState): EngineCharacter['intent'] {
 function seatedAnimFor(state: RoomState): CState {
   if (state === 'reviewing' || state === 'responding') return CharacterState.READ;
   if (state === 'working' || state === 'dispatching') return CharacterState.TYPE;
-  return CharacterState.IDLE;
+  return CharacterState.SIT;
 }
 
 /** Update the character's roomState (called when AWG data refreshes). */
@@ -345,6 +356,9 @@ export function updateCharacter(c: EngineCharacter, dt: number, ctx: UpdateConte
       rerouteOrYield(c, ctx);
       return;
     }
+    const fromCol = c.tileCol;
+    const fromRow = c.tileRow;
+    c.dir = dirFromDelta(next.col - fromCol, next.row - fromRow);
     if (reducedMotion) {
       c.tileCol = next.col;
       c.tileRow = next.row;
@@ -354,12 +368,9 @@ export function updateCharacter(c: EngineCharacter, dt: number, ctx: UpdateConte
       c.moveProgress = 0;
     } else {
       c.moveProgress += dt * WALK_SPEED_TILES_PER_SEC;
-      const fromCol = c.tileCol;
-      const fromRow = c.tileRow;
       const t = Math.min(c.moveProgress, 1);
       c.x = (fromCol + (next.col - fromCol) * t) * TILE_SIZE;
       c.y = ((fromRow + (next.row - fromRow) * t) - 1) * TILE_SIZE;
-      c.dir = dirFromDelta(next.col - fromCol, next.row - fromRow);
       if (c.moveProgress >= 1) {
         c.tileCol = next.col;
         c.tileRow = next.row;
@@ -427,9 +438,13 @@ function decideNextAction(c: EngineCharacter, ctx: UpdateContext): void {
         startWander(c, ctx);
         return;
       }
-      if (c.roomState === 'idle' && c.tileCol === seat.col && c.tileRow === seat.row && Math.random() < IDLE_ERRAND_CHANCE) {
-        startAmbientErrand(c, ctx);
-        return;
+      if (c.roomState === 'idle' && c.tileCol === seat.col && c.tileRow === seat.row) {
+        if (Math.random() < IDLE_ERRAND_CHANCE) {
+          startAmbientErrand(c, ctx);
+          return;
+        }
+        // Keep idle agents visibly alive instead of freezing indefinitely at desks.
+        c.wanderTimer = Math.min(c.wanderTimer, 1.2);
       }
       if (c.tileCol === seat.col && c.tileRow === seat.row) {
         c.dir = seat.facingDir;
@@ -488,7 +503,7 @@ function roomIdAt(layout: OfficeLayout, col: number, row: number): string | unde
 }
 
 function roomIdForIntent(c: EngineCharacter, layout: OfficeLayout): string | undefined {
-  if (c.intent === 'meeting') return 'meeting';
+  if (c.intent === 'meeting') return 'meeting-lounge';
   if (c.intent === 'wander') return roomIdAt(layout, c.tileCol, c.tileRow);
   const seat = findTargetSeat(c, layout.seats);
   return seat ? roomIdAt(layout, seat.col, seat.row) : roomIdAt(layout, c.tileCol, c.tileRow);

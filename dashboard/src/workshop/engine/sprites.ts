@@ -6,7 +6,7 @@ import {
 
 const CHAR_FRAME_W = 16;
 const CHAR_FRAME_H = 32;
-const CHAR_FRAMES_PER_DIR = 7;
+const CHAR_FRAMES_PER_DIR = 10;
 const CHAR_PALETTE_COUNT = 6;
 /** How many floor variants live under /assets/floors/floor_N.png. */
 const FLOOR_VARIANT_COUNT = 9;
@@ -188,16 +188,19 @@ export async function loadSprites(): Promise<SpriteManager> {
   };
 }
 
-/** Walk loop maps logical frame [0..3] → sprite index in [0,1,2,1]. */
+/** Walk loop maps logical frame [0..3] -> sprite index in [0,1,2,1]. */
 export const WALK_FRAME_ORDER: ReadonlyArray<number> = [0, 1, 2, 1];
 
 /** Resolve the sprite frame index given character state and frame counter. */
 export function spriteFrameIndex(
-  state: 'idle' | 'walk' | 'type' | 'read',
+  state: 'idle' | 'walk' | 'type' | 'read' | 'sit' | 'coffee' | 'wash',
   frame: number,
 ): number {
   if (state === 'walk') return WALK_FRAME_ORDER[frame % WALK_FRAME_ORDER.length];
   if (state === 'type') return 3 + (frame % 2);
   if (state === 'read') return 5 + (frame % 2);
+  if (state === 'coffee') return 7;
+  if (state === 'wash') return 8;
+  if (state === 'sit') return 9;
   return 0;
 }

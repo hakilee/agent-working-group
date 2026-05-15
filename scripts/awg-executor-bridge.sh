@@ -4,7 +4,17 @@ set -euo pipefail
 # Category: agent-executor
 # Role: Bridge that receives one AWG instruction and runs an executor with structured-result ack.
 
-AWG_CLI=${AWG_CLI:-awg}
+# Auto-detect awg CLI: prefer env var, then repo-local .venv/bin/awg, then PATH.
+_awg_autodetect() {
+  local repo_root
+  repo_root=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+  if [[ -x "${repo_root}/.venv/bin/awg" ]]; then
+    echo "${repo_root}/.venv/bin/awg"
+  else
+    echo "awg"
+  fi
+}
+AWG_CLI=${AWG_CLI:-$(_awg_autodetect)}
 AWG_ROOT=${AWG_ROOT:-"${PWD}/.agent-working-group"}
 WORKER=${WORKER:-worker}
 LEAD=${LEAD:-lead}

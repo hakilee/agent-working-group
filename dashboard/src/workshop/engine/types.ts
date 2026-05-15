@@ -22,6 +22,9 @@ export const CharacterState = {
   WALK: 'walk',
   TYPE: 'type',
   READ: 'read',
+  SIT: 'sit',
+  COFFEE: 'coffee',
+  WASH: 'wash',
 } as const;
 export type CharacterState = (typeof CharacterState)[keyof typeof CharacterState];
 
@@ -37,6 +40,14 @@ export type FurnitureKind =
   | 'large_plant'
   | 'hanging_plant'
   | 'cactus'
+  | 'potted_plant_round'
+  | 'potted_plant_leafy'
+  | 'potted_plant_tall'
+  | 'hedge_planter'
+  | 'flower_shrub'
+  | 'floor_sprout'
+  | 'desk_plant'
+  | 'hanging_vine'
   | 'sofa'
   | 'coffee_table'
   | 'coffee'
@@ -45,7 +56,20 @@ export type FurnitureKind =
   | 'small_table'
   | 'clock'
   | 'small_painting'
-  | 'large_painting';
+  | 'large_painting'
+  | 'queue_board'
+  | 'status_wall'
+  | 'review_terminal'
+  | 'window_panel'
+  | 'wall_panel'
+  | 'door_frame'
+  | 'maker_bench'
+  | 'plaza_planter'
+  | 'garden_bed'
+  | 'tool_cabinet'
+  | 'parts_shelf'
+  | 'cable_spool'
+  | 'hazard_barrel';
 export type FurnitureVariant = 'front' | 'back' | 'side' | 'side-mirror';
 
 export interface FurnitureInstance {

@@ -2,7 +2,7 @@
  * Camera / viewport.
  *
  * The camera defines an axis-aligned rectangle in world (map-pixel) space and
- * a uniform integer scale from world pixels → logical (CSS) screen pixels.
+ * a uniform scale from world pixels → logical (CSS) screen pixels.
  * The renderer multiplies by `dpr` to draw into the backing store. A single
  * uniform scale is used in both axes so pixels are always square — no
  * axis-independent stretching. When the view doesn't cover the canvas,
@@ -15,7 +15,7 @@ export interface Camera {
   /** View rect size in world pixels. */
   width: number;
   height: number;
-  /** Uniform world-px → logical (CSS) px scale (integer, ≥1). */
+  /** Uniform world-px → logical (CSS) px scale. */
   scale: number;
   /** CSS-pixel offset from canvas top-left to view rect's top-left. */
   offsetX: number;
@@ -32,8 +32,9 @@ export interface Camera {
  * much that fewer than this many world pixels fit on screen — past that we
  * letterbox instead.
  */
-const MIN_VISIBLE_W_PX = 320; // 20 tiles at 16 px
-const MIN_VISIBLE_H_PX = 224; // 14 tiles at 16 px
+const MIN_VISIBLE_W_PX = 640; // 40 tiles at 16 px
+const MIN_VISIBLE_H_PX = 416; // 26 tiles at 16 px
+const MAX_GATHER_SCALE = 1.5;
 
 /** Create a camera sized to the canvas (logical/CSS pixels). */
 export function createCamera(
@@ -60,8 +61,8 @@ export function createCamera(
 }
 
 /**
- * Resize the camera. Picks the largest integer scale such that at least
- * MIN_VISIBLE_* world pixels fit, then sizes the view rect to the canvas
+ * Resize the camera. Picks a capped Gather-like scale so more tiles stay
+ * visible, then sizes the view rect to the canvas
  * (clamped to the map). Preserves the camera's previous world-space center.
  */
 export function resizeCamera(
@@ -76,7 +77,7 @@ export function resizeCamera(
   const ch = Math.max(1, cssHeight);
 
   const rawScale = Math.min(cw / MIN_VISIBLE_W_PX, ch / MIN_VISIBLE_H_PX);
-  const scale = Math.max(1, Math.floor(rawScale));
+  const scale = Math.max(1, Math.min(MAX_GATHER_SCALE, Math.floor(rawScale * 2) / 2));
 
   const viewW = Math.min(cw / scale, mapPixelW);
   const viewH = Math.min(ch / scale, mapPixelH);

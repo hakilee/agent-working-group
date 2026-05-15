@@ -1,15 +1,10 @@
 /**
- * Office layout — a multi-room pixel-art production office.
+ * Workshop office layout - Gather startup-style workspace campus.
  *
- * The map is partitioned into six rooms (focus / meeting / ops / reception /
- * lounge / library), separated by interior walls with doorway openings.
- * Floors use per-room variants so each zone reads differently; furniture is
- * placed with believable spacing and pathfinding clearance.
- *
- * Seats are appended in role priority order: the focus room first (so `lead`
- * and `worker` land in the most prominent desks), then ops desks for any
- * additional agents, then the reception desk as the last fallback. Meeting
- * spots are dynamic (chosen at runtime) and do not consume desk seats.
+ * The map is intentionally rebuilt from the ground up around the visual grammar
+ * in Gather's startup-office examples: a broad pale-wood circulation spine,
+ * compact rooms and desk neighborhoods attached to it, soft outdoor greenery,
+ * glass/window bands, dense furniture clusters, and plants used as zoning.
  */
 import {
   CharacterState,
@@ -22,50 +17,40 @@ import {
   type Seat,
 } from './types';
 
-const COLS = 40;
-const ROWS = 26;
-
-/** Vertical interior walls separate the three columns of rooms. */
-const INTERIOR_WALL_COLS: ReadonlySet<number> = new Set([14, 28]);
-/** Horizontal interior wall separates top rooms from bottom rooms. */
-const INTERIOR_WALL_ROW = 13;
-
-/** Rows where the vertical interior walls have doorway openings (two doors
- *  per wall — one for the top row of rooms, one for the bottom). */
-const VERT_DOOR_ROWS: ReadonlySet<number> = new Set([6, 7, 19, 20]);
-/** Cols where the horizontal interior wall has doorway openings (three doors
- *  — one between each pair of vertically-stacked rooms). */
-const HORIZ_DOOR_COLS: ReadonlySet<number> = new Set([6, 7, 20, 21, 33, 34]);
-
-/** Floor variant assignments. Six rooms, six distinct variants — the
- *  underlying floor_N.png files don't all exist but the renderer falls back
- *  to floor[0] for any missing variant, so the layout stays valid. */
-const ROOM_ZONES: ReadonlyArray<RoomZone> = [
-  { id: 'focus',     label: 'Focus',     minCol:  1, maxCol: 13, minRow:  1, maxRow: 12, floorVariant: 1 },
-  { id: 'meeting',   label: 'Meeting',   minCol: 15, maxCol: 27, minRow:  1, maxRow: 12, floorVariant: 2 },
-  { id: 'ops',       label: 'Ops',       minCol: 29, maxCol: 38, minRow:  1, maxRow: 12, floorVariant: 3 },
-  { id: 'reception', label: 'Reception', minCol:  1, maxCol: 13, minRow: 14, maxRow: 24, floorVariant: 0 },
-  { id: 'lounge',    label: 'Lounge',    minCol: 15, maxCol: 27, minRow: 14, maxRow: 24, floorVariant: 4 },
-  { id: 'library',   label: 'Library',   minCol: 29, maxCol: 38, minRow: 14, maxRow: 24, floorVariant: 5 },
-];
-
+const COLS = 78;
+const ROWS = 46;
 const DESK_WIDTH = 3;
 
-/** Top-row focus desks (chair south of desk, agent faces UP toward monitor).
- *  The desk has h=2, so its footprint covers rows DESK_ROW..DESK_ROW+1 and
- *  the chair sits one row further south. */
-const FOCUS_TOP_DESK_ROW = 3;
-const FOCUS_TOP_CHAIR_ROW = 5;
-/** Bottom-row focus desks (chair north of desk, agent faces DOWN). */
-const FOCUS_BOTTOM_DESK_ROW = 10;
-const FOCUS_BOTTOM_CHAIR_ROW = 9;
-/** Focus-room desk left-edge columns. Three desks per row, 4-col stride. */
-const FOCUS_DESK_COLS = [2, 6, 10] as const;
+const ROOM_ZONES: ReadonlyArray<RoomZone> = [
+  { id: 'north-boardroom', label: 'Boardroom', minCol: 3, maxCol: 16, minRow: 2, maxRow: 13, floorVariant: 3 },
+  { id: 'north-open-office', label: 'North Desks', minCol: 20, maxCol: 36, minRow: 3, maxRow: 14, floorVariant: 1 },
+  { id: 'north-focus-suite', label: 'Focus Suite', minCol: 41, maxCol: 58, minRow: 3, maxRow: 14, floorVariant: 6 },
+  { id: 'east-greenhouse', label: 'Greenhouse Office', minCol: 63, maxCol: 74, minRow: 9, maxRow: 24, floorVariant: 2 },
+  { id: 'west-call-room', label: 'Call Room', minCol: 3, maxCol: 15, minRow: 17, maxRow: 29, floorVariant: 2 },
+  { id: 'central-lounge', label: 'Social Lounge', minCol: 30, maxCol: 47, minRow: 17, maxRow: 29, floorVariant: 8 },
+  { id: 'east-team-room', label: 'Team Room', minCol: 51, maxCol: 63, minRow: 17, maxRow: 31, floorVariant: 6 },
+  { id: 'south-game-lounge', label: 'Game Lounge', minCol: 16, maxCol: 29, minRow: 31, maxRow: 41, floorVariant: 3 },
+  { id: 'south-maker-lab', label: 'Maker Lab', minCol: 33, maxCol: 47, minRow: 32, maxRow: 43, floorVariant: 1 },
+  { id: 'south-library', label: 'Library', minCol: 52, maxCol: 66, minRow: 34, maxRow: 43, floorVariant: 7 },
+  { id: 'south-quiet-room', label: 'Quiet Room', minCol: 3, maxCol: 13, minRow: 33, maxRow: 43, floorVariant: 2 },
+];
 
-/** Ops room: east-facing desks against the right wall. Each desk is a tall
- *  1-wide × 3-tall side-desk; the agent sits on its west side facing east. */
-const OPS_DESK_COL = 37;
-const OPS_DESK_TOP_ROWS = [2, 6, 10] as const;
+type DoorSide = 'top' | 'bottom' | 'left' | 'right';
+type DoorSpec = { side: DoorSide; from: number; to: number };
+
+const ROOM_DOORS: Record<string, ReadonlyArray<DoorSpec>> = {
+  'north-boardroom': [{ side: 'right', from: 7, to: 10 }, { side: 'bottom', from: 8, to: 11 }],
+  'north-open-office': [{ side: 'bottom', from: 26, to: 31 }, { side: 'right', from: 8, to: 11 }],
+  'north-focus-suite': [{ side: 'bottom', from: 47, to: 52 }, { side: 'left', from: 7, to: 10 }],
+  'east-greenhouse': [{ side: 'left', from: 14, to: 19 }],
+  'west-call-room': [{ side: 'right', from: 21, to: 25 }],
+  'central-lounge': [{ side: 'top', from: 36, to: 41 }, { side: 'bottom', from: 37, to: 42 }, { side: 'left', from: 22, to: 25 }, { side: 'right', from: 22, to: 25 }],
+  'east-team-room': [{ side: 'left', from: 22, to: 26 }, { side: 'bottom', from: 56, to: 60 }],
+  'south-game-lounge': [{ side: 'top', from: 20, to: 25 }],
+  'south-maker-lab': [{ side: 'top', from: 38, to: 43 }, { side: 'left', from: 36, to: 39 }],
+  'south-library': [{ side: 'top', from: 57, to: 61 }, { side: 'left', from: 37, to: 40 }],
+  'south-quiet-room': [{ side: 'right', from: 37, to: 40 }],
+};
 
 interface Builder {
   cols: number;
@@ -78,51 +63,66 @@ interface Builder {
   seatCounter: number;
 }
 
+function inRange(v: number, a: number, b: number): boolean {
+  return v >= a && v <= b;
+}
+
 function isInsideRoom(zone: RoomZone, col: number, row: number): boolean {
   return col >= zone.minCol && col <= zone.maxCol && row >= zone.minRow && row <= zone.maxRow;
 }
 
+function isInMainSpine(col: number, row: number): boolean {
+  return (
+    (inRange(col, 11, 66) && inRange(row, 14, 34)) ||
+    (inRange(col, 17, 62) && inRange(row, 8, 37)) ||
+    (inRange(col, 23, 55) && inRange(row, 6, 39))
+  );
+}
+
 function roomVariantAt(col: number, row: number): number {
+  if (isInMainSpine(col, row)) return 0;
   for (const zone of ROOM_ZONES) {
     if (isInsideRoom(zone, col, row)) return zone.floorVariant;
   }
-  // Doorway tile (interior wall tile that's been opened): inherit the variant
-  // of the lower-indexed adjacent room so each doorway reads as belonging to
-  // one side rather than as a void corridor.
-  for (const zone of ROOM_ZONES) {
-    if (col >= zone.minCol - 1 && col <= zone.maxCol + 1 && row >= zone.minRow - 1 && row <= zone.maxRow + 1) {
-      return zone.floorVariant;
-    }
-  }
-  return 0;
+  // Outdoor field with softer clearings around building entrances.
+  if ((inRange(col, 1, 10) || inRange(col, 68, 76)) && row % 7 < 4) return 4;
+  return 4;
 }
 
-function isInteriorWall(col: number, row: number): boolean {
-  // Perimeter
-  if (row === 0 || row === ROWS - 1 || col === 0 || col === COLS - 1) return true;
-  // Vertical interior walls (skip doorway rows)
-  if (INTERIOR_WALL_COLS.has(col) && !VERT_DOOR_ROWS.has(row)) return true;
-  // Horizontal interior wall (skip doorway cols, and skip where vertical walls cross)
-  if (row === INTERIOR_WALL_ROW) {
-    if (HORIZ_DOOR_COLS.has(col)) return false;
-    if (INTERIOR_WALL_COLS.has(col)) return true;
-    return true;
+function hasDoor(zone: RoomZone, col: number, row: number): boolean {
+  const doors = ROOM_DOORS[zone.id] ?? [];
+  return doors.some((door) => {
+    if (door.side === 'top' && row === zone.minRow) return inRange(col, door.from, door.to);
+    if (door.side === 'bottom' && row === zone.maxRow) return inRange(col, door.from, door.to);
+    if (door.side === 'left' && col === zone.minCol) return inRange(row, door.from, door.to);
+    if (door.side === 'right' && col === zone.maxCol) return inRange(row, door.from, door.to);
+    return false;
+  });
+}
+
+function isWall(col: number, row: number): boolean {
+  for (const zone of ROOM_ZONES) {
+    if (!isInsideRoom(zone, col, row)) continue;
+    const boundary = col === zone.minCol || col === zone.maxCol || row === zone.minRow || row === zone.maxRow;
+    if (boundary && !hasDoor(zone, col, row)) return true;
   }
+
+  // Startup-like partial glass/privacy partitions that create booths without
+  // sealing off navigation.
+  if (inRange(col, 21, 35) && row === 20 && !inRange(col, 26, 29)) return true;
+  if (inRange(col, 21, 35) && row === 26 && !inRange(col, 27, 30)) return true;
+  if (col === 40 && inRange(row, 18, 22)) return true;
+  if (col === 55 && inRange(row, 18, 30) && !inRange(row, 22, 25)) return true;
+  if (row === 26 && inRange(col, 56, 62) && !inRange(col, 58, 60)) return true;
   return false;
 }
 
 function blockTile(b: Builder, col: number, row: number): void {
-  if (row >= 0 && row < b.rows && col >= 0 && col < b.cols) {
-    b.blocked.add(`${col},${row}`);
-  }
+  if (row >= 0 && row < b.rows && col >= 0 && col < b.cols) b.blocked.add(`${col},${row}`);
 }
 
 function pushBlocked(b: Builder, col: number, row: number, w: number, h: number): void {
-  for (let dr = 0; dr < h; dr++) {
-    for (let dc = 0; dc < w; dc++) {
-      blockTile(b, col + dc, row + dr);
-    }
-  }
+  for (let dr = 0; dr < h; dr++) for (let dc = 0; dc < w; dc++) blockTile(b, col + dc, row + dr);
 }
 
 function addFurniture(b: Builder, f: FurnitureInstance, blockFootprint = true): void {
@@ -130,345 +130,238 @@ function addFurniture(b: Builder, f: FurnitureInstance, blockFootprint = true): 
   if (blockFootprint && f.blocking) pushBlocked(b, f.col, f.row, f.w, f.h);
 }
 
-function addSeat(b: Builder, col: number, row: number, facing: Direction): void {
-  b.seats.push({
-    id: `seat-${b.seatCounter}`,
-    col,
-    row,
-    facingDir: facing,
-    assignedRole: null,
-    kind: 'desk',
-  });
+function addSeat(b: Builder, col: number, row: number, facing: Direction, kind: 'desk' | 'meeting' = 'desk'): void {
+  b.seats.push({ id: `seat-${b.seatCounter}`, col, row, facingDir: facing, assignedRole: null, kind });
   b.seatCounter += 1;
 }
 
-/** Build a focus-room desk cluster facing UP (chair south of desk). */
-function addFocusTopDesk(b: Builder, leftCol: number): void {
+function addTopDesk(b: Builder, leftCol: number, deskRow: number): void {
   const seatId = b.seatCounter;
-  addFurniture(b, {
-    id: `desk-${seatId}`, kind: 'desk', variant: 'front',
-    col: leftCol, row: FOCUS_TOP_DESK_ROW, w: DESK_WIDTH, h: 2, blocking: true,
-  });
-  addFurniture(b, {
-    id: `pc-${seatId}`, kind: 'pc', variant: 'back',
-    col: leftCol + 1, row: FOCUS_TOP_DESK_ROW - 1, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
-  }, false);
-  addFurniture(b, {
-    id: `chair-${seatId}`, kind: 'chair', variant: 'front',
-    col: leftCol + 1, row: FOCUS_TOP_CHAIR_ROW, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
-  }, false);
-  addSeat(b, leftCol + 1, FOCUS_TOP_CHAIR_ROW, Direction.UP);
+  addFurniture(b, { id: `desk-${seatId}`, kind: 'desk', variant: 'front', col: leftCol, row: deskRow, w: DESK_WIDTH, h: 2, blocking: true });
+  addFurniture(b, { id: `pc-${seatId}`, kind: 'pc', variant: 'back', col: leftCol + 1, row: deskRow - 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: `chair-${seatId}`, kind: 'chair', variant: 'front', col: leftCol + 1, row: deskRow + 2, w: 1, h: 1, spriteOverhangRows: 1, blocking: false }, false);
+  addSeat(b, leftCol + 1, deskRow + 2, Direction.UP);
 }
 
-/** Build a focus-room desk cluster facing DOWN (chair north of desk). */
-function addFocusBottomDesk(b: Builder, leftCol: number): void {
+function addBottomDesk(b: Builder, leftCol: number, deskRow: number): void {
   const seatId = b.seatCounter;
-  addFurniture(b, {
-    id: `desk-${seatId}`, kind: 'desk', variant: 'front',
-    col: leftCol, row: FOCUS_BOTTOM_DESK_ROW, w: DESK_WIDTH, h: 2, blocking: true,
-  });
-  addFurniture(b, {
-    id: `pc-${seatId}`, kind: 'pc', variant: 'front',
-    col: leftCol + 1, row: FOCUS_BOTTOM_DESK_ROW - 1, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
-  }, false);
-  addFurniture(b, {
-    id: `chair-${seatId}`, kind: 'chair', variant: 'back',
-    col: leftCol + 1, row: FOCUS_BOTTOM_CHAIR_ROW, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
-  }, false);
-  addSeat(b, leftCol + 1, FOCUS_BOTTOM_CHAIR_ROW, Direction.DOWN);
+  addFurniture(b, { id: `desk-${seatId}`, kind: 'desk', variant: 'front', col: leftCol, row: deskRow, w: DESK_WIDTH, h: 2, blocking: true });
+  addFurniture(b, { id: `pc-${seatId}`, kind: 'pc', variant: 'front', col: leftCol + 1, row: deskRow - 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: false, animated: true }, false);
+  addFurniture(b, { id: `chair-${seatId}`, kind: 'chair', variant: 'back', col: leftCol + 1, row: deskRow - 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: false }, false);
+  addSeat(b, leftCol + 1, deskRow - 1, Direction.DOWN);
 }
 
-/** Build an ops-room side desk against the east wall. Agent faces RIGHT. */
-function addOpsSideDesk(b: Builder, topRow: number): void {
+function addSideDesk(b: Builder, deskCol: number, topRow: number, facing: Direction): void {
   const seatId = b.seatCounter;
-  const deskCol = OPS_DESK_COL;
-  addFurniture(b, {
-    id: `desk-${seatId}`, kind: 'desk', variant: 'side',
-    col: deskCol, row: topRow, w: 1, h: DESK_WIDTH, blocking: true,
-  });
-  addFurniture(b, {
-    id: `pc-${seatId}`, kind: 'pc', variant: 'side',
-    col: deskCol, row: topRow + 1, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
-  }, false);
-  const chairCol = deskCol - 1;
-  const chairRow = topRow + 1;
-  addFurniture(b, {
-    id: `chair-${seatId}`, kind: 'chair', variant: 'side',
-    col: chairCol, row: chairRow, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
-  }, false);
-  addSeat(b, chairCol, chairRow, Direction.RIGHT);
+  const mirror = facing === Direction.LEFT;
+  const chairCol = mirror ? deskCol + 1 : deskCol - 1;
+  const variant = mirror ? 'side-mirror' : 'side';
+  addFurniture(b, { id: `desk-${seatId}`, kind: 'desk', variant: 'side', col: deskCol, row: topRow, w: 1, h: 3, blocking: true });
+  addFurniture(b, { id: `pc-${seatId}`, kind: 'pc', variant, col: deskCol, row: topRow + 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: false }, false);
+  addFurniture(b, { id: `chair-${seatId}`, kind: 'chair', variant, col: chairCol, row: topRow + 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: false }, false);
+  addSeat(b, chairCol, topRow + 1, facing);
 }
 
-/** Build the reception desk in the bottom-left room. Facing south (visitors
- *  approach from the entry doorway). Single desk seat for an overflow agent. */
-function addReceptionDesk(b: Builder): void {
-  const seatId = b.seatCounter;
-  const leftCol = 4;
-  const deskRow = 17;
-  // Front-facing reception counter (chair north of desk → agent faces DOWN).
-  addFurniture(b, {
-    id: `desk-${seatId}`, kind: 'desk', variant: 'front',
-    col: leftCol, row: deskRow, w: DESK_WIDTH, h: 2, blocking: true,
-  });
-  addFurniture(b, {
-    id: `pc-${seatId}`, kind: 'pc', variant: 'front',
-    col: leftCol + 1, row: deskRow - 1, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
-  }, false);
-  addFurniture(b, {
-    id: `chair-${seatId}`, kind: 'chair', variant: 'back',
-    col: leftCol + 1, row: deskRow - 2, w: 1, h: 1,
-    spriteOverhangRows: 1, blocking: false,
-  }, false);
-  addSeat(b, leftCol + 1, deskRow - 2, Direction.DOWN);
+function addCafeSet(b: Builder, id: string, col: number, row: number): void {
+  addFurniture(b, { id: `${id}-table`, kind: 'coffee_table', variant: 'front', col, row, w: 2, h: 1, blocking: true });
+  addFurniture(b, { id: `${id}-bench-n`, kind: 'cushioned_bench', variant: 'front', col, row: row - 1, w: 1, h: 1, blocking: true });
+  addFurniture(b, { id: `${id}-bench-s`, kind: 'cushioned_bench', variant: 'front', col: col + 1, row: row + 1, w: 1, h: 1, blocking: true });
 }
 
-/** Decorate the meeting room: central table, whiteboard, plants, bookshelf. */
-function buildMeetingRoom(b: Builder): void {
-  // Central conference table (3×1) — agents gather around for dispatching.
-  const tableCol = 19;
-  const tableRow = 6;
-  addFurniture(b, {
-    id: 'meeting-table', kind: 'table', variant: 'front',
-    col: tableCol, row: tableRow, w: 3, h: 1, blocking: true,
-  });
-  // Wall-mounted whiteboard above the table (sprite overhangs into row 0).
-  addFurniture(b, {
-    id: 'meeting-whiteboard', kind: 'whiteboard', variant: 'front',
-    col: 19, row: 1, w: 2, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  // Clock and paintings flanking the whiteboard.
-  addFurniture(b, {
-    id: 'meeting-clock', kind: 'clock', variant: 'front',
-    col: 16, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'meeting-painting-large', kind: 'large_painting', variant: 'front',
-    col: 23, row: 1, w: 2, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  // Hanging plants for warmth.
-  addFurniture(b, {
-    id: 'meeting-hang-0', kind: 'hanging_plant', variant: 'front',
-    col: 15, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: false,
-  }, false);
-  addFurniture(b, {
-    id: 'meeting-hang-1', kind: 'hanging_plant', variant: 'front',
-    col: 26, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: false,
-  }, false);
-  // Floor plants around the room edges.
-  addFurniture(b, {
-    id: 'meeting-plant-0', kind: 'large_plant', variant: 'front',
-    col: 15, row: 11, w: 2, h: 2, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'meeting-plant-1', kind: 'cactus', variant: 'front',
-    col: 26, row: 11, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
+function addGatherPlant(
+  b: Builder,
+  id: string,
+  kind: 'potted_plant_round' | 'potted_plant_leafy' | 'potted_plant_tall' | 'hedge_planter',
+  col: number,
+  row: number,
+  w = 1,
+  h = 1,
+): void {
+  const overhang = kind === 'potted_plant_tall' || kind === 'hedge_planter' ? 1 : 0;
+  addFurniture(b, { id, kind, variant: 'front', col, row, w, h, spriteOverhangRows: overhang, blocking: true });
 }
 
-/** Decorate the ops room (right column, top). Bookshelves on west wall. */
-function buildOpsRoom(b: Builder): void {
-  for (const top of OPS_DESK_TOP_ROWS) {
-    addOpsSideDesk(b, top);
+function addBotanicalAccent(
+  b: Builder,
+  id: string,
+  kind: 'flower_shrub' | 'floor_sprout' | 'desk_plant' | 'hanging_vine',
+  col: number,
+  row: number,
+  w = 1,
+  h = 1,
+): void {
+  const overhang = kind === 'hanging_vine' ? 1 : 0;
+  addFurniture(b, { id, kind, variant: 'front', col, row, w, h, spriteOverhangRows: overhang, blocking: false }, false);
+}
+
+function addWindowBand(b: Builder, id: string, col: number, row: number, count: number): void {
+  for (let i = 0; i < count; i++) {
+    addFurniture(b, { id: `${id}-${i}`, kind: 'window_panel', variant: 'front', col: col + i * 2, row, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
   }
-  // Bookshelves stacked along the west interior wall (col 29 interior).
-  addFurniture(b, {
-    id: 'ops-shelf-0', kind: 'double_bookshelf', variant: 'front',
-    col: 29, row: 2, w: 2, h: 2, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'ops-shelf-1', kind: 'bookshelf', variant: 'front',
-    col: 29, row: 11, w: 2, h: 1, blocking: true,
-  });
-  // Plant near the doorway.
-  addFurniture(b, {
-    id: 'ops-plant-0', kind: 'plant', variant: 'front',
-    col: 29, row: 5, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  // Small painting on the top wall.
-  addFurniture(b, {
-    id: 'ops-painting-0', kind: 'small_painting', variant: 'front',
-    col: 33, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
 }
 
-/** Decorate the focus room: 6 desk seats (3 top + 3 bottom), plus wall art. */
-function buildFocusRoom(b: Builder): void {
-  for (const col of FOCUS_DESK_COLS) addFocusTopDesk(b, col);
-  for (const col of FOCUS_DESK_COLS) addFocusBottomDesk(b, col);
-  // Small paintings on top wall between the desks.
-  addFurniture(b, {
-    id: 'focus-painting-0', kind: 'small_painting', variant: 'front',
-    col: 5, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'focus-painting-1', kind: 'small_painting', variant: 'front',
-    col: 9, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  // Hanging plants in the corners.
-  addFurniture(b, {
-    id: 'focus-hang-0', kind: 'hanging_plant', variant: 'front',
-    col: 1, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: false,
-  }, false);
-  addFurniture(b, {
-    id: 'focus-hang-1', kind: 'hanging_plant', variant: 'front',
-    col: 13, row: 1, w: 1, h: 1, spriteOverhangRows: 1, blocking: false,
-  }, false);
-  // Cactus on the floor in the aisle near a desk.
-  addFurniture(b, {
-    id: 'focus-cactus-0', kind: 'cactus', variant: 'front',
-    col: 13, row: 7, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
+function addWallArt(b: Builder, id: string, col: number, row: number, w = 3): void {
+  addFurniture(b, { id, kind: 'wall_panel', variant: 'front', col, row, w, h: 1, spriteOverhangRows: 1, blocking: true });
 }
 
-/** Decorate the reception room (bottom-left). Entry zone with desk + bench. */
-function buildReceptionRoom(b: Builder): void {
-  addReceptionDesk(b);
-  // Waiting bench on the right side of the room.
-  addFurniture(b, {
-    id: 'recept-bench-0', kind: 'cushioned_bench', variant: 'front',
-    col: 10, row: 20, w: 1, h: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'recept-bench-1', kind: 'cushioned_bench', variant: 'front',
-    col: 11, row: 20, w: 1, h: 1, blocking: true,
-  });
-  // Small table next to the benches.
-  addFurniture(b, {
-    id: 'recept-table-0', kind: 'small_table', variant: 'front',
-    col: 12, row: 20, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  // Plants and painting for atmosphere.
-  addFurniture(b, {
-    id: 'recept-plant-0', kind: 'large_plant', variant: 'front',
-    col: 1, row: 22, w: 2, h: 2, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'recept-painting-0', kind: 'large_painting', variant: 'front',
-    col: 7, row: 14, w: 2, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
+function buildBoardroom(b: Builder): void {
+  addWindowBand(b, 'boardroom-window', 5, 2, 3);
+  addFurniture(b, { id: 'boardroom-table', kind: 'table', variant: 'front', col: 6, row: 7, w: 5, h: 2, blocking: true });
+  for (const col of [6, 8, 10]) addFurniture(b, { id: `boardroom-chair-n-${col}`, kind: 'chair', variant: 'front', col, row: 6, w: 1, h: 1, spriteOverhangRows: 1, blocking: false }, false);
+  for (const col of [6, 8, 10]) addFurniture(b, { id: `boardroom-chair-s-${col}`, kind: 'chair', variant: 'back', col, row: 9, w: 1, h: 1, spriteOverhangRows: 1, blocking: false }, false);
+  addSeat(b, 6, 9, Direction.UP, 'meeting');
+  addSeat(b, 8, 9, Direction.UP, 'meeting');
+  addSeat(b, 10, 9, Direction.UP, 'meeting');
+  addFurniture(b, { id: 'boardroom-clock', kind: 'clock', variant: 'front', col: 13, row: 4, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
+  addGatherPlant(b, 'boardroom-tall-plant', 'potted_plant_tall', 4, 10);
+  addBotanicalAccent(b, 'boardroom-desk-plant', 'desk_plant', 9, 6);
 }
 
-/** Decorate the lounge (bottom-middle). Sofa cluster + coffee table. */
-function buildLoungeRoom(b: Builder): void {
-  // Three-piece sofa cluster facing the coffee table.
-  addFurniture(b, {
-    id: 'lounge-sofa-front', kind: 'sofa', variant: 'front',
-    col: 20, row: 18, w: 2, h: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lounge-sofa-left', kind: 'sofa', variant: 'side',
-    col: 19, row: 18, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lounge-sofa-right', kind: 'sofa', variant: 'side-mirror',
-    col: 22, row: 18, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  // Coffee table in front.
-  addFurniture(b, {
-    id: 'lounge-coffee-table', kind: 'coffee_table', variant: 'front',
-    col: 20, row: 20, w: 2, h: 1, blocking: true,
-  });
-  // Utility counter: coffee maker plus a small wash station for office errands.
-  addFurniture(b, {
-    id: 'lounge-coffee-maker', kind: 'coffee', variant: 'front',
-    col: 24, row: 19, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lounge-wash-counter', kind: 'small_table', variant: 'front',
-    col: 24, row: 22, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lounge-bin', kind: 'bin', variant: 'front',
-    col: 23, row: 22, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  // Reading nook on the left side of the lounge.
-  addFurniture(b, {
-    id: 'lounge-nook-bench', kind: 'cushioned_bench', variant: 'front',
-    col: 16, row: 20, w: 1, h: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lounge-nook-table', kind: 'small_table', variant: 'side',
-    col: 17, row: 20, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  // Plants framing the lounge.
-  addFurniture(b, {
-    id: 'lounge-plant-0', kind: 'plant', variant: 'front',
-    col: 15, row: 14, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lounge-plant-1', kind: 'plant', variant: 'front',
-    col: 26, row: 14, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lounge-large-plant', kind: 'large_plant', variant: 'front',
-    col: 26, row: 22, w: 2, h: 2, spriteOverhangRows: 1, blocking: true,
-  });
+function buildNorthOpenOffice(b: Builder): void {
+  addWindowBand(b, 'north-office-window', 22, 3, 5);
+  for (const col of [22, 27, 32]) addTopDesk(b, col, 8);
+  for (const col of [22, 27, 32]) addBottomDesk(b, col, 12);
+  addFurniture(b, { id: 'north-office-bookshelf', kind: 'double_bookshelf', variant: 'front', col: 20, row: 4, w: 2, h: 2, blocking: true });
+  addWallArt(b, 'north-office-board', 30, 4, 4);
+  addGatherPlant(b, 'north-office-hedge', 'hedge_planter', 21, 13, 3, 1);
+  addBotanicalAccent(b, 'north-office-floor-sprout', 'floor_sprout', 35, 7);
+  addBotanicalAccent(b, 'north-office-desk-plant', 'desk_plant', 28, 7);
 }
 
-/** Decorate the library (bottom-right). Stacks of bookshelves. */
-function buildLibraryRoom(b: Builder): void {
-  // Two rows of double bookshelves running along the east wall.
-  addFurniture(b, {
-    id: 'lib-shelf-0', kind: 'double_bookshelf', variant: 'front',
-    col: 35, row: 15, w: 2, h: 2, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lib-shelf-1', kind: 'double_bookshelf', variant: 'front',
-    col: 35, row: 18, w: 2, h: 2, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lib-shelf-2', kind: 'bookshelf', variant: 'front',
-    col: 35, row: 21, w: 2, h: 1, blocking: true,
-  });
-  // Reading nook on the west side.
-  addFurniture(b, {
-    id: 'lib-bench-0', kind: 'cushioned_bench', variant: 'front',
-    col: 29, row: 17, w: 1, h: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lib-small-table', kind: 'small_table', variant: 'front',
-    col: 30, row: 17, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lib-bench-1', kind: 'cushioned_bench', variant: 'front',
-    col: 31, row: 17, w: 1, h: 1, blocking: true,
-  });
-  // Cactus and plant for greenery.
-  addFurniture(b, {
-    id: 'lib-cactus-0', kind: 'cactus', variant: 'front',
-    col: 29, row: 22, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
-  addFurniture(b, {
-    id: 'lib-painting-0', kind: 'small_painting', variant: 'front',
-    col: 32, row: 14, w: 1, h: 1, spriteOverhangRows: 1, blocking: true,
-  });
+function buildNorthFocusSuite(b: Builder): void {
+  addWindowBand(b, 'focus-window', 43, 3, 6);
+  addTopDesk(b, 43, 8);
+  addTopDesk(b, 49, 8);
+  addSideDesk(b, 56, 8, Direction.LEFT);
+  addFurniture(b, { id: 'focus-whiteboard', kind: 'whiteboard', variant: 'front', col: 43, row: 4, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'focus-lockers', kind: 'tool_cabinet', variant: 'front', col: 55, row: 4, w: 2, h: 2, blocking: true });
+  addGatherPlant(b, 'focus-tall-plant', 'potted_plant_tall', 42, 11);
+  addGatherPlant(b, 'focus-round-plant', 'potted_plant_round', 57, 11);
+  addBotanicalAccent(b, 'focus-hanging-vine', 'hanging_vine', 51, 3);
+  addBotanicalAccent(b, 'focus-desk-plant', 'desk_plant', 50, 7);
 }
 
-/**
- * Create the office layout. `minSeats` controls how many desk seats are
- * needed at minimum — the layout always builds the full furniture set
- * (rooms are not torn down based on agent count) but seats are emitted in
- * priority order so the first N seats correspond to the most prominent
- * desks for the first N agents.
- */
+function buildEastGreenhouse(b: Builder): void {
+  addWindowBand(b, 'greenhouse-window', 64, 9, 4);
+  addFurniture(b, { id: 'greenhouse-aquarium', kind: 'review_terminal', variant: 'front', col: 64, row: 12, w: 2, h: 2, blocking: true });
+  addCafeSet(b, 'greenhouse-chat-a', 67, 17);
+  addCafeSet(b, 'greenhouse-chat-b', 70, 21);
+  addGatherPlant(b, 'greenhouse-hedge-n', 'hedge_planter', 66, 14, 3, 1);
+  addGatherPlant(b, 'greenhouse-hedge-s', 'hedge_planter', 68, 24, 4, 1);
+  addFurniture(b, { id: 'greenhouse-garden-bed', kind: 'garden_bed', variant: 'front', col: 64, row: 23, w: 3, h: 1, blocking: true });
+  addGatherPlant(b, 'greenhouse-tall-east', 'potted_plant_tall', 73, 12);
+  addBotanicalAccent(b, 'greenhouse-flower-a', 'flower_shrub', 65, 20);
+  addBotanicalAccent(b, 'greenhouse-flower-b', 'flower_shrub', 72, 18);
+  addBotanicalAccent(b, 'greenhouse-sprout', 'floor_sprout', 64, 23);
+}
+
+function buildWestCallRoom(b: Builder): void {
+  addWindowBand(b, 'call-window', 4, 17, 3);
+  addCafeSet(b, 'call-chat', 7, 23);
+  addFurniture(b, { id: 'call-console', kind: 'review_terminal', variant: 'front', col: 4, row: 19, w: 2, h: 2, blocking: true });
+  addFurniture(b, { id: 'call-bookshelf', kind: 'bookshelf', variant: 'front', col: 13, row: 27, w: 1, h: 2, blocking: true });
+  addGatherPlant(b, 'call-leafy-plant', 'potted_plant_leafy', 12, 20);
+  addBotanicalAccent(b, 'call-floor-sprout', 'floor_sprout', 10, 27);
+}
+
+function buildCentralLounge(b: Builder): void {
+  addFurniture(b, { id: 'lounge-bookshelf-west', kind: 'double_bookshelf', variant: 'front', col: 31, row: 18, w: 2, h: 2, blocking: true });
+  addFurniture(b, { id: 'lounge-bookshelf-east', kind: 'double_bookshelf', variant: 'front', col: 44, row: 18, w: 2, h: 2, blocking: true });
+  addFurniture(b, { id: 'lounge-sofa-n', kind: 'sofa', variant: 'front', col: 35, row: 22, w: 3, h: 1, blocking: true });
+  addFurniture(b, { id: 'lounge-sofa-s', kind: 'sofa', variant: 'front', col: 39, row: 26, w: 3, h: 1, blocking: true });
+  addFurniture(b, { id: 'lounge-table', kind: 'coffee_table', variant: 'front', col: 38, row: 24, w: 2, h: 1, blocking: true });
+  addGatherPlant(b, 'lounge-tall-plant', 'potted_plant_tall', 32, 25);
+  addGatherPlant(b, 'lounge-round-plant', 'potted_plant_round', 45, 25);
+  addFurniture(b, { id: 'lounge-plaza-planter', kind: 'plaza_planter', variant: 'front', col: 37, row: 20, w: 3, h: 2, spriteOverhangRows: 1, blocking: true });
+  addBotanicalAccent(b, 'lounge-flower-nw', 'flower_shrub', 34, 20);
+  addBotanicalAccent(b, 'lounge-flower-se', 'flower_shrub', 43, 27);
+  addBotanicalAccent(b, 'lounge-desk-plant', 'desk_plant', 39, 23);
+  addSeat(b, 36, 23, Direction.DOWN, 'meeting');
+  addSeat(b, 40, 25, Direction.UP, 'meeting');
+}
+
+function buildEastTeamRoom(b: Builder): void {
+  addWindowBand(b, 'team-window', 53, 17, 4);
+  for (const col of [53, 58]) addTopDesk(b, col, 21);
+  for (const col of [53, 58]) addBottomDesk(b, col, 29);
+  addFurniture(b, { id: 'team-whiteboard', kind: 'whiteboard', variant: 'front', col: 57, row: 18, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'team-coffee-maker', kind: 'coffee', variant: 'front', col: 62, row: 21, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'team-wash-station', kind: 'small_table', variant: 'front', col: 62, row: 27, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
+  addGatherPlant(b, 'team-plant', 'potted_plant_leafy', 52, 30);
+  addBotanicalAccent(b, 'team-desk-plant', 'desk_plant', 59, 20);
+  addBotanicalAccent(b, 'team-floor-sprout', 'floor_sprout', 61, 25);
+}
+
+function buildSouthGameLounge(b: Builder): void {
+  addFurniture(b, { id: 'game-ping-table', kind: 'table', variant: 'front', col: 19, row: 35, w: 5, h: 2, blocking: true });
+  addFurniture(b, { id: 'game-sofa', kind: 'sofa', variant: 'front', col: 24, row: 39, w: 3, h: 1, blocking: true });
+  addFurniture(b, { id: 'game-cabinet', kind: 'tool_cabinet', variant: 'front', col: 17, row: 32, w: 2, h: 2, blocking: true });
+  addFurniture(b, { id: 'game-screen', kind: 'review_terminal', variant: 'front', col: 26, row: 33, w: 2, h: 2, blocking: true });
+  addGatherPlant(b, 'game-plant-a', 'potted_plant_round', 17, 39);
+  addGatherPlant(b, 'game-plant-b', 'potted_plant_leafy', 27, 37);
+  addBotanicalAccent(b, 'game-flower', 'flower_shrub', 22, 40);
+}
+
+function buildSouthMakerLab(b: Builder): void {
+  addWallArt(b, 'maker-wall-board', 36, 32, 4);
+  addFurniture(b, { id: 'maker-bench-a', kind: 'maker_bench', variant: 'front', col: 35, row: 36, w: 3, h: 1, blocking: true });
+  addFurniture(b, { id: 'maker-bench-b', kind: 'maker_bench', variant: 'front', col: 42, row: 36, w: 3, h: 1, blocking: true });
+  addFurniture(b, { id: 'maker-parts', kind: 'parts_shelf', variant: 'front', col: 34, row: 40, w: 2, h: 2, blocking: true });
+  addFurniture(b, { id: 'maker-tools', kind: 'tool_cabinet', variant: 'front', col: 44, row: 40, w: 2, h: 2, blocking: true });
+  addFurniture(b, { id: 'maker-spool', kind: 'cable_spool', variant: 'front', col: 40, row: 41, w: 2, h: 1, blocking: true });
+  addGatherPlant(b, 'maker-hedge', 'hedge_planter', 37, 42, 4, 1);
+  addBotanicalAccent(b, 'maker-hanging-vine', 'hanging_vine', 44, 32);
+}
+
+function buildSouthLibrary(b: Builder): void {
+  addFurniture(b, { id: 'library-shelf-a', kind: 'double_bookshelf', variant: 'front', col: 53, row: 35, w: 2, h: 2, blocking: true });
+  addFurniture(b, { id: 'library-shelf-b', kind: 'double_bookshelf', variant: 'front', col: 59, row: 35, w: 2, h: 2, blocking: true });
+  addFurniture(b, { id: 'library-table', kind: 'coffee_table', variant: 'front', col: 57, row: 40, w: 3, h: 1, blocking: true });
+  addFurniture(b, { id: 'library-chair-a', kind: 'chair', variant: 'front', col: 56, row: 39, w: 1, h: 1, spriteOverhangRows: 1, blocking: false }, false);
+  addFurniture(b, { id: 'library-chair-b', kind: 'chair', variant: 'back', col: 60, row: 41, w: 1, h: 1, spriteOverhangRows: 1, blocking: false }, false);
+  addGatherPlant(b, 'library-tall-plant', 'potted_plant_tall', 64, 36);
+  addGatherPlant(b, 'library-leafy-plant', 'potted_plant_leafy', 52, 41);
+  addBotanicalAccent(b, 'library-desk-plant', 'desk_plant', 58, 39);
+}
+
+function buildSouthQuietRoom(b: Builder): void {
+  addWindowBand(b, 'quiet-window', 4, 33, 3);
+  addCafeSet(b, 'quiet-roundtable', 7, 39);
+  addFurniture(b, { id: 'quiet-bookshelf', kind: 'bookshelf', variant: 'front', col: 4, row: 35, w: 1, h: 2, blocking: true });
+  addGatherPlant(b, 'quiet-round-plant', 'potted_plant_round', 11, 36);
+  addBotanicalAccent(b, 'quiet-flower', 'flower_shrub', 5, 41);
+}
+
+function buildOutdoorCampus(b: Builder): void {
+  const treeSpots = [
+    [2, 5], [72, 3], [5, 15], [70, 28], [2, 40], [74, 39], [18, 2], [61, 2], [68, 5], [12, 31], [69, 33], [25, 43],
+  ];
+  for (const [i, [col, row]] of treeSpots.entries()) {
+    addFurniture(b, { id: `outdoor-tree-${i}`, kind: 'large_plant', variant: 'front', col, row, w: 2, h: 2, spriteOverhangRows: 1, blocking: true });
+  }
+  for (const [i, [col, row]] of [[11, 7], [64, 7], [70, 14], [9, 31], [31, 42], [72, 25]].entries()) {
+    addBotanicalAccent(b, `outdoor-flower-${i}`, 'flower_shrub', col, row);
+  }
+  for (const [i, [col, row]] of [[23, 16], [27, 16], [49, 16], [48, 31], [30, 30], [65, 31]].entries()) {
+    addGatherPlant(b, `corridor-planter-${i}`, i % 2 ? 'potted_plant_leafy' : 'potted_plant_round', col, row);
+  }
+  addWallArt(b, 'main-hall-signage-west', 17, 14, 3);
+  addWallArt(b, 'main-hall-signage-east', 49, 14, 3);
+  addFurniture(b, { id: 'main-hall-aquarium', kind: 'review_terminal', variant: 'front', col: 12, row: 14, w: 2, h: 2, blocking: true });
+  addFurniture(b, { id: 'main-hall-map', kind: 'whiteboard', variant: 'front', col: 60, row: 14, w: 2, h: 1, spriteOverhangRows: 1, blocking: true });
+  addFurniture(b, { id: 'main-hall-clock', kind: 'clock', variant: 'front', col: 39, row: 14, w: 1, h: 1, spriteOverhangRows: 1, blocking: true });
+  addGatherPlant(b, 'main-hall-hedge-west', 'hedge_planter', 17, 31, 4, 1);
+  addGatherPlant(b, 'main-hall-hedge-east', 'hedge_planter', 48, 32, 4, 1);
+}
+
 export function createLayout(_minSeats: number): OfficeLayout {
-  const cols = COLS;
-  const rows = ROWS;
-
   const tiles: TileType[][] = [];
   const floorVariants: number[][] = [];
-  for (let r = 0; r < rows; r++) {
+  for (let r = 0; r < ROWS; r++) {
     const tileRow: TileType[] = [];
     const variantRow: number[] = [];
-    for (let c = 0; c < cols; c++) {
-      const wall = isInteriorWall(c, r);
+    for (let c = 0; c < COLS; c++) {
+      const wall = isWall(c, r);
       tileRow.push(wall ? TileType.WALL : TileType.FLOOR);
       variantRow.push(wall ? 0 : roomVariantAt(c, r));
     }
@@ -476,93 +369,66 @@ export function createLayout(_minSeats: number): OfficeLayout {
     floorVariants.push(variantRow);
   }
 
-  const b: Builder = {
-    cols, rows, tiles, floorVariants,
-    furniture: [],
-    seats: [],
-    blocked: new Set<string>(),
-    seatCounter: 0,
-  };
+  const b: Builder = { cols: COLS, rows: ROWS, tiles, floorVariants, furniture: [], seats: [], blocked: new Set<string>(), seatCounter: 0 };
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (tiles[r][c] === TileType.WALL) blockTile(b, c, r);
 
-  // Seats are appended in priority order: focus first (lead → seat 0,
-  // worker → seat 1), then ops, then reception. Decorative furniture for
-  // each room is also added inside the room builder.
-  buildFocusRoom(b);
-  buildOpsRoom(b);
-  buildMeetingRoom(b);
-  buildReceptionRoom(b);
-  buildLoungeRoom(b);
-  buildLibraryRoom(b);
+  buildOutdoorCampus(b);
+  buildBoardroom(b);
+  buildNorthOpenOffice(b);
+  buildNorthFocusSuite(b);
+  buildEastGreenhouse(b);
+  buildWestCallRoom(b);
+  buildCentralLounge(b);
+  buildEastTeamRoom(b);
+  buildSouthGameLounge(b);
+  buildSouthMakerLab(b);
+  buildSouthLibrary(b);
+  buildSouthQuietRoom(b);
 
-  return {
-    cols, rows, tiles, floorVariants,
-    furniture: b.furniture,
-    seats: b.seats,
-    blocked: b.blocked,
-    rooms: [...ROOM_ZONES],
-    activities: officeActivities(b),
-  };
+  return { cols: COLS, rows: ROWS, tiles, floorVariants, furniture: b.furniture, seats: b.seats, blocked: b.blocked, rooms: [...ROOM_ZONES], activities: officeActivities(b) };
 }
 
-export interface MeetingSpot {
-  col: number;
-  row: number;
-}
+export interface MeetingSpot { col: number; row: number; }
 
 function isWalkable(layout: OfficeLayout, spot: MeetingSpot): boolean {
-  return (
-    spot.col > 0 &&
-    spot.col < layout.cols - 1 &&
-    spot.row > 0 &&
-    spot.row < layout.rows - 1 &&
-    !layout.blocked.has(`${spot.col},${spot.row}`) &&
-    layout.tiles[spot.row][spot.col] !== TileType.WALL &&
-    layout.tiles[spot.row][spot.col] !== TileType.VOID
-  );
+  return spot.col > 0 && spot.col < layout.cols - 1 && spot.row > 0 && spot.row < layout.rows - 1 && !layout.blocked.has(`${spot.col},${spot.row}`) && layout.tiles[spot.row][spot.col] !== TileType.WALL && layout.tiles[spot.row][spot.col] !== TileType.VOID;
 }
 
-function fallbackSpot(layout: OfficeLayout): MeetingSpot {
-  return { col: Math.floor(layout.cols / 2), row: Math.floor(layout.rows / 2) };
+function fallbackSpot(_layout: OfficeLayout): MeetingSpot {
+  return { col: 39, row: 23 };
 }
 
-/** Returns a tile adjacent to the meeting table where an agent can stand. */
 export function meetingSpotFor(layout: OfficeLayout, index: number): MeetingSpot {
   const spots: MeetingSpot[] = [
-    { col: 19, row: 7 }, { col: 20, row: 7 }, { col: 21, row: 7 },
-    { col: 19, row: 5 }, { col: 20, row: 5 }, { col: 21, row: 5 },
-    { col: 18, row: 6 }, { col: 22, row: 6 },
+    { col: 36, row: 23 }, { col: 40, row: 25 }, { col: 38, row: 24 },
+    { col: 7, row: 9 }, { col: 8, row: 9 }, { col: 10, row: 9 },
   ];
   const ok = spots.filter((spot) => isWalkable(layout, spot));
-  if (ok.length === 0) return fallbackSpot(layout);
-  return ok[index % ok.length];
+  return ok.length === 0 ? fallbackSpot(layout) : ok[Math.abs(index) % ok.length];
 }
 
 function officeActivities(layout: Pick<OfficeLayout, 'cols' | 'rows' | 'tiles' | 'blocked'>): OfficeActivityDestination[] {
   const candidates: OfficeActivityDestination[] = [
-    { id: 'whiteboard-review', label: 'Review board', col: 20, row: 2, facingDir: Direction.UP, state: CharacterState.READ, durationSec: 3.8 },
-    { id: 'ops-console', label: 'Check console', col: 36, row: 3, facingDir: Direction.RIGHT, state: CharacterState.TYPE, durationSec: 3.5 },
-    { id: 'ops-file', label: 'File notes', col: 31, row: 11, facingDir: Direction.LEFT, state: CharacterState.READ, durationSec: 3.2 },
-    { id: 'front-desk', label: 'Sort mail', col: 12, row: 19, facingDir: Direction.LEFT, state: CharacterState.READ, durationSec: 3.0 },
-    { id: 'coffee-maker', label: 'Pour coffee', col: 24, row: 20, facingDir: Direction.UP, state: CharacterState.IDLE, durationSec: 2.8 },
-    { id: 'wash-station', label: 'Wash hands', col: 24, row: 23, facingDir: Direction.UP, state: CharacterState.IDLE, durationSec: 3.0 },
-    { id: 'library-reference', label: 'Find reference', col: 34, row: 17, facingDir: Direction.RIGHT, state: CharacterState.READ, durationSec: 4.0 },
-    { id: 'lounge-read', label: 'Read brief', col: 16, row: 19, facingDir: Direction.DOWN, state: CharacterState.READ, durationSec: 3.6 },
+    { id: 'lounge-read', label: 'Read in lounge', col: 35, row: 23, facingDir: Direction.DOWN, state: CharacterState.READ, durationSec: 3.8 },
+    { id: 'greenhouse-coffee', label: 'Greenhouse coffee', col: 67, row: 17, facingDir: Direction.LEFT, state: CharacterState.COFFEE, durationSec: 3.0 },
+    { id: 'team-coffee-maker', label: 'Team coffee maker', col: 61, row: 21, facingDir: Direction.RIGHT, state: CharacterState.COFFEE, durationSec: 2.8 },
+    { id: 'team-wash-station', label: 'Team wash station', col: 61, row: 27, facingDir: Direction.RIGHT, state: CharacterState.WASH, durationSec: 2.8 },
+    { id: 'north-review-board', label: 'Review board', col: 31, row: 5, facingDir: Direction.UP, state: CharacterState.READ, durationSec: 3.8 },
+    { id: 'maker-bench', label: 'Maker bench', col: 39, row: 36, facingDir: Direction.UP, state: CharacterState.TYPE, durationSec: 4.2 },
+    { id: 'main-hall-map', label: 'Campus map', col: 60, row: 15, facingDir: Direction.UP, state: CharacterState.READ, durationSec: 3.0 },
   ];
-  return candidates.filter((activity) => isWalkable(layout as OfficeLayout, activity));
+  return candidates.filter((spot) => isWalkable(layout as OfficeLayout, spot));
 }
 
 export function ambientErrandSpotFor(layout: OfficeLayout, index: number): MeetingSpot {
-  const activity = officeActivityFor(layout, index);
-  return activity ?? wanderSpotFor(layout, index);
+  return officeActivityFor(layout, index) ?? wanderSpotFor(layout, index);
 }
 
 export function officeActivityFor(layout: OfficeLayout, index: number): OfficeActivityDestination | null {
   const ok = layout.activities.filter((activity) => isWalkable(layout, activity));
-  if (ok.length === 0) return null;
-  return ok[Math.abs(index) % ok.length];
+  return ok.length === 0 ? null : ok[Math.abs(index) % ok.length];
 }
 
-/** Returns a deterministic walkable wander target, biased toward a room. */
 export function wanderSpotFor(layout: OfficeLayout, seed: number, preferredRoomId?: string): { col: number; row: number } {
   const preferred = preferredRoomId ? layout.rooms.find((zone) => zone.id === preferredRoomId) : null;
   const rooms = preferred ? [preferred] : layout.rooms;
@@ -577,7 +443,7 @@ export function wanderSpotFor(layout: OfficeLayout, seed: number, preferredRoomI
     }
   }
   if (candidates.length === 0 && preferredRoomId) return wanderSpotFor(layout, seed);
-  if (candidates.length === 0) return { col: Math.floor(layout.cols / 2), row: Math.floor(layout.rows / 2) };
+  if (candidates.length === 0) return fallbackSpot(layout);
   return candidates[Math.abs(seed) % candidates.length];
 }
 

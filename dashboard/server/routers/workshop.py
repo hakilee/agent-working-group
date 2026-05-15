@@ -66,7 +66,10 @@ async def stream_workshop(websocket: WebSocket) -> None:
                 if data.get("type") == "agentUpdate" and "role" in data:
                     agent_data = data.get("state", {})
                     state.update_agent(data["role"], agent_data)
-                    await _send_json(state.get_snapshot())
+                    # Do not echo a full snapshot for every local animation step.
+                    # The client already applies its local movement optimistically;
+                    # snapshot echoes can clear active paths and make agents look frozen.
+                    await _send_json({"type": "agentUpdateAck", "role": data["role"], "ts": time.time()})
         except WebSocketDisconnect:
             pass
         except Exception:

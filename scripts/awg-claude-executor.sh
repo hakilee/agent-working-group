@@ -154,6 +154,8 @@ if claude_model:
     cmd.extend(["--model", claude_model])
 if skip_perms == "1":
     cmd.append("--dangerously-skip-permissions")
+cmd.append("--effort")
+cmd.append("high")
 
 env = os.environ.copy()
 last_message_path = None
