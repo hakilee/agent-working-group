@@ -99,6 +99,29 @@ awg send --from=worker --to=lead --kind=status --body="done" --reply-to=<instruc
 
 Omit these flags when no source or correlation metadata is needed. Messages without these refs remain valid and backward-compatible.
 
+## Work Item Summary
+
+`awg work-items` provides a read-only, Kanban-like view over the existing queue files. It groups messages by `refs.workId`; messages without `refs.workId` remain visible as their own work item keyed by `message.id`. It also surfaces safe routing/evidence refs such as `correlationId`, `parentId`, `sourceChannel`, `reportTarget`, `repo`, and `workspace` so reviewers can trace handoffs without scraping prose.
+
+The command derives status from queue locations instead of adding a new task database:
+
+```text
+dead item     -> any message in dead/
+blocked item  -> pending or running blocker message
+running item  -> any message in processing/
+ready item    -> any message in inbox/
+done item     -> only processed messages
+```
+
+`dead` intentionally has the highest priority. If one `workId` has a dead message plus running, ready, or done messages, the whole work item reports `dead` so operators see the unsafe branch first instead of treating partial progress as healthy.
+
+This is intentionally not a dispatcher, profile spawner, separate board database, or lifecycle authority. The queue remains the source of truth, `processing/` remains the only active claim-like state, and `work-items` must not move, acknowledge, retry, delete, or edit queue JSON. AWG agents still use the normal queue commands; there is no Hermes-style model-only tool surface or gateway dispatcher hidden behind the summary.
+
+```bash
+awg work-items
+awg work-items --as=worker --report-target=work-updates
+```
+
 Example multi-message task flow:
 
 ```json

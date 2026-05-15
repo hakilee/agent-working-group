@@ -341,6 +341,136 @@ class QueueCoreTests(QueueTestCase):
             self.assertNotIn("repo", message)
             self.assertNotIn("workspace", message)
 
+    def test_work_items_groups_messages_by_work_id_without_mutation(self):
+            queue, _ = self.with_queue()
+            first_id = queue.send("lead", "worker", "instruction", "start", work_id="work-1")
+            second_id = queue.send(
+                "worker",
+                "reviewer",
+                "status",
+                "review",
+                work_id="work-1",
+                correlation_id="corr-1",
+                parent_id=first_id,
+                source_channel="channel:source",
+                report_target="channel:review",
+                repo="hakilee/agent-working-group",
+                workspace="/work/repo",
+            )
+            queue.receive("worker", timeout=0, require_ack=True)
+            queue.ack("worker", first_id)
+
+            items = queue.work_items()
+
+            item = next(item for item in items if item["workId"] == "work-1")
+            self.assertEqual(item["status"], "ready")
+            self.assertEqual(item["agents"], ["reviewer", "worker"])
+            self.assertEqual(item["counts"], {"pending": 1, "running": 0, "done": 1, "dead": 0})
+            self.assertEqual({message["id"] for message in item["messages"]}, {first_id, second_id})
+            self.assertEqual(item["refs"]["correlationIds"], ["corr-1"])
+            self.assertEqual(item["refs"]["parentIds"], [first_id])
+            self.assertEqual(item["refs"]["sourceChannels"], ["channel:source"])
+            self.assertEqual(item["refs"]["reportTargets"], ["channel:review"])
+            self.assertEqual(item["refs"]["repos"], ["hakilee/agent-working-group"])
+            self.assertEqual(item["refs"]["workspaces"], ["/work/repo"])
+            message_refs = {message["id"]: message["refs"] for message in item["messages"]}
+            self.assertEqual(message_refs[second_id]["correlationId"], "corr-1")
+            self.assertNotIn("workId", message_refs[second_id])
+            self.assertEqual(queue.status("reviewer")["pending"], 1)
+            self.assertEqual(queue.status("worker")["processed"], 1)
+
+    def test_work_items_supports_ungrouped_blocked_and_report_target_filters(self):
+            queue, _ = self.with_queue()
+            ungrouped_id = queue.send("lead", "worker", "note", "plain")
+            blocked_id = queue.send(
+                "lead",
+                "worker",
+                "blocker",
+                "blocked",
+                work_id="work-blocked",
+                report_target="channel:ops",
+            )
+            queue.send(
+                "lead",
+                "worker",
+                "instruction",
+                "other",
+                work_id="work-hidden",
+                report_target="channel:elsewhere",
+            )
+
+            all_items = queue.work_items("worker")
+            self.assertIn(ungrouped_id, {item["workId"] for item in all_items})
+
+            filtered = queue.work_items("worker", report_target="discord:channel:ops")
+
+            filtered_by_work = {item["workId"]: item for item in filtered}
+            self.assertIn(ungrouped_id, filtered_by_work)
+            self.assertIn("work-blocked", filtered_by_work)
+            self.assertNotIn("work-hidden", filtered_by_work)
+            self.assertEqual(filtered_by_work["work-blocked"]["status"], "blocked")
+            self.assertEqual(filtered_by_work["work-blocked"]["messages"][0]["id"], blocked_id)
+
+    def test_work_items_dead_status_takes_fail_closed_priority(self):
+            queue, _ = self.with_queue()
+            done_id = queue.send("lead", "worker", "instruction", "completed branch", work_id="work-dead")
+            dead_id = queue.send("lead", "worker", "instruction", "failed branch", work_id="work-dead")
+            queue.receive("worker", timeout=0, require_ack=True)
+            queue.ack("worker", done_id)
+            queue.receive("worker", timeout=0, require_ack=True)
+            queue.nack("worker", dead_id)
+
+            item = next(item for item in queue.work_items("worker") if item["workId"] == "work-dead")
+
+            self.assertEqual(item["status"], "dead")
+            self.assertEqual(item["counts"]["done"], 1)
+            self.assertEqual(item["counts"]["dead"], 1)
+
+    def test_work_items_does_not_create_missing_agent_queue_dirs(self):
+            queue, root = self.with_queue()
+
+            self.assertEqual(queue.work_items("missing-agent"), [])
+            self.assertFalse((root / "queues" / "missing-agent").exists())
+
+    def test_work_items_all_agents_ignores_non_queue_directories(self):
+            queue, root = self.with_queue()
+            queue.send("lead", "worker", "instruction", "real", work_id="real-work")
+            dashboard_dir = root / "queues" / "dashboard"
+            dashboard_dir.mkdir(parents=True)
+            (dashboard_dir / "cache").mkdir()
+            (dashboard_dir / "cache" / "not-a-message.json").write_text("{}", encoding="utf-8")
+
+            items = queue.work_items()
+
+            self.assertEqual([item["workId"] for item in items], ["real-work"])
+
+    def test_cli_work_items_is_read_only_and_groups_by_work_id(self):
+            queue, root = self.with_queue()
+            message_id = queue.send("lead", "worker", "instruction", "do work", work_id="work-cli")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_working_group.cli",
+                    "--root",
+                    str(root),
+                    "work-items",
+                    "--as",
+                    "worker",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            items = json.loads(result.stdout)
+            self.assertEqual(items[0]["workId"], "work-cli")
+            self.assertEqual(items[0]["status"], "ready")
+            self.assertEqual(items[0]["messages"][0]["id"], message_id)
+            self.assertEqual(MessageQueue(root).status("worker")["pending"], 1)
+
     def test_recv_is_not_safe_for_scheduling(self):
             queue, _ = self.with_queue()
             queue.send("lead", "worker", "instruction", "do work")
