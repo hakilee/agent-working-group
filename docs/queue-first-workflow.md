@@ -39,6 +39,8 @@ Rules:
 
 This convention applies to all queue operations: `awg send`, `awg recv`, `awg ack`, `awg ack-pending`, and programmatic API calls.
 
+For new queue roots, run `awg init --default-roles` and inspect `awg roles`. When `roles.json` exists, `awg send` enforces the configured roles and aliases. If a local person, profile, or tool handle needs to receive work, add it as an alias to a stable role instead of creating a personal queue. Use `--allow-unregistered-role` only for an intentional custom role or migration case, and prefer declaring that role in `roles.json` afterward.
+
 ## Planner Responsibilities
 
 Every substantive `instruction` should include:

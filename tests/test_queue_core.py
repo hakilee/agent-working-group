@@ -896,3 +896,123 @@ class QueueCoreTests(QueueTestCase):
             self.assertEqual(json.loads(result.stdout)["id"], expected)
             self.assertEqual(MessageQueue(root).status("worker")["pending"], 1)
             self.assertEqual(MessageQueue(root).status("worker")["processing"], 1)
+
+    def test_default_role_registry_creates_canonical_roles_without_person_aliases(self):
+        queue, root = self.with_queue()
+
+        registry = queue.initialize_default_roles()
+
+        self.assertTrue((root / "roles.json").is_file())
+        self.assertEqual(sorted(registry["roles"]), ["lead", "observer", "reviewer", "worker"])
+        self.assertEqual(registry["aliases"], {})
+        for role in ("lead", "worker", "reviewer", "observer"):
+            self.assertTrue((root / "queues" / role / "inbox").is_dir())
+
+    def test_send_warns_on_aliases_without_auto_routing_when_registry_exists(self):
+        queue, root = self.with_queue()
+        queue.initialize_default_roles()
+        registry_path = root / "roles.json"
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+        registry["aliases"] = {"alice": "reviewer"}
+        registry_path.write_text(json.dumps(registry), encoding="utf-8")
+
+        message_id = queue.send("planner", "alice", "instruction", "review this")
+
+        alias_messages = queue.peek("alice")
+        self.assertEqual(len(alias_messages), 1)
+        message = alias_messages[0]
+        self.assertEqual(message["id"], message_id)
+        self.assertEqual(message["from"], "planner")
+        self.assertEqual(message["to"], "alice")
+        self.assertEqual(
+            message["refs"]["recipientRoleWarning"],
+            {"alias": "alice", "targetRole": "reviewer", "mode": "warn-only"},
+        )
+        self.assertEqual(queue.peek("reviewer"), [])
+
+    def test_registry_fails_closed_for_unknown_roles_unless_overridden(self):
+        queue, root = self.with_queue()
+        queue.initialize_default_roles()
+
+        with self.assertRaisesRegex(ValueError, "unknown recipient"):
+            queue.send("lead", "alice", "instruction", "review this")
+
+        message_id = queue.send(
+            "lead",
+            "alice",
+            "instruction",
+            "review this",
+            allow_unregistered_role=True,
+        )
+        message = MessageQueue(root).peek("alice")[0]
+        self.assertEqual(message["id"], message_id)
+        self.assertEqual(message["refs"]["recipientRoleWarning"], {"unregisteredRole": "alice"})
+
+    def test_missing_registry_preserves_backward_compatible_freeform_queues(self):
+        queue, root = self.with_queue()
+
+        message_id = queue.send("lead", "alice", "instruction", "legacy routing")
+
+        self.assertEqual(MessageQueue(root).peek("alice")[0]["id"], message_id)
+        self.assertFalse((root / "roles.json").exists())
+
+    def test_cli_roles_init_and_alias_send(self):
+        queue, root = self.with_queue()
+        init = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "agent_working_group.cli",
+                "--root",
+                str(root),
+                "init",
+                "--default-roles",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(init.returncode, 0, init.stderr)
+        registry_path = root / "roles.json"
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+        registry["aliases"] = {"alice": "reviewer"}
+        registry_path.write_text(json.dumps(registry), encoding="utf-8")
+
+        roles = subprocess.run(
+            [sys.executable, "-m", "agent_working_group.cli", "--root", str(root), "roles"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(roles.returncode, 0, roles.stderr)
+        self.assertEqual(json.loads(roles.stdout)["aliases"], {"alice": "reviewer"})
+
+        sent = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "agent_working_group.cli",
+                "--root",
+                str(root),
+                "send",
+                "--from",
+                "lead",
+                "--to",
+                "alice",
+                "--kind",
+                "instruction",
+                "--body",
+                "review this",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(sent.returncode, 0, sent.stderr)
+        self.assertIn("warning: recipient alias 'alice' maps to role 'reviewer'", sent.stderr)
+        message = MessageQueue(root).peek("alice")[0]
+        self.assertEqual(
+            message["refs"]["recipientRoleWarning"],
+            {"alias": "alice", "targetRole": "reviewer", "mode": "warn-only"},
+        )
+        self.assertEqual(MessageQueue(root).status("reviewer")["pending"], 0)
