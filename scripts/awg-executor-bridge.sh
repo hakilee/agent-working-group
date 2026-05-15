@@ -26,7 +26,7 @@ usage() {
   cat <<'USAGE'
 Usage: scripts/awg-executor-bridge.sh [--worker NAME] [--lead NAME] [--root DIR] [--timeout SEC] -- EXECUTOR [ARGS...]
 
-Receive one AWG instruction with require-ack, run an executor, and ack only
+Receive one AWG instruction into processing, run an executor, and ack only
 when the executor returns structured JSON with status=success.
 
 This helper is opt-in. It never executes the message body as shell and never
@@ -91,7 +91,7 @@ else:
 PY
 }
 
-RECV_ARGS=(--root "$AWG_ROOT" recv --as "$WORKER" --require-ack --timeout "$RECV_TIMEOUT")
+RECV_ARGS=(--root "$AWG_ROOT" recv --as "$WORKER" --timeout "$RECV_TIMEOUT")
 if [[ -n "$AWG_REPORT_TARGET" ]]; then
   RECV_ARGS+=(--report-target "$AWG_REPORT_TARGET")
 fi

@@ -322,7 +322,6 @@ class MessageQueue:
         self,
         agent: str,
         timeout: object = None,
-        require_ack: bool = False,
         report_target: object = None,
     ) -> dict | None:
         paths = self.paths(agent)
@@ -334,14 +333,12 @@ class MessageQueue:
                     message = read_json(path)
                     if not message_matches_report_target(message, report_target):
                         continue
-                    target_dir = paths.processing if require_ack else paths.processed
-                    if require_ack:
-                        received_ms = now_ms()
-                        refs = message.setdefault("refs", {})
-                        refs["receivedAt"] = utc_iso(received_ms)
-                        refs["receivedAtMs"] = received_ms
-                        write_json(path, message)
-                    shutil.move(str(path), str(target_dir / path.name))
+                    received_ms = now_ms()
+                    refs = message.setdefault("refs", {})
+                    refs["receivedAt"] = utc_iso(received_ms)
+                    refs["receivedAtMs"] = received_ms
+                    write_json(path, message)
+                    shutil.move(str(path), str(paths.processing / path.name))
                     return message
             if timeout is not None and time.monotonic() - start >= timeout:
                 return None

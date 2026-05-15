@@ -43,7 +43,7 @@ awg dead --as=<role>
 awg log
 ```
 
-For reconciliation review, `recv` is unsafe because it consumes work. Default `recv` moves a message out of `inbox/`, and `recv --require-ack` moves it into `processing/`. Those operations are correct only when a real processor owns the output and will complete the message lifecycle.
+For reconciliation review, `recv` is unsafe because it consumes work: it moves a message out of `inbox/` and into `processing/`. That operation is correct only when a real processor owns the output and will complete the message lifecycle.
 
 ## Prohibited Actions
 

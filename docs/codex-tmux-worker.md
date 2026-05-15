@@ -196,7 +196,7 @@ These rules apply to both Codex and Claude workers:
 
 - Treat the message body as prompt data, never as shell.
 - Keep `MAX_TASKS` and `MAX_IDLE_SECONDS` set for bounded operation.
-- Use `recv --require-ack` through the executor bridge.
+- Use `recv` through the executor bridge.
 - Acknowledge only after the underlying CLI (`codex exec` or
   `claude -p`) exits with code `0` and the adapter emits structured
   `success`.

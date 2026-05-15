@@ -118,7 +118,7 @@ class HeartbeatMonitorTests(QueueTestCase):
     def test_missing_heartbeat_detected_when_processing_items_exist(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "instruction", "in-flight")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
         result = _run_script(
             "awg-heartbeat-monitor.sh",
             {"AWG_ROOT": str(root), "WORKER_HEARTBEAT_TIMEOUT": "300"},
@@ -150,7 +150,7 @@ class ProcessingTimeoutMonitorTests(QueueTestCase):
     def test_processing_timeout_monitor_exits_zero_when_fresh(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "instruction", "fresh")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
         result = _run_script(
             "awg-processing-timeout-monitor.sh",
             {"AWG_ROOT": str(root), "AWG_PROCESSING_TIMEOUT": "600"},
@@ -160,7 +160,7 @@ class ProcessingTimeoutMonitorTests(QueueTestCase):
     def test_processing_timeout_monitor_emits_json_and_exits_one(self):
         queue, root = self.with_queue()
         message_id = queue.send("lead", "worker", "instruction", "stale")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
         time.sleep(1.5)
         result = _run_script(
             "awg-processing-timeout-monitor.sh",
@@ -176,7 +176,7 @@ class ProcessingTimeoutMonitorTests(QueueTestCase):
     def test_processing_timeout_monitor_emits_notify_payload(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "instruction", "stale")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
         time.sleep(1.5)
         result = _run_script(
             "awg-processing-timeout-monitor.sh",
@@ -199,7 +199,7 @@ class ProcessingTimeoutMonitorTests(QueueTestCase):
     def test_cli_processing_timeout_monitor_matches_script(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "instruction", "stale")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
         time.sleep(1.5)
         result = _run_cli(
             ["--root", str(root), "processing-timeout-monitor", "--timeout-seconds", "0"],

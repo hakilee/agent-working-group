@@ -6,7 +6,7 @@ class QueueCoreTests(QueueTestCase):
     def test_send_receive_ack_retry_and_dead(self):
             queue, _ = self.with_queue()
             message_id = queue.send("lead", "worker", "instruction", "do work")
-            message = queue.receive("worker", timeout=0, require_ack=True)
+            message = queue.receive("worker", timeout=0)
 
             self.assertIsNotNone(message)
             self.assertEqual(message["id"], message_id)
@@ -18,7 +18,7 @@ class QueueCoreTests(QueueTestCase):
             self.assertEqual(retried["refs"]["retryCount"], 1)
             self.assertEqual(queue.status("worker")["pending"], 1)
 
-            message = queue.receive("worker", timeout=0, require_ack=True)
+            message = queue.receive("worker", timeout=0)
             self.assertIsNotNone(message)
             queue.requeue_stale("worker", older_than_sec=0, max_retries=0)
 
@@ -30,7 +30,7 @@ class QueueCoreTests(QueueTestCase):
     def test_ack_moves_processing_to_processed(self):
             queue, _ = self.with_queue()
             message_id = queue.send("lead", "worker", "instruction", "do work")
-            queue.receive("worker", timeout=0, require_ack=True)
+            queue.receive("worker", timeout=0)
             queue.ack("worker", message_id)
 
             processed = queue.processed("worker", limit=1)
@@ -89,11 +89,11 @@ class QueueCoreTests(QueueTestCase):
             queue, _ = self.with_queue()
             missing_id = "missing-message"
             processing_id = queue.send("lead", "worker", "instruction", "processing")
-            queue.receive("worker", timeout=0, require_ack=True)
+            queue.receive("worker", timeout=0)
             processed_id = queue.send("lead", "worker", "instruction", "processed")
             queue.receive("worker", timeout=0)
             dead_id = queue.send("lead", "worker", "instruction", "dead")
-            queue.receive("worker", timeout=0, require_ack=True)
+            queue.receive("worker", timeout=0)
             queue.requeue_stale("worker", older_than_sec=0, max_retries=0)
 
             for message_id in (missing_id, processing_id, processed_id, dead_id):
@@ -164,10 +164,12 @@ class QueueCoreTests(QueueTestCase):
 
     def test_prune_archives_processed_and_log_lines(self):
             queue, root = self.with_queue()
-            queue.send("lead", "worker", "note", "one")
+            first = queue.send("lead", "worker", "note", "one")
             queue.receive("worker", timeout=0)
-            queue.send("lead", "worker", "note", "two")
+            queue.ack("worker", first)
+            second = queue.send("lead", "worker", "note", "two")
             queue.receive("worker", timeout=0)
+            queue.ack("worker", second)
 
             result = queue.prune("worker", processed_keep=1, log_keep_lines=1)
             self.assertEqual(result["queueFiles"], 1)
@@ -188,8 +190,8 @@ class QueueCoreTests(QueueTestCase):
             queue, _ = self.with_queue()
             first = queue.send("lead", "worker", "instruction", "one")
             second = queue.send("lead", "worker", "instruction", "two")
-            queue.receive("worker", timeout=0, require_ack=True)
-            queue.receive("worker", timeout=0, require_ack=True)
+            queue.receive("worker", timeout=0)
+            queue.receive("worker", timeout=0)
 
             result = queue.prune(
                 "worker",
@@ -210,7 +212,7 @@ class QueueCoreTests(QueueTestCase):
             self.assertEqual(queue.peek("lead")[0]["refs"]["replyTo"], question_id)
             self.assertTrue(any(reply in line for line in queue.log_lines()))
 
-            message = queue.receive("lead", timeout=0, require_ack=True)
+            message = queue.receive("lead", timeout=0)
             self.assertIsNotNone(message)
             queue.retry("lead", reply)
             self.assertEqual(queue.status("lead")["pending"], 1)
@@ -358,7 +360,7 @@ class QueueCoreTests(QueueTestCase):
                 repo="hakilee/agent-working-group",
                 workspace="/work/repo",
             )
-            queue.receive("worker", timeout=0, require_ack=True)
+            queue.receive("worker", timeout=0)
             queue.ack("worker", first_id)
 
             items = queue.work_items()
@@ -416,9 +418,9 @@ class QueueCoreTests(QueueTestCase):
             queue, _ = self.with_queue()
             done_id = queue.send("lead", "worker", "instruction", "completed branch", work_id="work-dead")
             dead_id = queue.send("lead", "worker", "instruction", "failed branch", work_id="work-dead")
-            queue.receive("worker", timeout=0, require_ack=True)
+            queue.receive("worker", timeout=0)
             queue.ack("worker", done_id)
-            queue.receive("worker", timeout=0, require_ack=True)
+            queue.receive("worker", timeout=0)
             queue.nack("worker", dead_id)
 
             item = next(item for item in queue.work_items("worker") if item["workId"] == "work-dead")
@@ -472,7 +474,7 @@ class QueueCoreTests(QueueTestCase):
             self.assertEqual(items[0]["messages"][0]["id"], message_id)
             self.assertEqual(MessageQueue(root).status("worker")["pending"], 1)
 
-    def test_recv_is_not_safe_for_scheduling(self):
+    def test_recv_claims_processing_until_ack(self):
             queue, _ = self.with_queue()
             queue.send("lead", "worker", "instruction", "do work")
 
@@ -480,7 +482,8 @@ class QueueCoreTests(QueueTestCase):
 
             self.assertIsNotNone(message)
             self.assertEqual(queue.status("worker")["pending"], 0)
-            self.assertEqual(queue.status("worker")["processed"], 1)
+            self.assertEqual(queue.status("worker")["processing"], 1)
+            self.assertEqual(queue.status("worker")["processed"], 0)
 
     def test_queue_reconciliation_policy_docs_are_safe(self):
             project_root = Path(__file__).resolve().parents[1]
@@ -633,9 +636,9 @@ class QueueCoreTests(QueueTestCase):
             queue, root = self.with_queue()
             inbox_id = queue.send("lead", "worker", "instruction", "inbox item")
             processing_id = queue.send("lead", "worker", "question", "processing item")
-            queue.receive("worker", timeout=0, require_ack=True)
+            queue.receive("worker", timeout=0)
             dead_id = queue.send("lead", "worker", "blocker", "dead item")
-            queue.receive("worker", timeout=0, require_ack=True)
+            queue.receive("worker", timeout=0)
             queue.requeue_stale("worker", older_than_sec=-1, max_retries=0)
 
             before = queue.status("worker")
@@ -840,7 +843,7 @@ class QueueCoreTests(QueueTestCase):
                 report_target="dis" + "cord:channel:working",
             )
 
-            message = queue.receive("worker", timeout=0, require_ack=True, report_target="dis" + "cord:working")
+            message = queue.receive("worker", timeout=0, report_target="dis" + "cord:working")
 
             self.assertIsNotNone(message)
             self.assertEqual(message["id"], second)
@@ -860,7 +863,7 @@ class QueueCoreTests(QueueTestCase):
                 report_target="channel:marketing",
             )
 
-            message = queue.receive("worker", timeout=0, require_ack=True, report_target="channel:working")
+            message = queue.receive("worker", timeout=0, report_target="channel:working")
 
             self.assertIsNone(message)
             self.assertEqual(queue.status("worker")["pending"], 1)
@@ -884,7 +887,6 @@ class QueueCoreTests(QueueTestCase):
                     "worker",
                     "--timeout",
                     "0",
-                    "--require-ack",
                     "--report-target",
                     "dis" + "cord:channel:working",
                 ],

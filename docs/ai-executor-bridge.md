@@ -12,7 +12,7 @@ AWG queue -> bridge -> executor -> structured result -> queue-aware action
 
 The bridge:
 
-1. receives one message with `recv --require-ack`
+1. receives one message with `recv`
 2. accepts only `instruction` messages for execution
 3. passes the received message file path to the executor
 4. parses the executor's structured JSON result

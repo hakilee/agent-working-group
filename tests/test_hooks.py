@@ -297,7 +297,7 @@ class QueueHookTests(QueueTestCase):
         )
 
         message_id = queue.send("lead", "worker", "instruction", "process me")
-        received = queue.receive("worker", timeout=0, require_ack=True)
+        received = queue.receive("worker", timeout=0)
         self.assertEqual(received["id"], message_id)
 
         result = subprocess.run(

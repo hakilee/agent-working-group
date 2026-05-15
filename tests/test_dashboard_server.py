@@ -151,10 +151,11 @@ class DashboardServerTests(unittest.TestCase):
 
     def test_recent_activity_badges_follow_queue_lifecycle(self):
         queue, reader, _ = self.make_reader()
-        processed_id = queue.send("lead", "worker", "note", "default receive")
+        processed_id = queue.send("lead", "worker", "note", "completed receive")
         queue.receive("worker")
-        processing_id = queue.send("lead", "worker", "instruction", "durable work")
-        queue.receive("worker", require_ack=True)
+        queue.ack("worker", processed_id)
+        processing_id = queue.send("lead", "worker", "instruction", "claimed work")
+        queue.receive("worker")
 
         status = system_status(make_request(reader))
         states = {entry["id"]: entry["state"] for entry in status["recentActivity"]}

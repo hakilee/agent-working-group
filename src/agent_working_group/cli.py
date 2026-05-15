@@ -102,7 +102,6 @@ def build_parser() -> argparse.ArgumentParser:
     recv = sub.add_parser("recv")
     recv.add_argument("--as", required=True, dest="agent")
     recv.add_argument("--timeout", type=float)
-    recv.add_argument("--require-ack", action="store_true")
     recv.add_argument("--report-target", help="Only receive messages whose refs.reportTarget matches this target; unmatched messages stay pending.")
 
     for name in ("peek", "processing", "processed", "dead"):
@@ -254,7 +253,7 @@ def main(argv=None) -> int:
                     return 1
             return 0
         if args.command == "recv":
-            message = queue.receive(args.agent, args.timeout, args.require_ack, args.report_target)
+            message = queue.receive(args.agent, args.timeout, args.report_target)
             if message is None:
                 print(f"timeout: no messages for {args.agent}", file=sys.stderr)
                 return 1

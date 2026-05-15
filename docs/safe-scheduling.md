@@ -6,11 +6,11 @@ The rule is simple: observers never consume.
 
 ## Problem
 
-`recv` is a consuming operation. By default it moves a message from `inbox/` to `processed/`. With `--require-ack`, it moves a message from `inbox/` to `processing/` until `ack`, `retry`, or `nack` is called.
+`recv` is a consuming claim operation. It moves a message from `inbox/` to `processing/` and leaves it there until `ack`, `retry`, or `nack` is called.
 
-That behavior is correct when an agent or worker process is ready to handle the received message. It is unsafe when a cron job, timer, or watchdog calls `recv` only to print the message to logs.
+That behavior is correct when an agent or worker process is ready to handle the received message and complete the lifecycle. It is unsafe when a cron job, timer, or watchdog calls `recv` only to print the message to logs.
 
-A scheduler that consumes without processing creates silent task loss: the queue says the message was received, but no work was actually performed.
+A scheduler that claims without processing creates stuck work: the queue says the message is running, but no processor owns the task. Stale recovery may eventually requeue or dead-letter it even though no real processing happened.
 
 ## Safe Pattern
 
@@ -51,20 +51,13 @@ Rate-limit reminder messages with a timestamp file, scheduler state, or an exter
 Never schedule `recv` unless a real processor owns the output and completes the task lifecycle.
 
 ```cron
-# UNSAFE: consumes messages without processing them.
+# UNSAFE: claims messages without processing them.
 */5 * * * * awg recv --as=worker --timeout=0
 ```
 
-This job moves work from `inbox/` to `processed/`, writes the JSON to cron output, and then exits. If no agent reads and acts on that output, the task is lost.
+This job moves work from `inbox/` to `processing/`, writes the JSON to cron output, and then exits. If no agent reads and acts on that output, the task is stuck until stale recovery requeues or dead-letters it.
 
-`recv --require-ack` is not safe by itself:
-
-```cron
-# UNSAFE: moves messages into processing with no processor to ack them.
-*/5 * * * * awg recv --as=worker --timeout=0 --require-ack
-```
-
-This job moves messages to `processing/`. If a separate recovery job requeues stale messages, the same scheduler can consume them again. After enough retries, messages may reach `dead/` even though no real processing happened.
+`recv` is safe only when the same worker path owns the message output and later calls `ack`, `retry`, or `nack`.
 
 ## Verification
 
