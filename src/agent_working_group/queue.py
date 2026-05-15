@@ -177,11 +177,13 @@ class MessageQueue:
         return registry
 
     def initialize_default_roles(self) -> dict:
-        self.initialize(DEFAULT_ROLE_REGISTRY["roles"].keys())
+        registry = self.load_role_registry()
+        self.initialize(registry.get("roles", {}).keys())
         path = self.role_registry_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        write_json(path, self.load_role_registry())
-        return self.load_role_registry()
+        if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            write_json(path, registry)
+        return registry
 
     def roles(self) -> dict:
         registry = self.load_role_registry()

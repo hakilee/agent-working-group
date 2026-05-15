@@ -1,4 +1,5 @@
 from tests.helpers import *
+from agent_working_group.queue import DEFAULT_ROLE_REGISTRY
 
 
 class QueueCoreTests(QueueTestCase):
@@ -907,6 +908,22 @@ class QueueCoreTests(QueueTestCase):
         self.assertEqual(registry["aliases"], {})
         for role in ("lead", "worker", "reviewer", "observer"):
             self.assertTrue((root / "queues" / role / "inbox").is_dir())
+
+
+    def test_init_preserves_existing_role_registry_file(self):
+        queue, root = self.with_queue()
+        registry_path = root / "roles.json"
+        custom_registry = {
+            "roles": {**DEFAULT_ROLE_REGISTRY["roles"], "triage": {"description": "Triage queue"}},
+            "aliases": {"alice": "reviewer"},
+        }
+        registry_path.write_text(json.dumps(custom_registry), encoding="utf-8")
+
+        registry = queue.initialize_default_roles()
+
+        self.assertEqual(registry, custom_registry)
+        self.assertEqual(json.loads(registry_path.read_text(encoding="utf-8")), custom_registry)
+        self.assertTrue((root / "queues" / "triage" / "inbox").is_dir())
 
     def test_send_resolves_aliases_to_canonical_role_queues(self):
         queue, root = self.with_queue()
