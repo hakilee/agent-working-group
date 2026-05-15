@@ -126,6 +126,15 @@ def build_parser() -> argparse.ArgumentParser:
     status.add_argument("--tz", default="UTC")
     status.add_argument("--report-target", help="Only count/point at pending messages matching this report target.")
 
+    work_items = sub.add_parser(
+        "work-items",
+        help="Read-only Kanban-like summary grouped by refs.workId across queue locations.",
+    )
+    work_items.add_argument("--as", dest="agent", help="Only summarize one agent queue.")
+    work_items.add_argument("--report-target", help="Only include messages matching this report target.")
+    work_items.add_argument("--local", action="store_true")
+    work_items.add_argument("--tz", default="UTC")
+
     for name in ("ack", "retry", "nack"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--as", required=True, dest="agent")
@@ -265,6 +274,9 @@ def main(argv=None) -> int:
             return 0
         if args.command == "status":
             print_json(queue.status(args.agent, "local" if args.local else args.tz, args.report_target))
+            return 0
+        if args.command == "work-items":
+            print_json(queue.work_items(args.agent, args.report_target, "local" if args.local else args.tz))
             return 0
         if args.command == "ack":
             print(queue.ack(args.agent, args.id))

@@ -322,6 +322,94 @@ class MessageQueue:
             "lastProcessedAtLocal": iso_from_ms(last_ms, tz),
         }
 
+    def work_items(self, agent: str | None = None, report_target: object = None, tz: str = "UTC") -> list[dict]:
+        """Return a read-only Kanban-like summary derived from existing queue files."""
+        agents = [agent] if agent else self._queue_agents()
+        grouped: dict[str, dict] = {}
+        for name in agents:
+            paths = self._read_only_paths(name)
+            for state, directory in (
+                ("pending", paths.inbox),
+                ("running", paths.processing),
+                ("done", paths.processed),
+                ("dead", paths.dead),
+            ):
+                for path in sorted_by_time(directory):
+                    message = read_json(path)
+                    if not message_matches_report_target(message, report_target):
+                        continue
+                    refs = message.get("refs") or {}
+                    work_id = refs.get("workId") or message.get("id")
+                    item = grouped.setdefault(str(work_id), {
+                        "workId": str(work_id),
+                        "status": "unknown",
+                        "agents": [],
+                        "counts": {"pending": 0, "running": 0, "done": 0, "dead": 0},
+                        "messages": [],
+                        "refs": {
+                            "correlationIds": [],
+                            "parentIds": [],
+                            "sourceChannels": [],
+                            "reportTargets": [],
+                            "repos": [],
+                            "workspaces": [],
+                        },
+                        "createdAtMs": None,
+                        "updatedAtMs": None,
+                    })
+                    if name not in item["agents"]:
+                        item["agents"].append(name)
+                    item["counts"][state] += 1
+                    merge_work_item_refs(item["refs"], refs)
+                    timestamp_ms = int(message.get("createdAtMs") or parse_filename(path)[1] or 0)
+                    if item["createdAtMs"] is None or timestamp_ms < item["createdAtMs"]:
+                        item["createdAtMs"] = timestamp_ms
+                    if item["updatedAtMs"] is None or timestamp_ms > item["updatedAtMs"]:
+                        item["updatedAtMs"] = timestamp_ms
+                    item["messages"].append({
+                        "id": message.get("id"),
+                        "agent": name,
+                        "state": state,
+                        "kind": message.get("kind"),
+                        "from": message.get("from"),
+                        "to": message.get("to"),
+                        "createdAt": message.get("createdAt"),
+                        "refs": public_message_refs(refs),
+                        "file": path.name,
+                    })
+
+        items = list(grouped.values())
+        for item in items:
+            item["agents"].sort()
+            item["status"] = derive_work_item_status(item["counts"], item["messages"])
+            item["createdAt"] = iso_from_ms(item["createdAtMs"], tz)
+            item["updatedAt"] = iso_from_ms(item["updatedAtMs"], tz)
+        return sorted(items, key=lambda item: (item.get("updatedAtMs") or 0, item["workId"]))
+
+    def _read_only_paths(self, agent: str) -> QueuePaths:
+        _validate_role(agent)
+        base = self.root / "queues" / agent
+        require_contained_path(self.root, base)
+        return QueuePaths(
+            inbox=base / "inbox",
+            processing=base / "processing",
+            processed=base / "processed",
+            dead=base / "dead",
+        )
+
+    def _queue_agents(self) -> list[str]:
+        queues_dir = self.root / "queues"
+        if not queues_dir.is_dir():
+            return []
+        queue_dirs = {"inbox", "processing", "processed", "dead"}
+        agents = []
+        for path in queues_dir.iterdir():
+            if not path.is_dir():
+                continue
+            if queue_dirs.issubset({child.name for child in path.iterdir() if child.is_dir()}):
+                agents.append(path.name)
+        return sorted(agents)
+
     def ack(self, agent: str, message_id: str) -> str:
         paths = self.paths(agent)
         with self.lock(agent):
@@ -571,6 +659,40 @@ def enrich_times(messages: list, tz: str) -> None:
     for message in messages:
         if message.get("createdAtMs"):
             message["createdAtLocal"] = iso_from_ms(message["createdAtMs"], tz)
+
+
+def public_message_refs(refs: dict) -> dict:
+    visible_keys = ("correlationId", "parentId", "sourceChannel", "reportTarget", "repo", "workspace")
+    return {key: refs[key] for key in visible_keys if refs.get(key)}
+
+
+def merge_work_item_refs(target: dict, refs: dict) -> None:
+    mapping = {
+        "correlationId": "correlationIds",
+        "parentId": "parentIds",
+        "sourceChannel": "sourceChannels",
+        "reportTarget": "reportTargets",
+        "repo": "repos",
+        "workspace": "workspaces",
+    }
+    for source_key, target_key in mapping.items():
+        value = refs.get(source_key)
+        if value and value not in target[target_key]:
+            target[target_key].append(value)
+
+
+def derive_work_item_status(counts: dict, messages: list[dict]) -> str:
+    if counts.get("dead"):
+        return "dead"
+    if any(message.get("state") in {"pending", "running"} and message.get("kind") == MessageKind.BLOCKER.value for message in messages):
+        return "blocked"
+    if counts.get("running"):
+        return "running"
+    if counts.get("pending"):
+        return "ready"
+    if counts.get("done"):
+        return "done"
+    return "unknown"
 
 
 def find_message_file(directory: Path, message_id: str) -> Path | None:
