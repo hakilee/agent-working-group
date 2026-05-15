@@ -566,8 +566,8 @@ class QueueWorkerExecutorTests(QueueTestCase):
             queue, message_id, result, argv_path = self.run_codex_executor_bridge(root)
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-            self.assertEqual(queue.status("codex-worker")["processing"], 0)
-            processed = queue.processed("codex-worker", limit=1)[0]
+            self.assertEqual(queue.status("worker")["processing"], 0)
+            processed = queue.processed("worker", limit=1)[0]
             self.assertEqual(processed["id"], message_id)
             self.assertIn("ackedAt", processed["refs"])
             lead_message = queue.peek("lead")[0]
@@ -585,8 +585,8 @@ class QueueWorkerExecutorTests(QueueTestCase):
             queue, message_id, result, _ = self.run_codex_executor_bridge(root, fake_exit=7, fake_output="boom")
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-            self.assertEqual(queue.status("codex-worker")["processing"], 1)
-            processing = queue.processing("codex-worker", limit=1)[0]
+            self.assertEqual(queue.status("worker")["processing"], 1)
+            processing = queue.processing("worker", limit=1)[0]
             self.assertEqual(processing["id"], message_id)
             self.assertNotIn("ackedAt", processing["refs"])
             lead_message = queue.peek("lead")[0]
@@ -596,7 +596,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
     def test_codex_executor_requires_explicit_repo(self):
             _, root = self.with_queue()
             queue = MessageQueue(root)
-            message_id = queue.send("lead", "codex-worker", "instruction", "do work")
+            message_id = queue.send("lead", "worker", "instruction", "do work")
             project_root = Path(__file__).resolve().parents[1]
             wrapper = root / "awg-wrapper"
             wrapper.write_text(
@@ -605,7 +605,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
                 encoding="utf-8",
             )
             wrapper.chmod(0o755)
-            env = {**os.environ, "AWG_CLI": str(wrapper), "AWG_ROOT": str(root), "WORKER": "codex-worker", "LEAD": "lead", "RECV_TIMEOUT": "1"}
+            env = {**os.environ, "AWG_CLI": str(wrapper), "AWG_ROOT": str(root), "WORKER": "worker", "LEAD": "lead", "RECV_TIMEOUT": "1"}
             result = subprocess.run(
                 [str(project_root / "scripts" / "awg-executor-bridge.sh"), "--", str(project_root / "scripts" / "awg-codex-executor.sh")],
                 cwd=project_root,
@@ -617,8 +617,8 @@ class QueueWorkerExecutorTests(QueueTestCase):
             )
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-            self.assertEqual(queue.status("codex-worker")["processing"], 1)
-            self.assertEqual(queue.processing("codex-worker", limit=1)[0]["id"], message_id)
+            self.assertEqual(queue.status("worker")["processing"], 1)
+            self.assertEqual(queue.processing("worker", limit=1)[0]["id"], message_id)
             self.assertEqual(queue.peek("lead")[0]["kind"], "question")
 
     def test_codex_executor_dirty_git_repo_blocks_before_codex(self):
@@ -631,8 +631,8 @@ class QueueWorkerExecutorTests(QueueTestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             self.assertFalse(argv_path.exists())
-            self.assertEqual(queue.status("codex-worker")["processing"], 1)
-            self.assertEqual(queue.processing("codex-worker", limit=1)[0]["id"], message_id)
+            self.assertEqual(queue.status("worker")["processing"], 1)
+            self.assertEqual(queue.processing("worker", limit=1)[0]["id"], message_id)
             lead_message = queue.peek("lead")[0]
             self.assertEqual(lead_message["kind"], "blocker")
             self.assertIn("uncommitted changes", lead_message["body"])
@@ -657,7 +657,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
             repo = root / "repo"
             repo.mkdir()
             queue = MessageQueue(root)
-            message_id = queue.send("lead", "codex-worker", "instruction", "write summary", repo=str(repo), workspace=str(repo))
+            message_id = queue.send("lead", "worker", "instruction", "write summary", repo=str(repo), workspace=str(repo))
             log_dir = root / "logs"
             summary_dir = root / "summaries"
             run_log = log_dir / "worker.log"
@@ -669,7 +669,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
                     **os.environ,
                     "AWG_CLI": str(wrapper),
                     "AWG_ROOT": str(root),
-                    "WORKER": "codex-worker",
+                    "WORKER": "worker",
                     "LEAD": "lead",
                     "LOG_DIR": str(log_dir),
                     "SUMMARY_DIR": str(summary_dir),
@@ -689,10 +689,10 @@ class QueueWorkerExecutorTests(QueueTestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             self.assertIn("codex worker summary=", result.stdout)
-            summaries = list(summary_dir.glob("codex-worker.summary.*.json"))
+            summaries = list(summary_dir.glob("worker.summary.*.json"))
             self.assertEqual(len(summaries), 1)
             payload = json.loads(summaries[0].read_text(encoding="utf-8"))
-            self.assertEqual(payload["worker"], "codex-worker")
+            self.assertEqual(payload["worker"], "worker")
             self.assertEqual(payload["lead"], "lead")
             self.assertEqual(payload["tasks"], 1)
             self.assertEqual(payload["stopReason"], "max tasks")
@@ -701,8 +701,8 @@ class QueueWorkerExecutorTests(QueueTestCase):
             self.assertIn("startedAt", payload)
             self.assertIn("stoppedAt", payload)
             self.assertGreaterEqual(payload["durationSeconds"], 0)
-            self.assertEqual(queue.status("codex-worker")["processing"], 0)
-            self.assertEqual(queue.processed("codex-worker", limit=1)[0]["id"], message_id)
+            self.assertEqual(queue.status("worker")["processing"], 0)
+            self.assertEqual(queue.processed("worker", limit=1)[0]["id"], message_id)
 
     def test_codex_worker_tmux_status_reports_latest_summary_path(self):
             _, root = self.with_queue()
@@ -717,8 +717,8 @@ class QueueWorkerExecutorTests(QueueTestCase):
             log_dir = root / "logs"
             summary_dir = log_dir / "run-summaries"
             summary_dir.mkdir(parents=True)
-            older = summary_dir / "codex-worker.summary.20260101000000.json"
-            latest = summary_dir / "codex-worker.summary.20260101000100.json"
+            older = summary_dir / "worker.summary.20260101000000.json"
+            latest = summary_dir / "worker.summary.20260101000100.json"
             older.write_text("{}\n", encoding="utf-8")
             latest.write_text("{}\n", encoding="utf-8")
             os.utime(older, (1, 1))
@@ -731,7 +731,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
                     **os.environ,
                     "AWG_CLI": str(wrapper),
                     "AWG_ROOT": str(root),
-                    "WORKER": "codex-worker",
+                    "WORKER": "worker",
                     "SESSION": "awg-codex-test-status",
                     "LOG_DIR": str(log_dir),
                     "SUMMARY_DIR": str(summary_dir),
@@ -765,7 +765,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
                     **os.environ,
                     "AWG_CLI": str(wrapper),
                     "AWG_ROOT": str(root),
-                    "WORKER": "codex-worker",
+                    "WORKER": "worker",
                     "SESSION": "awg-codex-test-status-empty",
                     "LOG_DIR": str(root / "logs"),
                     "SUMMARY_DIR": str(root / "logs" / "run-summaries"),

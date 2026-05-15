@@ -15,11 +15,11 @@ Agents are identified by queue names such as `lead`, `worker`, `reviewer`, or `o
 
 ### Role Registry
 
-`awg init --default-roles` creates the canonical role queues and a local `roles.json` registry under the AWG root. `awg roles` prints the configured roles and aliases.
+`awg init` creates the canonical role queues and a local `roles.json` registry under the AWG root. `awg roles` prints the configured roles and aliases. If `roles.json` is absent, AWG uses the built-in default role registry instead of creating unregistered queues.
 
-When `roles.json` exists, `awg send` validates `--to` against the registry. Unknown recipients fail closed unless the sender explicitly passes `--allow-unregistered-role`. Sender names remain attribution in this phase and are only syntax-checked. This keeps accidental new destination queues visible without breaking existing sender identity conventions.
+`awg send` validates both `--from` and `--to` against the active role registry. Unknown roles fail closed; add intentional custom roles to `roles.json` before routing work to them.
 
-Aliases can map local personal or tool names to stable role queues. For example, a site-local alias may map a specific reviewer handle to `reviewer`. In the first rollout phase aliases are warn-only: the message is still delivered to the requested queue, and `refs.recipientRoleWarning` records the alias, target role, and `warn-only` mode for audit. This avoids silently moving work away from existing person-named queue pollers during migration.
+Aliases can map local profile or tool names to stable role queues. For example, a site-local alias may map a reviewer handle to `reviewer`. Aliases resolve to the canonical role queue at send time, and `refs.senderRoleResolution` or `refs.recipientRoleResolution` records the alias, target role, and `resolved` mode for audit.
 
 ```json
 {
@@ -36,7 +36,7 @@ Aliases can map local personal or tool names to stable role queues. For example,
 }
 ```
 
-Existing queue roots without `roles.json` keep the historical free-form queue behavior for backward compatibility. The registry is routing hygiene, not a permission system; lifecycle authority still comes from queue files and explicit queue commands.
+The registry is routing hygiene, not a permission system; lifecycle authority still comes from queue files and explicit queue commands.
 
 ## Message Lifecycle
 
@@ -46,7 +46,7 @@ Existing queue roots without `roles.json` keep the historical free-form queue be
 inbox -> processed
 ```
 
-Default `recv` is backward-compatible and treats receipt as enough history for simple workflows.
+Default `recv` treats receipt as enough history for simple workflows.
 
 ### Durable receive
 
@@ -103,7 +103,7 @@ Exact file path, command output, or other completion criteria.
 
 ## Source And Correlation Metadata Convention
 
-`refs` may carry optional metadata for multi-message work and cross-surface traceability. These are conventions, not required schema fields, and older messages remain valid without them.
+`refs` may carry optional metadata for multi-message work and cross-surface traceability. These are conventions, not required schema fields.
 
 - `refs.correlationId`: stable id shared by messages that belong to the same task, review, incident, or handoff.
 - `refs.workId`: operator-defined durable work item id for grouping messages across a task, branch, artifact set, or review.
@@ -113,7 +113,7 @@ Exact file path, command output, or other completion criteria.
 - `refs.repo`: repository or project slug associated with the work.
 - `refs.workspace`: workspace, checkout, or workstream label associated with the work.
 
-Use this metadata primarily for traceability. `refs.reportTarget` can also be used as an opt-in receive filter: `awg recv --report-target <target>` skips non-matching pending messages without moving them to `processing/` or `processed/`, then advances to the next matching message. Messages without `refs.reportTarget` remain eligible for backward compatibility. This filter is routing/selection metadata, not a permission system. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
+Use this metadata primarily for traceability. `refs.reportTarget` can also be used as an opt-in receive filter: `awg recv --report-target <target>` skips non-matching pending messages without moving them to `processing/` or `processed/`, then advances to the next matching message. This filter is routing/selection metadata, not a permission system. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
 
 The CLI can set these optional refs when sending a message:
 
@@ -123,7 +123,7 @@ awg recv --as=worker --require-ack --report-target=work-updates
 awg send --from=worker --to=lead --kind=status --body="done" --reply-to=<instruction-id> --correlation-id=task-123 --work-id=work-456 --parent-id=<instruction-id>
 ```
 
-Omit these flags when no source or correlation metadata is needed. Messages without these refs remain valid and backward-compatible.
+Omit these flags when no source or correlation metadata is needed. Messages without these refs remain valid.
 
 ## Work Item Summary
 

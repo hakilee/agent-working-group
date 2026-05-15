@@ -214,7 +214,7 @@ class QueueCoreTests(QueueTestCase):
             queue.retry("lead", reply)
             self.assertEqual(queue.status("lead")["pending"], 1)
 
-    def test_send_optional_correlation_refs_are_backward_compatible(self):
+    def test_send_optional_correlation_refs_are_additive(self):
             queue, _ = self.with_queue()
 
             queue.send("lead", "worker", "note", "plain")
@@ -245,7 +245,7 @@ class QueueCoreTests(QueueTestCase):
             self.assertEqual(reply["refs"]["parentId"], question_id)
             self.assertNotIn("correlationId", queue.peek("worker")[0]["refs"])
 
-    def test_send_optional_source_metadata_refs_are_backward_compatible(self):
+    def test_send_optional_source_metadata_refs_are_additive(self):
             queue, _ = self.with_queue()
 
             plain_id = queue.send("lead", "worker", "note", "plain")
@@ -405,7 +405,7 @@ class QueueCoreTests(QueueTestCase):
             filtered = queue.work_items("worker", report_target="discord:channel:ops")
 
             filtered_by_work = {item["workId"]: item for item in filtered}
-            self.assertIn(ungrouped_id, filtered_by_work)
+            self.assertNotIn(ungrouped_id, filtered_by_work)
             self.assertIn("work-blocked", filtered_by_work)
             self.assertNotIn("work-hidden", filtered_by_work)
             self.assertEqual(filtered_by_work["work-blocked"]["status"], "blocked")
@@ -908,7 +908,7 @@ class QueueCoreTests(QueueTestCase):
         for role in ("lead", "worker", "reviewer", "observer"):
             self.assertTrue((root / "queues" / role / "inbox").is_dir())
 
-    def test_send_warns_on_aliases_without_auto_routing_when_registry_exists(self):
+    def test_send_resolves_aliases_to_canonical_role_queues(self):
         queue, root = self.with_queue()
         queue.initialize_default_roles()
         registry_path = root / "roles.json"
@@ -916,45 +916,38 @@ class QueueCoreTests(QueueTestCase):
         registry["aliases"] = {"alice": "reviewer"}
         registry_path.write_text(json.dumps(registry), encoding="utf-8")
 
-        message_id = queue.send("planner", "alice", "instruction", "review this")
+        message_id = queue.send("lead", "alice", "instruction", "review this")
 
-        alias_messages = queue.peek("alice")
-        self.assertEqual(len(alias_messages), 1)
-        message = alias_messages[0]
+        reviewer_messages = queue.peek("reviewer")
+        self.assertEqual(len(reviewer_messages), 1)
+        message = reviewer_messages[0]
         self.assertEqual(message["id"], message_id)
-        self.assertEqual(message["from"], "planner")
-        self.assertEqual(message["to"], "alice")
+        self.assertEqual(message["from"], "lead")
+        self.assertEqual(message["to"], "reviewer")
         self.assertEqual(
-            message["refs"]["recipientRoleWarning"],
-            {"alias": "alice", "targetRole": "reviewer", "mode": "warn-only"},
+            message["refs"]["recipientRoleResolution"],
+            {"alias": "alice", "targetRole": "reviewer", "mode": "resolved"},
         )
-        self.assertEqual(queue.peek("reviewer"), [])
+        self.assertEqual(queue.peek("alice"), [])
 
-    def test_registry_fails_closed_for_unknown_roles_unless_overridden(self):
-        queue, root = self.with_queue()
+    def test_registry_fails_closed_for_unknown_roles(self):
+        queue, _ = self.with_queue()
         queue.initialize_default_roles()
 
         with self.assertRaisesRegex(ValueError, "unknown recipient"):
             queue.send("lead", "alice", "instruction", "review this")
+        with self.assertRaisesRegex(ValueError, "unknown sender"):
+            queue.send("alice", "reviewer", "instruction", "review this")
 
-        message_id = queue.send(
-            "lead",
-            "alice",
-            "instruction",
-            "review this",
-            allow_unregistered_role=True,
-        )
-        message = MessageQueue(root).peek("alice")[0]
-        self.assertEqual(message["id"], message_id)
-        self.assertEqual(message["refs"]["recipientRoleWarning"], {"unregisteredRole": "alice"})
-
-    def test_missing_registry_preserves_backward_compatible_freeform_queues(self):
+    def test_missing_registry_uses_default_roles_and_rejects_unregistered_queues(self):
         queue, root = self.with_queue()
 
-        message_id = queue.send("lead", "alice", "instruction", "legacy routing")
+        message_id = queue.send("lead", "worker", "instruction", "role routing")
 
-        self.assertEqual(MessageQueue(root).peek("alice")[0]["id"], message_id)
+        self.assertEqual(MessageQueue(root).peek("worker")[0]["id"], message_id)
         self.assertFalse((root / "roles.json").exists())
+        with self.assertRaisesRegex(ValueError, "unknown recipient"):
+            queue.send("lead", "alice", "instruction", "unregistered routing")
 
     def test_cli_roles_init_and_alias_send(self):
         queue, root = self.with_queue()
@@ -966,7 +959,6 @@ class QueueCoreTests(QueueTestCase):
                 "--root",
                 str(root),
                 "init",
-                "--default-roles",
             ],
             text=True,
             capture_output=True,
@@ -1009,10 +1001,10 @@ class QueueCoreTests(QueueTestCase):
             check=False,
         )
         self.assertEqual(sent.returncode, 0, sent.stderr)
-        self.assertIn("warning: recipient alias 'alice' maps to role 'reviewer'", sent.stderr)
-        message = MessageQueue(root).peek("alice")[0]
+        self.assertEqual(sent.stderr, "")
+        message = MessageQueue(root).peek("reviewer")[0]
         self.assertEqual(
-            message["refs"]["recipientRoleWarning"],
-            {"alias": "alice", "targetRole": "reviewer", "mode": "warn-only"},
+            message["refs"]["recipientRoleResolution"],
+            {"alias": "alice", "targetRole": "reviewer", "mode": "resolved"},
         )
-        self.assertEqual(MessageQueue(root).status("reviewer")["pending"], 0)
+        self.assertEqual(MessageQueue(root).status("alice")["pending"], 0)

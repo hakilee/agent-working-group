@@ -311,7 +311,6 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("opt-in receive filter", content)
             self.assertIn("queue selection skips non-matching pending messages", content)
             self.assertIn("not access control or automatic routing", content)
-            self.assertIn("backward-compatible", content)
 
             self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"

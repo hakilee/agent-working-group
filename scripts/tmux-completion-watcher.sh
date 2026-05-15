@@ -7,7 +7,6 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage: tmux-completion-watcher.sh --sessions SESSION[,SESSION...] [options]
-       tmux-completion-watcher.sh SESSION[,SESSION...] CHANNEL_ID [interval] [timeout]
 
 Options:
   --sessions LIST       Comma-separated tmux session/window targets to watch.
@@ -30,15 +29,13 @@ Options:
 The watcher writes durable completion evidence to result-dir and does not rely
 on OpenClaw main-session cron/systemEvents. Completion is intentionally
 conservative: a live session completes only when it exits/disappears or emits a
-new explicit completion marker after the watcher starts. The legacy positional
-form is kept for compatibility; CHANNEL_ID is recorded only as metadata.
+new explicit completion marker after the watcher starts.
 USAGE
 }
 
 AWG_ROOT=${AWG_ROOT:-"${PWD}/.agent-working-group"}
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SESSIONS=""
-LEGACY_CHANNEL=""
 INTERVAL=30
 TIMEOUT=1800
 RESULT_DIR="${AWG_ROOT}/runtime/tmux-results"
@@ -49,29 +46,22 @@ COMPLETION_REGEX=""
 ALLOW_MISSING_SESSIONS=0
 ALLOW_PROMPT_COMPLETE=0
 
-if [[ $# -gt 0 && "${1:-}" != --* ]]; then
-  SESSIONS=${1:-}
-  LEGACY_CHANNEL=${2:-}
-  INTERVAL=${3:-30}
-  TIMEOUT=${4:-1800}
-else
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --sessions) SESSIONS=${2:?}; shift 2 ;;
-      --interval) INTERVAL=${2:?}; shift 2 ;;
-      --timeout) TIMEOUT=${2:?}; shift 2 ;;
-      --result-dir) RESULT_DIR=${2:?}; shift 2 ;;
-      --state-id) STATE_ID=${2:?}; shift 2 ;;
-      --keep-sessions) KEEP_SESSIONS=1; shift ;;
-      --completion-regex) COMPLETION_REGEX=${2:?}; shift 2 ;;
-      --allow-missing-sessions) ALLOW_MISSING_SESSIONS=1; shift ;;
-      --allow-prompt-complete) ALLOW_PROMPT_COMPLETE=1; shift ;;
-      --on-complete) ON_COMPLETE=${2:?}; shift 2 ;;
-      -h|--help) usage; exit 0 ;;
-      *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
-    esac
-  done
-fi
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --sessions) SESSIONS=${2:?}; shift 2 ;;
+    --interval) INTERVAL=${2:?}; shift 2 ;;
+    --timeout) TIMEOUT=${2:?}; shift 2 ;;
+    --result-dir) RESULT_DIR=${2:?}; shift 2 ;;
+    --state-id) STATE_ID=${2:?}; shift 2 ;;
+    --keep-sessions) KEEP_SESSIONS=1; shift ;;
+    --completion-regex) COMPLETION_REGEX=${2:?}; shift 2 ;;
+    --allow-missing-sessions) ALLOW_MISSING_SESSIONS=1; shift ;;
+    --allow-prompt-complete) ALLOW_PROMPT_COMPLETE=1; shift ;;
+    --on-complete) ON_COMPLETE=${2:?}; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
 
 if [[ -z "$SESSIONS" ]]; then
   echo "--sessions is required" >&2
@@ -92,12 +82,12 @@ safe_name() {
 
 json_event() {
   local event=$1 session=${2:-} status=${3:-} detail=${4:-}
-  python3 - "$event" "$session" "$status" "$detail" "$LEGACY_CHANNEL" <<'PY' >>"$EVENTS_FILE"
+  python3 - "$event" "$session" "$status" "$detail" <<'PY' >>"$EVENTS_FILE"
 import json
 import sys
 from datetime import datetime, timezone
 
-event, session, status, detail, channel = sys.argv[1:]
+event, session, status, detail = sys.argv[1:]
 payload = {
     "at": datetime.now(timezone.utc).isoformat(),
     "event": event,
@@ -108,8 +98,6 @@ if status:
     payload["status"] = status
 if detail:
     payload["detail"] = detail
-if channel:
-    payload["legacyChannel"] = channel
 print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
 PY
 }

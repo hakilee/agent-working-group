@@ -38,7 +38,7 @@ PYTHONPATH=src python3 -m agent_working_group.cli --help
 
 ```bash
 export AWG_ROOT=/tmp/awg-demo
-awg init --agent lead --agent worker
+awg init
 
 awg send --from=lead --to=worker --kind=instruction --body="Inspect the repository and report risks."
 awg recv --as=worker --require-ack
@@ -84,7 +84,7 @@ For the full Python surface, see [Python API Reference](docs/api.md).
 ## CLI Overview
 
 ```bash
-awg init --agent lead --agent worker
+awg init
 awg send --from=lead --to=worker --kind=instruction --body="Do one clear task."
 awg send --from=lead --to=worker --kind=instruction --body="Notify then inspect." --dispatch-hooks
 awg recv --as=worker --timeout=120 --require-ack
@@ -196,7 +196,7 @@ ack-on-structured-success contract.
 
 ```bash
 export AWG_ROOT=.agent-working-group
-export WORKER=claude-worker
+export WORKER=worker
 export LEAD=lead
 export AGENT=claude              # primary; "codex" is also supported
 export AWG_FALLBACK=1            # 1 = enable cross-agent fallback

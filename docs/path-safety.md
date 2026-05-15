@@ -49,6 +49,6 @@ Queue JSON files are live coordination state. Path containment helpers do not ma
 
 ## Archive Helpers
 
-The repository archive helper is a small bash script and remains behavior-preserving for valid existing usage without `--allowed-base`. When `--allowed-base` is provided, it uses a Python bridge to call `require_contained_path()` for source and destination containment.
+The repository archive helper is a small bash script that requires `--allowed-base` and uses a Python bridge to call `require_contained_path()` for source and destination containment.
 
-Do not add an implicit containment boundary to archive helpers. The allowed base must be explicit so operators can choose the artifact workspace boundary. Code-level containment should include tests for valid usage, traversal rejection, symlink escape rejection, sibling-prefix rejection, destination containment, invalid allowed-base failure, and queue JSON preservation.
+Do not add an implicit containment boundary to archive helpers. The allowed base must be explicit so operators choose the artifact workspace boundary. Code-level containment should include tests for valid usage, traversal rejection, symlink escape rejection, sibling-prefix rejection, destination containment, invalid allowed-base failure, and queue JSON preservation.

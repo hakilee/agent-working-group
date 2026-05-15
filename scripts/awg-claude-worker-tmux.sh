@@ -16,7 +16,7 @@ _awg_autodetect() {
 }
 AWG_CLI=${AWG_CLI:-$(_awg_autodetect)}
 AWG_ROOT=${AWG_ROOT:-"${PWD}/.agent-working-group"}
-WORKER=${WORKER:-claude-worker}
+WORKER=${WORKER:-worker}
 LEAD=${LEAD:-lead}
 SESSION=${SESSION:-"awg-claude-${WORKER}"}
 LOG_DIR=${LOG_DIR:-"${AWG_ROOT}/log/claude-worker"}

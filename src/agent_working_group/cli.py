@@ -78,9 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", help="Working-group root directory. Defaults to AWG_ROOT or ./.agent-working-group.")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    init = sub.add_parser("init")
-    init.add_argument("--agent", action="append", default=[])
-    init.add_argument("--default-roles", action="store_true", help="Create canonical role queues and roles.json if missing.")
+    init = sub.add_parser("init", help="Create canonical role queues and roles.json.")
 
     roles = sub.add_parser("roles", help="Show configured role queues and aliases.")
 
@@ -100,7 +98,6 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--expected-response-within", type=int, help="Optional response contract: integer seconds within which a reply is expected.")
     send.add_argument("--dispatch-hooks", action="store_true", help="Run matching message.sent hooks after the message is durably enqueued.")
     send.add_argument("--hook-config", help="Path to hooks.json. Defaults to <AWG_ROOT>/hooks.json.")
-    send.add_argument("--allow-unregistered-role", action="store_true", help="Allow senders/recipients not declared in roles.json when role registry enforcement is enabled.")
 
     recv = sub.add_parser("recv")
     recv.add_argument("--as", required=True, dest="agent")
@@ -219,22 +216,13 @@ def main(argv=None) -> int:
 
     try:
         if args.command == "init":
-            queue.initialize(args.agent)
-            if args.default_roles:
-                queue.initialize_default_roles()
+            queue.initialize_default_roles()
             return 0
         if args.command == "roles":
             print_json(queue.roles())
             return 0
         if args.command == "send":
-            _, recipient_warning = queue.validate_recipient_role(args.recipient, args.allow_unregistered_role)
-            if recipient_warning.get("mode") == "warn-only":
-                print(
-                    f"warning: recipient alias {recipient_warning['alias']!r} maps to role "
-                    f"{recipient_warning['targetRole']!r}; Phase 1 keeps delivery on "
-                    f"the requested queue and records refs.recipientRoleWarning",
-                    file=sys.stderr,
-                )
+            recipient, _ = queue.resolve_role(args.recipient, "recipient")
             message_id = queue.send(
                 args.sender,
                 args.recipient,
@@ -249,11 +237,10 @@ def main(argv=None) -> int:
                 repo=args.repo,
                 workspace=args.workspace,
                 expected_response_within=args.expected_response_within,
-                allow_unregistered_role=args.allow_unregistered_role,
             )
             print(message_id)
             if args.dispatch_hooks:
-                path = find_message_file(queue.paths(args.recipient).inbox, message_id)
+                path = find_message_file(queue.paths(recipient).inbox, message_id)
                 if not path:
                     raise FileNotFoundError(f"message not in inbox after send: {message_id}")
                 results = dispatch_hooks(
