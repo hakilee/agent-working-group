@@ -156,7 +156,7 @@ def request_worker_action(
         "Report the result back to the dashboard/report channel.",
     ])
     message_id = queue.send(
-        "dashboard",
+        "observer",
         action_request.target,
         "instruction",
         "\n".join(body_lines),

@@ -6,7 +6,7 @@ set -euo pipefail
 
 AWG_CLI=${AWG_CLI:-awg}
 AWG_ROOT=${AWG_ROOT:-"${PWD}/.agent-working-group"}
-WORKER=${WORKER:-codex-worker}
+WORKER=${WORKER:-worker}
 LEAD=${LEAD:-lead}
 LOG_DIR=${LOG_DIR:-"${AWG_ROOT}/log/codex-worker"}
 SUMMARY_DIR=${SUMMARY_DIR:-"${LOG_DIR}/run-summaries"}

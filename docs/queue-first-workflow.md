@@ -30,7 +30,7 @@ Use chat or another delivery surface only to say that an AWG queue item was adde
 Queue routing uses role names, not personal agent names. This keeps ownership clear regardless of which specific agent instance fills a role.
 
 Rules:
-- **Queue `from`/`to` fields must use role names:** `lead`, `worker`, `reviewer`, `codex-worker`, `observer`.
+- **Queue `from`/`to` fields must use role names:** `lead`, `worker`, `reviewer`, `observer`.
 - **Do not use personal agent names** (such as `matgukno`, `matdori`, or any other agent-specific name) as queue senders or recipients.
 - **Personal names are for chat mentions and human-readable attribution only**, not queue routing.
 - When creating queue items, always choose the role target intentionally.
@@ -39,7 +39,7 @@ Rules:
 
 This convention applies to all queue operations: `awg send`, `awg recv`, `awg ack`, `awg ack-pending`, and programmatic API calls.
 
-For new queue roots, run `awg init --default-roles` and inspect `awg roles`. When `roles.json` exists, `awg send` enforces the configured roles and aliases. If a local person, profile, or tool handle needs to receive work, add it as an alias to a stable role instead of creating a personal queue. Use `--allow-unregistered-role` only for an intentional custom role or migration case, and prefer declaring that role in `roles.json` afterward.
+For new queue roots, run `awg init` and inspect `awg roles`. `awg send` enforces the configured roles and resolves aliases to canonical role queues. If a local profile or tool handle needs to receive work, add it as an alias to a stable role instead of creating a personal queue. Add intentional specialized queues to `roles.json` before routing work to them.
 
 ## Planner Responsibilities
 

@@ -118,7 +118,7 @@ class QueueArtifactSafetyTests(QueueTestCase):
             platform_pattern = "dis" + "cord|sl" + "ack|tele" + "gram"
             self.assertNotRegex(content.lower(), platform_pattern)
 
-    def test_archive_helper_path_safety_integration_is_opt_in_and_safe(self):
+    def test_archive_helper_path_safety_integration_requires_allowed_base(self):
             project_root = Path(__file__).resolve().parents[1]
             checked_paths = [
                 project_root / "docs" / "artifact-retention.md",
@@ -129,8 +129,8 @@ class QueueArtifactSafetyTests(QueueTestCase):
             script = project_root / "scripts" / "awg-archive-artifact.sh"
             script_content = script.read_text(encoding="utf-8")
 
-            self.assertIn("supports opt-in allowed-base checks", content)
-            self.assertIn("Without `--allowed-base`, existing valid usage remains backward-compatible", content)
+            self.assertIn("requires explicit allowed-base checks", content)
+            self.assertNotIn("Without `--allowed-base`", content)
             self.assertIn("uses a Python bridge to call `require_contained_path()`", content)
             self.assertIn("Do not add an implicit containment", content)
             self.assertIn("queue JSON preservation", content)
@@ -259,7 +259,7 @@ class QueueArtifactSafetyTests(QueueTestCase):
                 self.assertEqual(queue_dest_result.returncode, 65)
                 self.assertTrue(source.exists())
 
-    def test_archive_helper_without_allowed_base_preserves_existing_usage(self):
+    def test_archive_helper_without_allowed_base_fails_closed(self):
             with tempfile.TemporaryDirectory() as temp:
                 root = Path(temp)
                 active = root / "active"
@@ -269,15 +269,14 @@ class QueueArtifactSafetyTests(QueueTestCase):
                 source.write_text("ok", encoding="utf-8")
 
                 dry_run = self.run_archive_helper("--source", source, "--completed-dir", completed)
-                self.assertEqual(dry_run.returncode, 0, dry_run.stderr)
-                self.assertIn("dry-run: would move", dry_run.stdout)
+                self.assertEqual(dry_run.returncode, 64)
                 self.assertTrue(source.exists())
-                self.assertTrue(completed.exists())
+                self.assertFalse(completed.exists())
 
                 apply = self.run_archive_helper("--source", source, "--completed-dir", completed, "--apply")
-                self.assertEqual(apply.returncode, 0, apply.stderr)
-                self.assertFalse(source.exists())
-                self.assertTrue((completed / "artifact.md").exists())
+                self.assertEqual(apply.returncode, 64)
+                self.assertTrue(source.exists())
+                self.assertFalse((completed / "artifact.md").exists())
 
     def test_artifact_index_helper_outputs_markdown_and_json(self):
             project_root = Path(__file__).resolve().parents[1]

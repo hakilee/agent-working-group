@@ -11,16 +11,15 @@ APPLY=0
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/awg-archive-artifact.sh --source PATH (--completed-dir DIR | --archive-dir DIR) [--allowed-base DIR] [--apply]
+Usage: scripts/awg-archive-artifact.sh --allowed-base DIR --source PATH (--completed-dir DIR | --archive-dir DIR) [--apply]
 
 Move one operational artifact into a completed or archive directory.
 
 Default mode is dry-run. Pass --apply to perform the move. This helper never
 deletes files and never touches AWG queue JSON.
 
---allowed-base DIR enables opt-in containment checks for the source and
-resolved destination path. Without this flag, existing helper behavior is
-preserved for backward compatibility.
+--allowed-base DIR defines the artifact workspace boundary. The helper validates
+the source and resolved destination path before creating directories or moving files.
 USAGE
 }
 
@@ -83,8 +82,8 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -z "$SOURCE" ] || [ -z "$DEST_DIR" ]; then
-  echo "--source and a destination directory are required" >&2
+if [ -z "$SOURCE" ] || [ -z "$DEST_DIR" ] || [ -z "$ALLOWED_BASE" ]; then
+  echo "--allowed-base, --source, and a destination directory are required" >&2
   usage >&2
   exit 64
 fi

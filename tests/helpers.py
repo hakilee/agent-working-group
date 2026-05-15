@@ -111,12 +111,12 @@ class QueueTestCase(unittest.TestCase):
             repo_path = repo or (root / "repo")
             repo_path.mkdir(parents=True, exist_ok=True)
             queue = MessageQueue(root)
-            message_id = queue.send("lead", "codex-worker", "instruction", body, repo=str(repo_path), workspace=str(repo_path))
+            message_id = queue.send("lead", "worker", "instruction", body, repo=str(repo_path), workspace=str(repo_path))
             env = {
                 **os.environ,
                 "AWG_CLI": str(wrapper),
                 "AWG_ROOT": str(root),
-                "WORKER": "codex-worker",
+                "WORKER": "worker",
                 "LEAD": "lead",
                 "RECV_TIMEOUT": "1",
                 "AWG_CODEX_BIN": str(fake_codex),

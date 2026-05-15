@@ -39,14 +39,14 @@ Choose a queue root explicitly:
 
 ```bash
 export AWG_ROOT=/tmp/awg-example
-awg init --agent lead --agent reviewer --agent worker
+awg init
 ```
 
 ## Queue Partitioning
 
 Default to one queue per role. Treat notification surfaces and issue trackers as intake or reporting surfaces, not as default queue partitions.
 
-Use optional refs to keep cross-surface and workstream context visible. This metadata remains backward-compatible by default. When a worker opts into `--report-target`, queue selection skips non-matching pending messages without moving them; the metadata is still not access control.
+Use optional refs to keep cross-surface and workstream context visible. This metadata is additive by default. When a worker opts into `--report-target`, queue selection skips non-matching pending messages without moving them; the metadata is still not access control.
 
 
 ```bash

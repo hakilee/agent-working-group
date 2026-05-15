@@ -16,7 +16,7 @@ esac
 rm -rf "$ROOT"
 export AWG_ROOT="$ROOT"
 
-"$AWG_BIN" init --agent lead --agent reviewer
+"$AWG_BIN" init
 
 TASK_ID=$("$AWG_BIN" send \
   --from lead \

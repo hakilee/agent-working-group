@@ -116,8 +116,7 @@ def message_matches_report_target(message: dict, report_target: object = None) -
         return True
     refs = message.get("refs") or {}
     message_target = normalize_target(refs.get("reportTarget"))
-    # Legacy messages without a report target remain visible everywhere.
-    return message_target is None or message_target == target
+    return message_target == target
 
 def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -159,14 +158,9 @@ class MessageQueue:
     def role_registry_path(self) -> Path:
         return self.root / ROLE_REGISTRY_NAME
 
-    def role_registry_exists(self) -> bool:
-        return self.role_registry_path().is_file()
-
     def load_role_registry(self) -> dict:
         path = self.role_registry_path()
-        if not path.is_file():
-            return {}
-        registry = read_json(path)
+        registry = read_json(path) if path.is_file() else DEFAULT_ROLE_REGISTRY
         roles = registry.get("roles") or {}
         aliases = registry.get("aliases") or {}
         if not isinstance(roles, dict):
@@ -183,42 +177,34 @@ class MessageQueue:
         return registry
 
     def initialize_default_roles(self) -> dict:
-        self.initialize(DEFAULT_ROLE_REGISTRY["roles"].keys())
+        registry = self.load_role_registry()
+        self.initialize(registry.get("roles", {}).keys())
         path = self.role_registry_path()
         if not path.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
-            write_json(path, DEFAULT_ROLE_REGISTRY)
-        return self.load_role_registry()
+            write_json(path, registry)
+        return registry
 
     def roles(self) -> dict:
         registry = self.load_role_registry()
-        if not registry:
-            return {"enabled": False, "roles": {}, "aliases": {}}
         return {
             "enabled": True,
             "roles": registry.get("roles") or {},
             "aliases": registry.get("aliases") or {},
         }
 
-    def validate_recipient_role(self, name: str, allow_unregistered: bool = False) -> tuple[str, dict]:
-        role = _validate_role(name, "recipient")
+    def resolve_role(self, name: str, field: str = "role") -> tuple[str, dict]:
+        role = _validate_role(name, field)
         registry = self.load_role_registry()
-        if not registry:
-            return role, {}
         roles = registry.get("roles") or {}
         aliases = registry.get("aliases") or {}
         if role in roles:
             return role, {}
         if role in aliases:
-            return role, {
-                "alias": role,
-                "targetRole": str(aliases[role]),
-                "mode": "warn-only",
-            }
-        if allow_unregistered:
-            return role, {"unregisteredRole": role}
+            target = str(aliases[role])
+            return target, {"alias": role, "targetRole": target, "mode": "resolved"}
         valid = sorted(set(roles) | set(aliases))
-        raise ValueError(f"unknown recipient: {role!r} (not in roles.json; use --allow-unregistered-role to override; valid: {', '.join(valid)})")
+        raise ValueError(f"unknown {field}: {role!r} (not in roles.json; valid: {', '.join(valid)})")
 
     def paths(self, agent: str) -> QueuePaths:
         _validate_role(agent)
@@ -271,12 +257,11 @@ class MessageQueue:
         repo: object = None,
         workspace: object = None,
         expected_response_within: object = None,
-        allow_unregistered_role: bool = False,
     ) -> str:
         if kind not in PRIORITIES:
             raise ValueError(f"unknown kind: {kind}")
-        sender = _validate_role(sender, "sender")
-        recipient, recipient_warning = self.validate_recipient_role(recipient, allow_unregistered_role)
+        sender, sender_resolution = self.resolve_role(sender, "sender")
+        recipient, recipient_resolution = self.resolve_role(recipient, "recipient")
         self.initialize([recipient])
         message_id = str(uuid.uuid4())
         created_ms = now_ms()
@@ -298,8 +283,10 @@ class MessageQueue:
             refs["repo"] = repo
         if workspace:
             refs["workspace"] = workspace
-        if recipient_warning:
-            refs["recipientRoleWarning"] = recipient_warning
+        if sender_resolution:
+            refs["senderRoleResolution"] = sender_resolution
+        if recipient_resolution:
+            refs["recipientRoleResolution"] = recipient_resolution
         message = {
             "id": message_id,
             "kind": kind,

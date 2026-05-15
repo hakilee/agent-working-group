@@ -52,7 +52,7 @@ Example send shape:
 ```bash
 awg send \
   --from lead \
-  --to codex-worker \
+  --to worker \
   --kind instruction \
   --repo /path/to/repo \
   --workspace /path/to/repo \
@@ -64,7 +64,7 @@ awg send \
 
 ```bash
 export AWG_ROOT=.agent-working-group
-export WORKER=codex-worker
+export WORKER=worker
 export LEAD=lead
 export SESSION=awg-codex-worker
 export MAX_TASKS=1
@@ -127,7 +127,7 @@ Example send shape:
 ```bash
 awg send \
   --from lead \
-  --to claude-worker \
+  --to worker \
   --kind instruction \
   --repo /path/to/repo \
   --workspace /path/to/repo \
@@ -139,7 +139,7 @@ awg send \
 
 ```bash
 export AWG_ROOT=.agent-working-group
-export WORKER=claude-worker
+export WORKER=worker
 export LEAD=lead
 export AGENT=claude
 export AWG_FALLBACK=1
