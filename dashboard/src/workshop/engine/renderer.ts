@@ -30,7 +30,7 @@ interface Drawable {
 }
 
 const CANVAS_LABEL_FONT = '"Geist Mono", ui-monospace, monospace';
-const CANVAS_DISPLAY_FONT = '"LCT Ciburial", "Geist Mono", sans-serif';
+const CANVAS_DISPLAY_FONT = '"Geist", "Geist Mono", sans-serif';
 
 function canvasFont(sizePx: number, family = CANVAS_LABEL_FONT, weight = 600): string {
   return `${weight} ${sizePx}px ${family}`;
