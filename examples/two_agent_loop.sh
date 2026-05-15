@@ -32,7 +32,7 @@ TASK_ID=$("$AWG_BIN" send \
 echo "sent task: $TASK_ID"
 
 echo "reviewer receives instruction:"
-MESSAGE=$("$AWG_BIN" recv --as reviewer --require-ack --timeout 5)
+MESSAGE=$("$AWG_BIN" recv --as reviewer --timeout 5)
 echo "$MESSAGE"
 
 RECEIVED_ID=$(MESSAGE_JSON="$MESSAGE" python3 - <<'PY'

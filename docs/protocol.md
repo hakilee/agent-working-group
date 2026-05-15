@@ -40,23 +40,17 @@ The registry is routing hygiene, not a permission system; lifecycle authority st
 
 ## Message Lifecycle
 
-### Default receive
-
-```text
-inbox -> processed
-```
-
-Default `recv` treats receipt as enough history for simple workflows.
-
-### Durable receive
+### Claim And Complete
 
 ```text
 inbox -> processing -> processed
-                 \-> inbox   (retry/nack)
-                 \-> dead    (retry limit exceeded)
+                 \-> inbox   (retry)
+                 \-> dead    (nack or retry limit exceeded)
 ```
 
-Use `recv --require-ack` when the message should not be considered complete until the worker explicitly calls `ack`.
+`recv` always claims one matching message into `processing/`. Work is not complete until the worker explicitly calls `ack`; `retry` returns a claimed item to `inbox/`, and `nack` or exhausted stale recovery moves it to `dead/`.
+
+Reviewed historical inbox items may use the separate `ack-pending` reconciliation primitive, but that is an evidence-gated operator exception, not the default workflow.
 
 ## Priority Order
 
@@ -119,7 +113,7 @@ The CLI can set these optional refs when sending a message:
 
 ```bash
 awg send --from=lead --to=worker --kind=instruction --body="Review the change" --correlation-id=task-123 --work-id=work-456 --source-channel=work-intake --report-target=work-updates --repo=example/repo --workspace=repo-main
-awg recv --as=worker --require-ack --report-target=work-updates
+awg recv --as=worker --report-target=work-updates
 awg send --from=worker --to=lead --kind=status --body="done" --reply-to=<instruction-id> --correlation-id=task-123 --work-id=work-456 --parent-id=<instruction-id>
 ```
 

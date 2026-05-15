@@ -6,12 +6,12 @@ Worker helpers are optional execution paths. AWG users doing non-coding local, o
 
 ## Scripts
 
-- `scripts/awg-worker-loop.sh`: receive one message at a time with `recv --require-ack`, log it, and acknowledge it.
+- `scripts/awg-worker-loop.sh`: receive one message at a time with `recv`, log it, and acknowledge it.
 - `scripts/awg-worker-tmux.sh`: start, inspect, stop, or recover a bounded worker loop inside tmux.
 - `scripts/awg-safe-poll.sh`: inspect status and optionally requeue stale processing messages without consuming the inbox.
 - `scripts/awg-codex-worker-loop.sh`: run the executor bridge with the Codex adapter under manual bounded limits.
 - `scripts/awg-codex-worker-tmux.sh`: start, inspect, stop, or recover a bounded Codex worker loop inside tmux.
-- `scripts/awg-worker-state-report.sh`: print a read-only worker state and claim-readiness snapshot for one role.
+- `scripts/awg-worker-state-report.sh`: print a read-only worker state and readiness snapshot for one role.
 
 All scripts use `AWG_ROOT` and `awg --root`. If `AWG_ROOT` is unset, they use `.agent-working-group` under the current directory.
 
@@ -59,7 +59,7 @@ When an operator or chat session handles a queued item directly instead of throu
 - acknowledge the specific inbox item through `scripts/awg-reconcile-ack-pending.sh` with a PR, close report, or audit artifact as evidence, or
 - leave it pending intentionally and record why it still needs a worker or reviewer.
 
-Do not rely on chat replies, PR comments, or human memory to clear queue state. If work was completed outside `recv --require-ack`, the corresponding inbox item remains pending until a reviewed `ack-pending` reconciliation moves it to `processed/`.
+Do not rely on chat replies, PR comments, or human memory to clear queue state. If work was completed outside `recv`, the corresponding inbox item remains pending until a reviewed `ack-pending` reconciliation moves it to `processed/`.
 
 ## Bounded Default
 
@@ -148,7 +148,7 @@ Rules:
 
 ## Worker State Report
 
-Use `scripts/awg-worker-state-report.sh --role <role>` when an operator needs a read-only claim-readiness snapshot before starting or assigning work. The helper observes one role with non-consuming commands (`status`, `peek`, `processing`, and `dead`) and prints counts, message summaries, and one advisory category.
+Use `scripts/awg-worker-state-report.sh --role <role>` when an operator needs a read-only readiness snapshot before starting or assigning work. The helper observes one role with non-consuming commands (`status`, `peek`, `processing`, and `dead`) and prints counts, message summaries, and one advisory category.
 
 Advisory categories:
 

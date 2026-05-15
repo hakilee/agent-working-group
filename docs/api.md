@@ -21,7 +21,7 @@ MessageQueue(root=None)
 
 - `initialize(agents=())`: create queue directories and `log/messages.jsonl`.
 - `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, work_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: send a JSON message and return its UUID.
-- `receive(agent, timeout=None, require_ack=False, report_target=None) -> dict | None`: receive one matching message. Returns `None` on timeout.
+- `receive(agent, timeout=None, report_target=None) -> dict | None`: claim one matching inbox message into `processing/`. Returns `None` on timeout.
 - `ack(agent, message_id) -> str`: acknowledge a message from `processing/`.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None) -> str`: acknowledge one reviewed inbox message by id without using `recv`.
 - `retry(agent, message_id) -> str`: requeue a message from `processing/` or `processed/`.

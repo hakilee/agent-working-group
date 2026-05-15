@@ -7,7 +7,7 @@ class TimeoutCheckerTests(QueueTestCase):
     def test_stale_processing_reports_items_past_timeout(self):
         queue, root = self.with_queue()
         message_id = queue.send("lead", "worker", "instruction", "stale me")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
 
         # Pretend "now" is well past the timeout window.
         future_now = time.time() + 7200
@@ -22,7 +22,7 @@ class TimeoutCheckerTests(QueueTestCase):
     def test_stale_processing_returns_empty_when_fresh(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "instruction", "fresh")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
 
         checker = TimeoutChecker(root)
         self.assertEqual(checker.stale_processing(timeout_seconds=600), [])
@@ -30,7 +30,7 @@ class TimeoutCheckerTests(QueueTestCase):
     def test_stale_processing_uses_processing_since_field_when_present(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "instruction", "with explicit ts")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
         processing_dir = root / "queues" / "worker" / "processing"
         path = next(processing_dir.glob("*.json"))
         message = json.loads(path.read_text(encoding="utf-8"))
@@ -47,7 +47,7 @@ class TimeoutCheckerTests(QueueTestCase):
     def test_to_dict_shape(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "instruction", "shape")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
         checker = TimeoutChecker(root, now=time.time() + 10000)
         stale = checker.stale_processing(timeout_seconds=60)
         self.assertEqual(len(stale), 1)
@@ -60,7 +60,7 @@ class TimeoutCheckerTests(QueueTestCase):
     def test_processing_timeout_check_script_exits_zero_when_fresh(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "instruction", "fresh")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
         project_root = Path(__file__).resolve().parents[1]
         result = subprocess.run(
             [str(project_root / "scripts" / "awg-processing-timeout-check.sh")],
@@ -76,7 +76,7 @@ class TimeoutCheckerTests(QueueTestCase):
     def test_processing_timeout_check_script_exits_one_when_stale(self):
         queue, root = self.with_queue()
         queue.send("lead", "worker", "instruction", "stale")
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
         # Sleep briefly so age >= 1s, then use timeout=0 to flag it.
         time.sleep(1.5)
         project_root = Path(__file__).resolve().parents[1]
@@ -133,7 +133,7 @@ class ResponseContractTests(QueueTestCase):
             "lead", "worker", "instruction", "moves to processing",
             expected_response_within=60,
         )
-        queue.receive("worker", timeout=0, require_ack=True)
+        queue.receive("worker", timeout=0)
         checker = TimeoutChecker(root, now=time.time() + 3600)
         breaches = checker.response_contract_breaches()
         self.assertEqual(len(breaches), 1)

@@ -11,7 +11,7 @@ The package is designed around a practical working pattern: a lead decomposes wo
 - **File-backed queues:** each agent has `inbox/`, `processing/`, `processed/`, and `dead/` directories.
 - **Atomic delivery:** messages are written to `tmp/` and moved into the recipient inbox.
 - **Prioritized messages:** `blocker` outranks `question`, then `answer`, `instruction`, `status`, and `note`.
-- **Explicit accountability:** `recv --require-ack` moves a message into `processing/`; `ack` finalizes it.
+- **Explicit accountability:** `recv` moves a message into `processing/`; `ack` finalizes it.
 - **Retry and dead letters:** stale unacked messages can be requeued or moved to `dead/` after retry limits.
 - **Inspectable operations:** `peek`, `status`, `processing`, `processed`, `dead`, and `log` expose state.
 - **No daemon required:** the CLI can be run manually, by agents, or from cron/watchdog jobs.
@@ -41,7 +41,7 @@ export AWG_ROOT=/tmp/awg-demo
 awg init
 
 awg send --from=lead --to=worker --kind=instruction --body="Inspect the repository and report risks."
-awg recv --as=worker --require-ack
+awg recv --as=worker
 awg ack --as=worker --id=<message-id>
 
 awg send --from=worker --to=lead --kind=status --body="done: risk report written"
@@ -58,7 +58,7 @@ queue = MessageQueue("/tmp/awg-demo")
 queue.initialize(["lead", "worker"])
 
 message_id = queue.send("lead", "worker", "instruction", "Write a short report.")
-message = queue.receive("worker", timeout=30, require_ack=True)
+message = queue.receive("worker", timeout=30)
 if message is None:
     raise TimeoutError("worker inbox was empty")
 
@@ -70,7 +70,7 @@ Primary methods:
 
 - `initialize(agents)`: create queue directories and log files.
 - `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: send a message and return its id; optional metadata is stored only under `refs`.
-- `receive(agent, timeout=None, require_ack=False) -> dict | None`: receive one message, or `None` on timeout.
+- `receive(agent, timeout=None) -> dict | None`: claim one inbox message into `processing/`, or return `None` on timeout.
 - `ack(agent, message_id)`: move a `processing/` message to `processed/`.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None)`: explicitly acknowledge one reviewed inbox message by id.
 - `retry(agent, message_id)`: requeue a message from `processing/` or `processed/`.
@@ -87,7 +87,7 @@ For the full Python surface, see [Python API Reference](docs/api.md).
 awg init
 awg send --from=lead --to=worker --kind=instruction --body="Do one clear task."
 awg send --from=lead --to=worker --kind=instruction --body="Notify then inspect." --dispatch-hooks
-awg recv --as=worker --timeout=120 --require-ack
+awg recv --as=worker --timeout=120
 awg ack --as=worker --id=<message-id>
 awg ack-pending --as=worker --id=<message-id> --expect-kind=instruction
 awg retry --as=worker --id=<message-id>
@@ -149,8 +149,8 @@ Each message is a JSON object:
 ```text
 <AWG_ROOT>/
   queues/<agent>/inbox/       # pending messages
-  queues/<agent>/processing/  # received with --require-ack, not yet acknowledged
-  queues/<agent>/processed/   # completed or non-ack receive history
+  queues/<agent>/processing/  # active after recv, not yet acknowledged
+  queues/<agent>/processed/   # completed/acknowledged history
   queues/<agent>/dead/        # retry limit exceeded
   log/messages.jsonl          # append-only sent-message log
   log/pruned/                 # archived processed messages and pruned log lines
@@ -162,7 +162,7 @@ Each message is a JSON object:
 A practical two-agent loop:
 
 1. Lead sends one `instruction` to a worker.
-2. Worker receives with `--require-ack`, starts work, and sends `status`.
+2. Worker receives with `recv`, which claims the message into `processing/`, then starts work and sends `status`.
 3. Worker asks `question` if blocked by missing information.
 4. Lead answers with `answer --reply-to=<question-id>`.
 5. Worker sends `status` with deliverables and verification.

@@ -215,7 +215,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
 
             processing_queue, processing_root = self.with_queue()
             processing_id = processing_queue.send("lead", "worker", "question", "processing item")
-            processing_queue.receive("worker", timeout=0, require_ack=True)
+            processing_queue.receive("worker", timeout=0)
             before = processing_queue.status("worker")
             processing_result = run_report(processing_root)
             after = processing_queue.status("worker")
@@ -226,7 +226,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
 
             dead_queue, dead_root = self.with_queue()
             dead_id = dead_queue.send("lead", "worker", "blocker", "dead item")
-            dead_queue.receive("worker", timeout=0, require_ack=True)
+            dead_queue.receive("worker", timeout=0)
             dead_queue.requeue_stale("worker", older_than_sec=-1, max_retries=0)
             before = dead_queue.status("worker")
             dead_result = run_report(dead_root)

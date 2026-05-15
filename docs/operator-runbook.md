@@ -67,10 +67,10 @@ Split queues by repository or workstream when substantial concurrent work needs 
 ## Manual Lead And Reviewer Loop
 
 1. Lead creates a bounded task spec and sends it as an `instruction`.
-2. Reviewer receives with `recv --require-ack` only when ready to own that message.
+2. Reviewer receives with `recv` only when ready to own that message.
 3. Reviewer returns `status`, `question`, `blocker`, or a review result with concrete evidence.
 4. Lead verifies the result independently before closing or publishing.
-5. Reviewer or lead acknowledges completed work with `ack` after `recv --require-ack`.
+5. Reviewer or lead acknowledges completed work with `ack` after `recv`.
 6. For reviewed historical inbox items, use `ack-pending` only with explicit per-item evidence and expected metadata.
 
 ## Bounded Worker Scripts

@@ -81,7 +81,7 @@ The helper is advisory and stdout-only. It does not decide whether independent a
 
 ## Worker Responsibilities
 
-Workers should receive durable tasks with `recv --require-ack`. The message should remain in `processing` until the task is complete, intentionally superseded, or moved by the retry/dead-letter policy.
+Workers should receive durable tasks with `recv`. The message should remain in `processing` until the task is complete, intentionally superseded, or moved by the retry/dead-letter policy.
 
 Use these outcomes:
 

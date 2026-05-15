@@ -8,7 +8,7 @@ Pre-PR implementation QA is useful evidence, but it is not a substitute for the 
 
 1. Lead opens or identifies a pull request.
 2. Lead sends an AWG `instruction` to a reviewer using the [PR Review Request Template](templates/pr-review-request.md).
-3. Reviewer receives the instruction with `recv --require-ack` and writes the full QA result to a file in a neutral ops workspace or AWG `status`.
+3. Reviewer receives the instruction with `recv` and writes the full QA result to a file in a neutral ops workspace or AWG `status`.
 4. Lead verifies any required fixes or conditions.
 5. Lead posts a concise public-safe summary to the pull request using the [PR Review Result Comment Template](templates/pr-review-result-comment.md).
 6. Lead records `PR review gate: fulfilled` with the PR evidence comment URL in the close report.

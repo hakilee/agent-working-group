@@ -65,7 +65,7 @@ while true; do
   tmp_msg="${tmp_base}.json"
   mv "$tmp_base" "$tmp_msg"
 
-  recv_args=(--root "$AWG_ROOT" recv --as "$WORKER" --require-ack --timeout "$RECV_TIMEOUT")
+  recv_args=(--root "$AWG_ROOT" recv --as "$WORKER" --timeout "$RECV_TIMEOUT")
   if [[ -n "$AWG_REPORT_TARGET" ]]; then
     recv_args+=(--report-target "$AWG_REPORT_TARGET")
   fi
