@@ -37,6 +37,20 @@ PRIORITIES = {
 }
 
 
+DEFAULT_ROLE_REGISTRY = {
+    "version": 1,
+    "roles": {
+        "lead": {"description": "scope, assignment, close"},
+        "worker": {"description": "implementation or artifact production"},
+        "reviewer": {"description": "independent verification"},
+        "observer": {"description": "read-only monitoring"},
+    },
+    "aliases": {},
+}
+
+ROLE_REGISTRY_NAME = "roles.json"
+
+
 def default_root() -> Path:
     return Path(os.environ.get("AWG_ROOT", Path.cwd() / ".agent-working-group")).expanduser()
 
@@ -142,6 +156,70 @@ class MessageQueue:
     def __init__(self, root: object = None):
         self.root = Path(root).expanduser() if root else default_root()
 
+    def role_registry_path(self) -> Path:
+        return self.root / ROLE_REGISTRY_NAME
+
+    def role_registry_exists(self) -> bool:
+        return self.role_registry_path().is_file()
+
+    def load_role_registry(self) -> dict:
+        path = self.role_registry_path()
+        if not path.is_file():
+            return {}
+        registry = read_json(path)
+        roles = registry.get("roles") or {}
+        aliases = registry.get("aliases") or {}
+        if not isinstance(roles, dict):
+            raise ValueError("roles.json roles must be an object")
+        if not isinstance(aliases, dict):
+            raise ValueError("roles.json aliases must be an object")
+        for role in roles:
+            _validate_role(role, "role")
+        for alias, target in aliases.items():
+            _validate_role(str(alias), "role alias")
+            _validate_role(str(target), "role alias target")
+            if str(target) not in roles:
+                raise ValueError(f"roles.json alias {alias!r} targets unknown role {target!r}")
+        return registry
+
+    def initialize_default_roles(self) -> dict:
+        self.initialize(DEFAULT_ROLE_REGISTRY["roles"].keys())
+        path = self.role_registry_path()
+        if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            write_json(path, DEFAULT_ROLE_REGISTRY)
+        return self.load_role_registry()
+
+    def roles(self) -> dict:
+        registry = self.load_role_registry()
+        if not registry:
+            return {"enabled": False, "roles": {}, "aliases": {}}
+        return {
+            "enabled": True,
+            "roles": registry.get("roles") or {},
+            "aliases": registry.get("aliases") or {},
+        }
+
+    def validate_recipient_role(self, name: str, allow_unregistered: bool = False) -> tuple[str, dict]:
+        role = _validate_role(name, "recipient")
+        registry = self.load_role_registry()
+        if not registry:
+            return role, {}
+        roles = registry.get("roles") or {}
+        aliases = registry.get("aliases") or {}
+        if role in roles:
+            return role, {}
+        if role in aliases:
+            return role, {
+                "alias": role,
+                "targetRole": str(aliases[role]),
+                "mode": "warn-only",
+            }
+        if allow_unregistered:
+            return role, {"unregisteredRole": role}
+        valid = sorted(set(roles) | set(aliases))
+        raise ValueError(f"unknown recipient: {role!r} (not in roles.json; use --allow-unregistered-role to override; valid: {', '.join(valid)})")
+
     def paths(self, agent: str) -> QueuePaths:
         _validate_role(agent)
         base = self.root / "queues" / agent
@@ -193,9 +271,12 @@ class MessageQueue:
         repo: object = None,
         workspace: object = None,
         expected_response_within: object = None,
+        allow_unregistered_role: bool = False,
     ) -> str:
         if kind not in PRIORITIES:
             raise ValueError(f"unknown kind: {kind}")
+        sender = _validate_role(sender, "sender")
+        recipient, recipient_warning = self.validate_recipient_role(recipient, allow_unregistered_role)
         self.initialize([recipient])
         message_id = str(uuid.uuid4())
         created_ms = now_ms()
@@ -217,6 +298,8 @@ class MessageQueue:
             refs["repo"] = repo
         if workspace:
             refs["workspace"] = workspace
+        if recipient_warning:
+            refs["recipientRoleWarning"] = recipient_warning
         message = {
             "id": message_id,
             "kind": kind,

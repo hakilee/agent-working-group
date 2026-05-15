@@ -4,13 +4,39 @@ This document describes the reusable coordination protocol behind Agent Working 
 
 ## Roles
 
-The protocol does not require fixed names. Common roles are:
+AWG queue routing should use stable role names. The default roles are:
 
 - **Lead:** decomposes work, assigns one task at a time, verifies outputs, and resolves blockers.
 - **Worker:** receives instructions, reports progress, asks questions, produces deliverables, and acknowledges completed work.
-- **Observer:** receives final reports or audit events.
+- **Reviewer:** independently verifies outputs, reports findings, and records PASS/CONDITIONAL PASS/FAIL evidence.
+- **Observer:** receives final reports or audit events without consuming work.
 
 Agents are identified by queue names such as `lead`, `worker`, `reviewer`, or `observer`. Prefer role-based queue names in `from` and `to` fields. Personal agent names, chat handles, or human names belong in message body attribution or external notifications, not queue routing.
+
+### Role Registry
+
+`awg init --default-roles` creates the canonical role queues and a local `roles.json` registry under the AWG root. `awg roles` prints the configured roles and aliases.
+
+When `roles.json` exists, `awg send` validates `--to` against the registry. Unknown recipients fail closed unless the sender explicitly passes `--allow-unregistered-role`. Sender names remain attribution in this phase and are only syntax-checked. This keeps accidental new destination queues visible without breaking existing sender identity conventions.
+
+Aliases can map local personal or tool names to stable role queues. For example, a site-local alias may map a specific reviewer handle to `reviewer`. In the first rollout phase aliases are warn-only: the message is still delivered to the requested queue, and `refs.recipientRoleWarning` records the alias, target role, and `warn-only` mode for audit. This avoids silently moving work away from existing person-named queue pollers during migration.
+
+```json
+{
+  "version": 1,
+  "roles": {
+    "lead": {"description": "scope, assignment, close"},
+    "worker": {"description": "implementation or artifact production"},
+    "reviewer": {"description": "independent verification"},
+    "observer": {"description": "read-only monitoring"}
+  },
+  "aliases": {
+    "local-reviewer-handle": "reviewer"
+  }
+}
+```
+
+Existing queue roots without `roles.json` keep the historical free-form queue behavior for backward compatibility. The registry is routing hygiene, not a permission system; lifecycle authority still comes from queue files and explicit queue commands.
 
 ## Message Lifecycle
 
