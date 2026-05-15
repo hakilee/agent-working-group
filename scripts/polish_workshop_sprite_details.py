@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Apply small, deterministic Workshop sprite detail passes.
 
-The checked-in assets start from the MIT pixel-agents pack, then this script
-adds Workshop-specific clarity fixes that are easier to review than hand-edited
-binary PNG diffs. Keep the pass conservative: preserve dimensions, palette
-identity, nearest-neighbor pixel art, and transparency.
+Apply Workshop-specific clarity fixes that are easier to review than
+hand-edited binary PNG diffs. Keep the pass conservative: preserve dimensions,
+palette identity, nearest-neighbor pixel art, and transparency.
 """
 
 from __future__ import annotations

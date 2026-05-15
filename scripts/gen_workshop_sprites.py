@@ -1,22 +1,17 @@
 #!/usr/bin/env python3
 """
-Maintain the Workshop pixel sprite pack without accidentally degrading it.
+Maintain the Workshop sprite pack without accidentally degrading it.
 
-The Workshop dashboard intentionally uses the polished MIT-licensed pixel-agents
-asset pack as its baseline. This script used to procedurally regenerate rough
-placeholder sprites; that made it too easy to overwrite the production-quality
-art with crude generated art. It now validates the checked-in assets and can
-optionally sync from a local pixel-agents checkout when an explicit source is
-provided.
+This script validates the checked-in Workshop assets and can emit an optional
+contact sheet for review. It intentionally does not sync from upstream asset
+packs; checked-in assets are the source of truth.
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import os
 import subprocess
-import shutil
 import sys
 from pathlib import Path
 
@@ -24,35 +19,7 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "dashboard" / "public" / "assets"
-ARTIFACTS = ROOT / "artifacts"
-
-POLISHED_ASSET_OVERRIDES = {
-    # Workshop-specific detail pass layered on top of pixel-agents: true side
-    # profile characters and clearer side-view office props.
-    "characters/char_0.png",
-    "characters/char_1.png",
-    "characters/char_2.png",
-    "characters/char_3.png",
-    "characters/char_4.png",
-    "characters/char_5.png",
-    "furniture/COFFEE/COFFEE.png",
-    "furniture/DESK/DESK_SIDE.png",
-    "furniture/PC/PC_SIDE.png",
-    "furniture/POT/POT.png",
-    "furniture/SMALL_PAINTING/SMALL_PAINTING.png",
-    "furniture/LARGE_PAINTING/LARGE_PAINTING.png",
-    "furniture/SMALL_TABLE/SMALL_TABLE_SIDE.png",
-    "walls/wall_0.png",
-    "floors/floor_0.png",
-    "floors/floor_1.png",
-    "floors/floor_2.png",
-    "floors/floor_3.png",
-    "floors/floor_4.png",
-    "floors/floor_5.png",
-    "floors/floor_6.png",
-    "floors/floor_7.png",
-    "floors/floor_8.png",
-}
+LOGS = ROOT / ".logs"
 
 EXPECTED_DIMENSIONS = {
     "walls/wall_0.png": (64, 128),
@@ -125,10 +92,6 @@ REQUIRED_ASSETS = [
 ]
 
 
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def apply_workshop_polish() -> None:
     subprocess.run(
         [sys.executable, os.fspath(ROOT / "scripts" / "polish_workshop_sprite_details.py")],
@@ -137,19 +100,7 @@ def apply_workshop_polish() -> None:
     )
 
 
-def sync_from_pixel_agents(source_assets: Path) -> None:
-    missing = [rel for rel in REQUIRED_ASSETS if not (source_assets / rel).exists()]
-    if missing:
-        raise SystemExit("source asset pack is missing required files:\n" + "\n".join(missing))
-
-    for rel in REQUIRED_ASSETS:
-        src = source_assets / rel
-        dst = ASSETS / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dst)
-
-
-def validate_assets(reference_assets: Path | None = None) -> list[str]:
+def validate_assets() -> list[str]:
     errors: list[str] = []
     for rel in REQUIRED_ASSETS:
         path = ASSETS / rel
@@ -169,12 +120,6 @@ def validate_assets(reference_assets: Path | None = None) -> list[str]:
                 if image.size != expected_size:
                     errors.append(f"unexpected dimensions: {rel}: {image.size} != {expected_size}")
 
-        if reference_assets is not None:
-            ref = reference_assets / rel
-            if not ref.exists():
-                errors.append(f"missing reference: {rel}")
-            elif rel not in POLISHED_ASSET_OVERRIDES and sha256(path) != sha256(ref):
-                errors.append(f"differs from reference: {rel}")
     return errors
 
 
@@ -203,36 +148,23 @@ def make_contact_sheet(output: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--sync-from",
-        type=Path,
-        help="Local pixel-agents webview-ui/public/assets directory to copy from.",
-    )
-    parser.add_argument(
-        "--reference",
-        type=Path,
-        help="Optional asset directory to compare byte-for-byte against.",
-    )
-    parser.add_argument(
         "--contact-sheet",
         type=Path,
-        default=ARTIFACTS / "workshop-sprite-contact-sheet.png",
+        default=LOGS / "workshop-sprite-contact-sheet.png",
         help="Preview sheet path to write after validation.",
     )
     args = parser.parse_args()
 
-    if args.sync_from:
-        sync_from_pixel_agents(args.sync_from)
-
     apply_workshop_polish()
 
-    errors = validate_assets(args.reference)
+    errors = validate_assets()
     if errors:
         print("Workshop sprite asset validation failed:", file=sys.stderr)
         print("\n".join(errors), file=sys.stderr)
         return 1
 
     make_contact_sheet(args.contact_sheet)
-    print(f"validated {len(REQUIRED_ASSETS)} Workshop pixel sprites")
+    print(f"validated {len(REQUIRED_ASSETS)} Workshop sprites")
     print(f"contact sheet: {os.fspath(args.contact_sheet)}")
     return 0
 
