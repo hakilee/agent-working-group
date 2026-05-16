@@ -11,7 +11,7 @@ Agent Working Group(AWG)은 작은 에이전트 팀과 로컬 운영자를 위�
 - **파일 기반 큐:** 각 에이전트는 `inbox/`, `processing/`, `processed/`, `dead/` 디렉터리를 가집니다.
 - **원자적 전달:** 메시지는 `tmp/`에 쓰인 뒤 수신자 inbox로 이동됩니다.
 - **우선순위 메시지:** `blocker`가 가장 높고, 그 다음은 `question`, `answer`, `instruction`, `status`, `note`입니다.
-- **명시적 책임:** `recv --require-ack`는 메시지를 `processing/`으로 옮기고, `ack`가 완료 처리합니다.
+- **명시적 책임:** `recv`는 메시지를 `processing/`으로 옮기고, `ack`가 완료 처리합니다.
 - **Retry와 dead letters:** ack되지 않은 stale 메시지는 재큐잉하거나 retry 한도를 넘으면 `dead/`로 이동할 수 있습니다.
 - **검사 가능한 운영:** `peek`, `status`, `processing`, `processed`, `dead`, `log`로 상태를 확인합니다.
 - **데몬 불필요:** CLI는 수동으로, 에이전트가, 또는 cron/watchdog job에서 실행할 수 있습니다.
@@ -38,10 +38,10 @@ PYTHONPATH=src python3 -m agent_working_group.cli --help
 
 ```bash
 export AWG_ROOT=/tmp/awg-demo
-awg init --agent lead --agent worker
+awg init
 
 awg send --from=lead --to=worker --kind=instruction --body="Inspect the repository and report risks."
-awg recv --as=worker --require-ack
+awg recv --as=worker
 awg ack --as=worker --id=<message-id>
 
 awg send --from=worker --to=lead --kind=status --body="done: risk report written"
@@ -56,8 +56,14 @@ from agent_working_group import MessageQueue
 queue = MessageQueue("/tmp/awg-demo")
 queue.initialize(["lead", "worker"])
 
-message_id = queue.send("lead", "worker", "instruction", "Write a short report.")
-message = queue.receive("worker", timeout=30, require_ack=True)
+message_id = queue.send(
+    "lead",
+    "worker",
+    "instruction",
+    "Write a short report.",
+    report_target="work-updates",
+)
+message = queue.receive("worker", timeout=30, report_target="work-updates")
 if message is None:
     raise TimeoutError("worker inbox was empty")
 
@@ -68,13 +74,14 @@ status = queue.status("worker", tz="Asia/Seoul")
 주요 메서드:
 
 - `initialize(agents)`: 큐 디렉터리와 로그 파일을 만듭니다.
+- `initialize_default_roles()`, `roles()`: CLI가 사용하는 고정 role registry를 만들거나 확인합니다.
 - `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: 메시지를 보내고 id를 반환합니다. 선택 metadata는 `refs` 아래에만 저장됩니다.
-- `receive(agent, timeout=None, require_ack=False) -> dict | None`: 메시지 하나를 받거나 timeout 시 `None`을 반환합니다.
+- `receive(agent, timeout=None, report_target=None) -> dict | None`: matching inbox 메시지 하나를 `processing/`으로 claim하거나 timeout 시 `None`을 반환합니다.
 - `ack(agent, message_id)`: `processing/` 메시지를 `processed/`로 이동합니다.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None)`: 검토된 inbox 메시지 하나를 id로 명시적으로 acknowledge합니다.
 - `retry(agent, message_id)`: `processing/` 또는 `processed/` 메시지를 다시 큐에 넣습니다.
 - `requeue_stale(agent, older_than_sec=300, max_retries=None)`: stale unacked 메시지를 재큐잉하거나 `dead/`로 이동합니다.
-- `status(agent, tz="UTC")`, `peek(agent)`, `pending(agent)`, `processing(agent)`, `processed(agent)`, `dead(agent)`, `log_lines(tz="UTC")`: 큐 상태를 확인합니다.
+- `status(agent, tz="UTC")`, `peek(agent)`, `pending(agent)`, `processing(agent)`, `processed(agent)`, `dead(agent)`, `work_items(agent=None, report_target=None, tz="UTC")`, `log_lines(tz="UTC")`: 큐 상태를 mutation 없이 확인합니다.
 - `prune(agent=None, processed_keep=1000, include_processing=False, processing_keep=100, log_keep_lines=None, dry_run=False)`: 오래된 큐/로그 데이터를 archive합니다.
 - `cleanup_artifacts(dry_run=True, temp_file_min_age_sec=3600, stale_lock_min_age_sec=600)`: queue JSON을 건드리지 않고 생성된 worker clutter를 정리합니다.
 
@@ -83,10 +90,11 @@ status = queue.status("worker", tz="Asia/Seoul")
 ## CLI 개요
 
 ```bash
-awg init --agent lead --agent worker
+awg init
+awg roles
 awg send --from=lead --to=worker --kind=instruction --body="Do one clear task."
 awg send --from=lead --to=worker --kind=instruction --body="Notify then inspect." --dispatch-hooks
-awg recv --as=worker --timeout=120 --require-ack
+awg recv --as=worker --timeout=120
 awg ack --as=worker --id=<message-id>
 awg ack-pending --as=worker --id=<message-id> --expect-kind=instruction
 awg retry --as=worker --id=<message-id>
@@ -98,10 +106,15 @@ awg processing --as=worker --limit=5
 awg processed --as=worker --limit=5 --tz=Asia/Seoul
 awg dead --as=worker --limit=5
 awg status --as=worker --tz=Asia/Seoul
+awg work-items --as=worker --report-target=work-updates
 awg dispatch-hooks --event message.pending --as=worker --dry-run
 awg prune --as=worker --processed-keep=100 --include-processing --processing-keep=20 --log-keep-lines=1000 --dry-run
 awg cleanup-artifacts --dry-run
 scripts/awg-queue-reconciliation-report.sh --role worker
+awg worker-heartbeat-write --agent worker --session tmux-worker-1
+awg heartbeat-monitor --timeout-seconds=300
+awg processing-timeout-monitor --timeout-seconds=600
+awg response-contract-monitor
 awg log --tz=Asia/Seoul
 ```
 
@@ -148,8 +161,8 @@ awg log --tz=Asia/Seoul
 ```text
 <AWG_ROOT>/
   queues/<agent>/inbox/       # pending messages
-  queues/<agent>/processing/  # --require-ack로 받은 뒤 아직 acknowledge되지 않은 메시지
-  queues/<agent>/processed/   # completed 또는 non-ack receive history
+  queues/<agent>/processing/  # recv로 claim된 뒤 아직 acknowledge되지 않은 메시지
+  queues/<agent>/processed/   # completed/acknowledged history
   queues/<agent>/dead/        # retry limit exceeded
   log/messages.jsonl          # append-only sent-message log
   log/pruned/                 # archived processed messages and pruned log lines
@@ -161,7 +174,7 @@ awg log --tz=Asia/Seoul
 간단한 two-agent loop:
 
 1. Lead가 worker에게 `instruction` 하나를 보냅니다.
-2. Worker는 `--require-ack`로 받고 작업을 시작한 뒤 `status`를 보냅니다.
+2. Worker는 `recv`로 메시지를 claim하고 작업을 시작한 뒤 `status`를 보냅니다.
 3. Worker는 정보가 부족해 막히면 `question`을 보냅니다.
 4. Lead는 `answer --reply-to=<question-id>`로 답합니다.
 5. Worker는 deliverable과 verification을 담아 `status`를 보냅니다.
@@ -191,7 +204,7 @@ awg log --tz=Asia/Seoul
 
 ```bash
 export AWG_ROOT=.agent-working-group
-export WORKER=claude-worker
+export WORKER=worker
 export LEAD=lead
 export AGENT=claude              # primary; "codex" is also supported
 export AWG_FALLBACK=1            # 1 = enable cross-agent fallback
