@@ -57,8 +57,14 @@ from agent_working_group import MessageQueue
 queue = MessageQueue("/tmp/awg-demo")
 queue.initialize(["lead", "worker"])
 
-message_id = queue.send("lead", "worker", "instruction", "Write a short report.")
-message = queue.receive("worker", timeout=30)
+message_id = queue.send(
+    "lead",
+    "worker",
+    "instruction",
+    "Write a short report.",
+    report_target="work-updates",
+)
+message = queue.receive("worker", timeout=30, report_target="work-updates")
 if message is None:
     raise TimeoutError("worker inbox was empty")
 
@@ -69,13 +75,14 @@ status = queue.status("worker", tz="Asia/Seoul")
 Primary methods:
 
 - `initialize(agents)`: create queue directories and log files.
+- `initialize_default_roles()`, `roles()`: create or inspect the fixed role registry used by the CLI.
 - `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: send a message and return its id; optional metadata is stored only under `refs`.
-- `receive(agent, timeout=None) -> dict | None`: claim one inbox message into `processing/`, or return `None` on timeout.
+- `receive(agent, timeout=None, report_target=None) -> dict | None`: claim one matching inbox message into `processing/`, or return `None` on timeout.
 - `ack(agent, message_id)`: move a `processing/` message to `processed/`.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None)`: explicitly acknowledge one reviewed inbox message by id.
 - `retry(agent, message_id)`: requeue a message from `processing/` or `processed/`.
 - `requeue_stale(agent, older_than_sec=300, max_retries=None)`: requeue stale unacked messages or move them to `dead/`.
-- `status(agent, tz="UTC")`, `peek(agent)`, `pending(agent)`, `processing(agent)`, `processed(agent)`, `dead(agent)`, `log_lines(tz="UTC")`: inspect queue state.
+- `status(agent, tz="UTC")`, `peek(agent)`, `pending(agent)`, `processing(agent)`, `processed(agent)`, `dead(agent)`, `work_items(agent=None, report_target=None, tz="UTC")`, `log_lines(tz="UTC")`: inspect queue state without mutating work.
 - `prune(agent=None, processed_keep=1000, include_processing=False, processing_keep=100, log_keep_lines=None, dry_run=False)`: archive old queue/log data.
 - `cleanup_artifacts(dry_run=True, temp_file_min_age_sec=3600, stale_lock_min_age_sec=600)`: remove generated worker clutter without touching queue JSON.
 
@@ -85,6 +92,7 @@ For the full Python surface, see [Python API Reference](docs/api.md).
 
 ```bash
 awg init
+awg roles
 awg send --from=lead --to=worker --kind=instruction --body="Do one clear task."
 awg send --from=lead --to=worker --kind=instruction --body="Notify then inspect." --dispatch-hooks
 awg recv --as=worker --timeout=120
@@ -99,10 +107,15 @@ awg processing --as=worker --limit=5
 awg processed --as=worker --limit=5 --tz=Asia/Seoul
 awg dead --as=worker --limit=5
 awg status --as=worker --tz=Asia/Seoul
+awg work-items --as=worker --report-target=work-updates
 awg dispatch-hooks --event message.pending --as=worker --dry-run
 awg prune --as=worker --processed-keep=100 --include-processing --processing-keep=20 --log-keep-lines=1000 --dry-run
 awg cleanup-artifacts --dry-run
 scripts/awg-queue-reconciliation-report.sh --role worker
+awg worker-heartbeat-write --agent worker --session tmux-worker-1
+awg heartbeat-monitor --timeout-seconds=300
+awg processing-timeout-monitor --timeout-seconds=600
+awg response-contract-monitor
 awg log --tz=Asia/Seoul
 ```
 
