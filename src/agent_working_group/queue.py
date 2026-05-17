@@ -767,10 +767,15 @@ def find_message_file(directory: Path, message_id: str) -> Path | None:
     return matches[0] if matches else None
 
 
+def filename_message_token(path: Path) -> str:
+    parts = path.stem.split("_", 2)
+    return parts[2] if len(parts) == 3 else ""
+
+
 def find_message_files(directory: Path, message_id: str) -> list[Path]:
     matches: list[Path] = []
     for path in directory.glob("*.json"):
-        if message_id in path.name:
+        if filename_message_token(path) == message_id:
             matches.append(path)
             continue
         try:
