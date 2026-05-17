@@ -162,6 +162,21 @@ class QueueCoreTests(QueueTestCase):
             self.assertEqual(queue.status("worker")["pending"], 1)
             self.assertEqual(queue.status("worker")["processed"], 0)
 
+    def test_ack_accepts_filename_token_but_rejects_partial_substring_id(self):
+            queue, _ = self.with_queue()
+            message_id = queue.send("lead", "worker", "instruction", "do work")
+            queue.receive("worker", timeout=0)
+            processing_file = next(queue.paths("worker").processing.glob("*.json"))
+            filename_token = processing_file.stem.split("_", 2)[2]
+
+            with self.assertRaises(FileNotFoundError):
+                queue.ack("worker", filename_token[:4])
+
+            self.assertEqual(queue.status("worker")["processing"], 1)
+            queue.ack("worker", filename_token)
+            processed = queue.processed("worker", limit=1)
+            self.assertEqual(processed[0]["id"], message_id)
+
     def test_prune_archives_processed_and_log_lines(self):
             queue, root = self.with_queue()
             first = queue.send("lead", "worker", "note", "one")
