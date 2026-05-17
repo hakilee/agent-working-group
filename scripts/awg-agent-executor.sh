@@ -51,8 +51,13 @@ esac
 run_executor() {
   local executor=$1
   local name=$2
-  local result
-  result=$("$executor" "$MESSAGE_FILE" 2>&1) || true
+  local result err_file
+  err_file=$(mktemp "${TMPDIR:-/tmp}/awg-${name}.executor.err.XXXXXX")
+  result=$("$executor" "$MESSAGE_FILE" 2>"$err_file") || true
+  if [[ -s "$err_file" ]]; then
+    sed "s/^/[${name}] /" "$err_file" >&2 || true
+  fi
+  rm -f "$err_file"
   echo "$result"
 }
 

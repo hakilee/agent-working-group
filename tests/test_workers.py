@@ -950,6 +950,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
             fake_claude = fake_dir / "awg-claude-executor.sh"
             fake_claude.write_text(
                 "#!/bin/sh\n"
+                "echo 'transient claude warning' >&2\n"
                 "echo '{\"status\":\"retry\",\"summary\":\"claude rate limited (429): too many requests\"}'\n",
                 encoding="utf-8",
             )
@@ -994,6 +995,7 @@ class QueueWorkerExecutorTests(QueueTestCase):
             self.assertEqual(payload["status"], "success")
             self.assertIn("codex", payload["summary"])
             stderr_lower = result.stderr.lower()
+            self.assertIn("transient claude warning", stderr_lower)
             self.assertIn("rate limited", stderr_lower)
             self.assertIn("falling back", stderr_lower)
 
