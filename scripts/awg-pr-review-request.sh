@@ -69,6 +69,7 @@ PR_JSON=$("$GH_CLI" pr view "$PR" --repo "$REPO" --json number,title,url,headRef
 
 FILES=$("$GH_CLI" pr diff "$PR" --repo "$REPO" --name-only 2>/dev/null || true)
 CHECKS=$("$GH_CLI" pr checks "$PR" --repo "$REPO" 2>/dev/null || true)
+CORRELATION_REPO=${REPO//\//-}
 
 TMP_DIR="$AWG_ROOT/tmp/pr-review-request"
 mkdir -p "$TMP_DIR"
@@ -117,4 +118,4 @@ fi
   --body-file "$BODY_FILE" \
   --repo "$REPO" \
   --work-id "pr-$PR-review" \
-  --correlation-id "pr-review-$REPO-$PR"
+  --correlation-id "pr-review-$CORRELATION_REPO-$PR"

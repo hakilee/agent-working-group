@@ -210,9 +210,24 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn('--body-file "$BODY_FILE"', script)
             self.assertIn('--repo "$REPO"', script)
             self.assertIn('--work-id "pr-$PR-review"', script)
-            self.assertIn('--correlation-id "pr-review-$REPO-$PR"', script)
+            self.assertIn(r'CORRELATION_REPO=${REPO//\//-}', script)
+            correlation_line = next(line for line in script.splitlines() if line.startswith("CORRELATION_REPO="))
+            correlation_check = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    f'REPO="hakilee/agent-working-group"; {correlation_line}; printf "%s" "$CORRELATION_REPO"',
+                ],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            self.assertEqual("hakilee-agent-working-group", correlation_check.stdout)
+            self.assertIn('--correlation-id "pr-review-$CORRELATION_REPO-$PR"', script)
+            self.assertNotIn('--correlation-id "pr-review-$REPO-$PR"', script)
             self.assertNotIn('--body "$(cat "$BODY_FILE")"', script)
             self.assertIn("sets queue refs for `repo`, `workId`, and `correlationId`", content)
+            self.assertIn("normalizes repository slashes to dashes", content)
             self.assertIn("pr_review_gate=fulfilled", gate_script)
             self.assertIn("pr_review_gate=skipped", gate_script)
             combined_scripts = script + "\n" + gate_script
