@@ -60,6 +60,19 @@ Delivery order is priority descending, then creation time ascending.
 blocker > question > answer > instruction > status > note
 ```
 
+## Message Kinds
+
+`kind` is a closed queue contract, not a free-form label. Use one of the supported kinds below:
+
+- `blocker`: receiver cannot proceed without intervention.
+- `question`: receiver needs a specific answer before continuing.
+- `answer`: response to a prior `question`; include `replyTo` when possible.
+- `instruction`: scoped work request, review request, QA checklist, or handoff.
+- `status`: progress, completion, or result update.
+- `note`: low-priority observation or notification.
+
+For specialized work labels such as `review_request`, keep the queue `kind` as `instruction` and put the specialization in the message body, `refs.workId`, or `refs.correlationId`.
+
 ## Recommended Instruction Shape
 
 Substantive instructions should be queue-first: put the full task spec, constraints, exit criteria, and requested output in the AWG queue message. Chat should only announce that a queue item exists. For repository implementation work, the implementation workflow should stop at PR creation/update; PR review is a separate queue-first workflow. See [Queue-First Workflow](queue-first-workflow.md), [Task Spec Template](templates/task-spec.md), [Output And Publish Gate](output-publish-gate.md), [PR Review Gate](pr-review-gate.md), and [Reliable AWG Runtime](reliable-awg-runtime.md).
