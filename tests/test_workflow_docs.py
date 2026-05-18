@@ -530,6 +530,49 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
 
 
+
+    def test_python_api_docs_cover_message_kind_priorities(self):
+            project_root = Path(__file__).resolve().parents[1]
+            api = (project_root / "docs" / "api.md").read_text(encoding="utf-8")
+            queue_source = (project_root / "src" / "agent_working_group" / "queue.py").read_text(encoding="utf-8")
+
+            for enum_line in (
+                'BLOCKER = "blocker"',
+                'QUESTION = "question"',
+                'ANSWER = "answer"',
+                'INSTRUCTION = "instruction"',
+                'STATUS = "status"',
+                'NOTE = "note"',
+            ):
+                    self.assertIn(enum_line, queue_source)
+            for priority_line in (
+                "MessageKind.BLOCKER.value: 99",
+                "MessageKind.QUESTION.value: 70",
+                "MessageKind.ANSWER.value: 60",
+                "MessageKind.INSTRUCTION.value: 50",
+                "MessageKind.STATUS.value: 30",
+                "MessageKind.NOTE.value: 10",
+            ):
+                    self.assertIn(priority_line, queue_source)
+
+            self.assertIn("closed set of supported kind strings", api)
+            for row in (
+                "| `blocker` | 99 |",
+                "| `question` | 70 |",
+                "| `answer` | 60 |",
+                "| `instruction` | 50 |",
+                "| `status` | 30 |",
+                "| `note` | 10 |",
+            ):
+                    self.assertIn(row, api)
+            self.assertIn("do not invent new `kind` values", api)
+            self.assertIn("review requests", api)
+
+            self.assert_public_safe_content(api)
+            local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+            self.assertNotRegex(api, local_path_pattern)
+            self.assertNotRegex(api, r"[\uac00-\ud7af]")
+
     def test_python_api_docs_cover_role_and_work_item_methods(self):
             project_root = Path(__file__).resolve().parents[1]
             api = (project_root / "docs" / "api.md").read_text(encoding="utf-8")
