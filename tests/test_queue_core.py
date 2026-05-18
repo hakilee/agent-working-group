@@ -316,6 +316,69 @@ class QueueCoreTests(QueueTestCase):
             self.assertNotIn("repo", message)
             self.assertNotIn("workspace", message)
 
+    def test_cli_send_body_file_reads_multiline_body(self):
+            _, root = self.with_queue()
+            body_file = root / "review-request.md"
+            body_file.parent.mkdir(parents=True, exist_ok=True)
+            body_file.write_text("PR review request\n\n- check tests\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_working_group.cli",
+                    "--root",
+                    str(root),
+                    "send",
+                    "--from",
+                    "lead",
+                    "--to",
+                    "reviewer",
+                    "--kind",
+                    "instruction",
+                    "--body-file",
+                    str(body_file),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            message = MessageQueue(root).peek("reviewer")[0]
+            self.assertEqual(message["id"], result.stdout.strip())
+            self.assertEqual(message["body"], "PR review request\n\n- check tests\n")
+
+    def test_cli_send_body_file_dash_reads_stdin(self):
+            _, root = self.with_queue()
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_working_group.cli",
+                    "--root",
+                    str(root),
+                    "send",
+                    "--from",
+                    "lead",
+                    "--to",
+                    "reviewer",
+                    "--kind",
+                    "instruction",
+                    "--body-file",
+                    "-",
+                ],
+                input="stdin review request\n- one\n",
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            message = MessageQueue(root).peek("reviewer")[0]
+            self.assertEqual(message["id"], result.stdout.strip())
+            self.assertEqual(message["body"], "stdin review request\n- one\n")
+
     def test_cli_send_optional_correlation_and_source_flags_write_refs_only(self):
             _, root = self.with_queue()
             result = subprocess.run(
