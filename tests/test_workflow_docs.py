@@ -77,6 +77,14 @@ class QueueWorkflowDocsTests(QueueTestCase):
                 self.assertIn("queue: role=reviewer pending=1", text_run.stdout)
                 self.assertIn("artifacts:", text_run.stdout)
 
+    def test_protocol_documents_body_file_for_long_queue_specs(self):
+            project_root = Path(__file__).resolve().parents[1]
+            protocol = (project_root / "docs" / "protocol.md").read_text(encoding="utf-8")
+
+            self.assertIn("`--body-file <path>` / `--body-file -`", protocol)
+            self.assertIn("longer queue-first specs and review requests", protocol)
+            self.assertIn("--body-file=review-request.md", protocol)
+
     def test_protocol_documents_closed_message_kind_contract(self):
             project_root = Path(__file__).resolve().parents[1]
             protocol = (project_root / "docs" / "protocol.md").read_text(encoding="utf-8")
