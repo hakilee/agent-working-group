@@ -111,4 +111,4 @@ if [ "$DRY_RUN" = "1" ]; then
   exit 0
 fi
 
-"$AWG_CLI" --root "$AWG_ROOT" send --from "$LEAD" --to "$REVIEWER" --kind instruction --body "$(cat "$BODY_FILE")"
+"$AWG_CLI" --root "$AWG_ROOT" send --from "$LEAD" --to "$REVIEWER" --kind instruction --body-file "$BODY_FILE"
