@@ -20,6 +20,8 @@ MessageQueue(root=None)
 ### Core Methods
 
 - `initialize(agents=())`: create queue directories and `log/messages.jsonl`.
+- `initialize_default_roles() -> dict`: create the built-in role queue directories and return their descriptions.
+- `roles() -> dict`: inspect the built-in role registry without mutating queue state.
 - `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, work_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None, expected_response_within=None) -> str`: send a JSON message and return its UUID.
 - `receive(agent, timeout=None, report_target=None) -> dict | None`: claim one matching inbox message into `processing/`. Returns `None` on timeout.
 - `ack(agent, message_id) -> str`: acknowledge a message from `processing/`.
@@ -52,6 +54,7 @@ These fields are optional conventions. They do not change delivery order, priori
 - `processed(agent, limit=None, tz="UTC") -> list[dict]`: inspect processed messages.
 - `dead(agent, limit=None) -> list[dict]`: inspect dead-letter messages.
 - `status(agent, tz="UTC", report_target=None) -> dict`: summarize queue counts and timestamps.
+- `work_items(agent=None, report_target=None, tz="UTC") -> list[dict]`: read a grouped, Kanban-like view over existing queue files without mutating lifecycle state.
 - `log_lines(tz="UTC") -> list[str]`: read JSONL log lines.
 
 ### Maintenance
