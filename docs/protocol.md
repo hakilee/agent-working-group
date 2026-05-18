@@ -124,8 +124,10 @@ Use this metadata primarily for traceability. `refs.reportTarget` can also be us
 
 The CLI can set these optional refs when sending a message. Use `--body` for short inline messages, or `--body-file <path>` / `--body-file -` for longer queue-first specs and review requests.
 
+Response contracts are optional top-level message fields, not refs. `expectedResponseWithin` stores a positive integer seconds value set with `--expected-response-within`; timeout monitors use it as a soft SLA signal without changing queue ownership or message priority.
+
 ```bash
-awg send --from=lead --to=worker --kind=instruction --body="Review the change" --correlation-id=task-123 --work-id=work-456 --source-channel=work-intake --report-target=work-updates --repo=example/repo --workspace=repo-main
+awg send --from=lead --to=worker --kind=instruction --body="Review the change" --correlation-id=task-123 --work-id=work-456 --source-channel=work-intake --report-target=work-updates --repo=example/repo --workspace=repo-main --expected-response-within=600
 awg send --from=lead --to=reviewer --kind=instruction --body-file=review-request.md --correlation-id=task-123 --work-id=work-456
 awg recv --as=worker --report-target=work-updates
 awg send --from=worker --to=lead --kind=status --body="done" --reply-to=<instruction-id> --correlation-id=task-123 --work-id=work-456 --parent-id=<instruction-id>
