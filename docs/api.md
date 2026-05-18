@@ -26,7 +26,7 @@ MessageQueue(root=None)
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None) -> str`: acknowledge one reviewed inbox message by id without using `recv`.
 - `retry(agent, message_id) -> str`: requeue a message from `processing/` or `processed/`.
 - `nack(agent, message_id) -> str`: move a message from `processing/` to `dead/`.
-- `requeue_stale(agent, older_than_sec=300, max_retries=None) -> dict`: requeue stale processing messages or move them to `dead/` after retry limits.
+- `requeue_stale(agent, older_than_sec=300, max_retries=None) -> dict`: requeue stale processing messages or move them to `dead/` after retry limits. `max_retries=N` allows N requeues; the next stale retry moves the item to `dead/`.
 
 ### Optional Send Metadata
 
