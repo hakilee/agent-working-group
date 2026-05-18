@@ -108,4 +108,15 @@ For the full hook contract and config format, see [Queue Hooks](hooks.md).
 
 ## MessageKind and PRIORITIES
 
-`MessageKind` defines the supported kind strings. `PRIORITIES` maps kind strings to delivery priority.
+`MessageKind` defines the closed set of supported kind strings. `PRIORITIES` maps each kind string to its delivery priority; higher numbers are delivered first when messages are sorted by queue priority.
+
+| Kind | Priority | Typical use |
+| --- | ---: | --- |
+| `blocker` | 99 | Work cannot continue without a decision or external unblock. |
+| `question` | 70 | A request for information or a decision. |
+| `answer` | 60 | A response to a prior question. |
+| `instruction` | 50 | A task, QA request, review request, or operator instruction. |
+| `status` | 30 | Progress, result, or handoff status. |
+| `note` | 10 | Low-priority context or durable notes. |
+
+Specialized workflow labels should stay in the message body or `refs`; do not invent new `kind` values for labels such as review requests.
