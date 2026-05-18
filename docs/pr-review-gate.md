@@ -58,7 +58,7 @@ Never auto-merge or auto-approve from this workflow. Review comments are evidenc
 
 ## Helper Script
 
-`scripts/awg-pr-review-request.sh` is an optional helper for creating a queue-first PR review request. It reads pull request metadata with `gh`, collects a file list and check summary when available, and sends one AWG `instruction` to the reviewer.
+`scripts/awg-pr-review-request.sh` is an optional helper for creating a queue-first PR review request. It reads pull request metadata with `gh`, collects a file list and check summary when available, and sends one AWG `instruction` to the reviewer. The helper sets queue refs for `repo`, `workId`, and `correlationId` so review requests remain visible in `work-items` and later reconciliation.
 
 `scripts/awg-pr-publish-gate-check.sh` is a read-only pre-merge check. It verifies that a pull request has a public evidence comment containing review evidence markers, or that the operator supplied an explicit skip reason. It must not comment, review, approve, merge, checkout, build, test, or mutate queue state.
 

@@ -208,7 +208,11 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn(" pr checks ", script)
             self.assertIn("send --from", script)
             self.assertIn('--body-file "$BODY_FILE"', script)
+            self.assertIn('--repo "$REPO"', script)
+            self.assertIn('--work-id "pr-$PR-review"', script)
+            self.assertIn('--correlation-id "pr-review-$REPO-$PR"', script)
             self.assertNotIn('--body "$(cat "$BODY_FILE")"', script)
+            self.assertIn("sets queue refs for `repo`, `workId`, and `correlationId`", content)
             self.assertIn("pr_review_gate=fulfilled", gate_script)
             self.assertIn("pr_review_gate=skipped", gate_script)
             combined_scripts = script + "\n" + gate_script
