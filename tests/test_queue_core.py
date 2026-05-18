@@ -379,6 +379,42 @@ class QueueCoreTests(QueueTestCase):
             self.assertEqual(message["id"], result.stdout.strip())
             self.assertEqual(message["body"], "stdin review request\n- one\n")
 
+    def test_cli_send_requires_exactly_one_body_source(self):
+            _, root = self.with_queue()
+            base_command = [
+                sys.executable,
+                "-m",
+                "agent_working_group.cli",
+                "--root",
+                str(root),
+                "send",
+                "--from",
+                "lead",
+                "--to",
+                "reviewer",
+                "--kind",
+                "instruction",
+            ]
+
+            missing_body = subprocess.run(
+                base_command,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            both_body_sources = subprocess.run(
+                base_command + ["--body", "inline", "--body-file", "request.md"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(missing_body.returncode, 2)
+            self.assertIn("one of the arguments --body --body-file is required", missing_body.stderr)
+            self.assertEqual(both_body_sources.returncode, 2)
+            self.assertIn("not allowed with argument --body", both_body_sources.stderr)
+            self.assertEqual(MessageQueue(root).peek("reviewer"), [])
+
     def test_cli_send_optional_correlation_and_source_flags_write_refs_only(self):
             _, root = self.with_queue()
             result = subprocess.run(
