@@ -122,10 +122,11 @@ Exact file path, command output, or other completion criteria.
 
 Use this metadata primarily for traceability. `refs.reportTarget` can also be used as an opt-in receive filter: `awg recv --report-target <target>` skips pending messages whose normalized `refs.reportTarget` does not exactly match the requested target without moving them to `processing/` or `processed/`, then advances to the next matching message. Messages without `refs.reportTarget` do not match a filtered receive. This filter is routing/selection metadata, not a permission system. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
 
-The CLI can set these optional refs when sending a message:
+The CLI can set these optional refs when sending a message. Use `--body` for short inline messages, or `--body-file <path>` / `--body-file -` for longer queue-first specs and review requests.
 
 ```bash
 awg send --from=lead --to=worker --kind=instruction --body="Review the change" --correlation-id=task-123 --work-id=work-456 --source-channel=work-intake --report-target=work-updates --repo=example/repo --workspace=repo-main
+awg send --from=lead --to=reviewer --kind=instruction --body-file=review-request.md --correlation-id=task-123 --work-id=work-456
 awg recv --as=worker --report-target=work-updates
 awg send --from=worker --to=lead --kind=status --body="done" --reply-to=<instruction-id> --correlation-id=task-123 --work-id=work-456 --parent-id=<instruction-id>
 ```
