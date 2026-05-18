@@ -90,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     roles = sub.add_parser("roles", help="Show configured role queues and aliases.")
 
-    send = sub.add_parser("send")
+    send = sub.add_parser("send", help="Enqueue a message for another role.")
     send.add_argument("--from", required=True, dest="sender")
     send.add_argument("--to", required=True, dest="recipient")
     send.add_argument(
@@ -114,13 +114,19 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--dispatch-hooks", action="store_true", help="Run matching message.sent hooks after the message is durably enqueued.")
     send.add_argument("--hook-config", help="Path to hooks.json. Defaults to <AWG_ROOT>/hooks.json.")
 
-    recv = sub.add_parser("recv")
+    recv = sub.add_parser("recv", help="Claim the next pending message into processing/.")
     recv.add_argument("--as", required=True, dest="agent")
     recv.add_argument("--timeout", type=float)
     recv.add_argument("--report-target", help="Only receive messages whose refs.reportTarget matches this target; unmatched messages stay pending.")
 
+    queue_view_help = {
+        "peek": "Inspect pending inbox messages without claiming them.",
+        "processing": "List claimed messages waiting for ack/retry/nack.",
+        "processed": "List acknowledged messages.",
+        "dead": "List dead-lettered messages.",
+    }
     for name in ("peek", "processing", "processed", "dead"):
-        cmd = sub.add_parser(name)
+        cmd = sub.add_parser(name, help=queue_view_help[name])
         cmd.add_argument("--as", required=True, dest="agent")
         if name != "peek":
             cmd.add_argument("--limit", type=int)
@@ -130,12 +136,12 @@ def build_parser() -> argparse.ArgumentParser:
             cmd.add_argument("--local", action="store_true")
             cmd.add_argument("--tz", default="UTC")
 
-    pending = sub.add_parser("pending")
+    pending = sub.add_parser("pending", help="Count pending inbox messages.")
     pending.add_argument("--as", required=True, dest="agent")
     pending.add_argument("--json", action="store_true")
     pending.add_argument("--report-target", help="Only count pending messages matching this report target.")
 
-    status = sub.add_parser("status")
+    status = sub.add_parser("status", help="Summarize queue counts and oldest pending item.")
     status.add_argument("--as", required=True, dest="agent")
     status.add_argument("--local", action="store_true")
     status.add_argument("--tz", default="UTC")
@@ -150,12 +156,17 @@ def build_parser() -> argparse.ArgumentParser:
     work_items.add_argument("--local", action="store_true")
     work_items.add_argument("--tz", default="UTC")
 
+    lifecycle_help = {
+        "ack": "Move a processing message to processed/.",
+        "retry": "Return a message to inbox/ and increment retry count.",
+        "nack": "Move a processing message to dead/.",
+    }
     for name in ("ack", "retry", "nack"):
-        cmd = sub.add_parser(name)
+        cmd = sub.add_parser(name, help=lifecycle_help[name])
         cmd.add_argument("--as", required=True, dest="agent")
         cmd.add_argument("--id", required=True)
 
-    ack_pending = sub.add_parser("ack-pending")
+    ack_pending = sub.add_parser("ack-pending", help="Acknowledge one reviewed pending message by id with optional drift checks.")
     ack_pending.add_argument("--as", required=True, dest="agent")
     ack_pending.add_argument("--id", required=True)
     ack_pending.add_argument("--expect-kind")
@@ -163,12 +174,12 @@ def build_parser() -> argparse.ArgumentParser:
     ack_pending.add_argument("--expect-to")
     ack_pending.add_argument("--expect-created-at")
 
-    stale = sub.add_parser("requeue-stale")
+    stale = sub.add_parser("requeue-stale", help="Recover stale processing messages or dead-letter after retry limits.")
     stale.add_argument("--as", required=True, dest="agent")
     stale.add_argument("--older-than-sec", type=float, default=300)
     stale.add_argument("--max-retries", type=int, help="Allow up to N stale requeues; the next retry moves the item to dead/.")
 
-    prune = sub.add_parser("prune")
+    prune = sub.add_parser("prune", help="Archive old processed/log entries, optionally including processing/.")
     prune.add_argument("--as", dest="agent")
     prune.add_argument("--processed-keep", type=int, default=1000)
     prune.add_argument("--include-processing", action="store_true")
@@ -176,12 +187,12 @@ def build_parser() -> argparse.ArgumentParser:
     prune.add_argument("--log-keep-lines", type=int)
     prune.add_argument("--dry-run", action="store_true")
 
-    cleanup = sub.add_parser("cleanup-artifacts")
+    cleanup = sub.add_parser("cleanup-artifacts", help="Remove generated worker clutter without touching queue JSON.")
     cleanup.add_argument("--dry-run", action="store_true")
     cleanup.add_argument("--temp-file-min-age-sec", type=float, default=3600)
     cleanup.add_argument("--stale-lock-min-age-sec", type=float, default=600)
 
-    dispatch = sub.add_parser("dispatch-hooks")
+    dispatch = sub.add_parser("dispatch-hooks", help="Run configured hook commands for sent or pending messages.")
     dispatch.add_argument("--event", required=True, choices=("message.sent", "message.pending", "on_processing"))
     dispatch.add_argument("--as", required=True, dest="agent", help="Agent queue to inspect for matching pending messages.")
     dispatch.add_argument("--id", help="Limit dispatch to one pending message id.")
@@ -189,7 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
     dispatch.add_argument("--hook-config", help="Path to hooks.json. Defaults to <AWG_ROOT>/hooks.json.")
     dispatch.add_argument("--dry-run", action="store_true")
 
-    log = sub.add_parser("log")
+    log = sub.add_parser("log", help="Read or follow the queue JSONL log.")
     log.add_argument("--follow", action="store_true")
     log.add_argument("--local", action="store_true")
     log.add_argument("--tz", default="UTC")
