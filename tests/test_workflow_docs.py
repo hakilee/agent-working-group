@@ -199,6 +199,8 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn(" pr diff ", script)
             self.assertIn(" pr checks ", script)
             self.assertIn("send --from", script)
+            self.assertIn('--body-file "$BODY_FILE"', script)
+            self.assertNotIn('--body "$(cat "$BODY_FILE")"', script)
             self.assertIn("pr_review_gate=fulfilled", gate_script)
             self.assertIn("pr_review_gate=skipped", gate_script)
             combined_scripts = script + "\n" + gate_script
