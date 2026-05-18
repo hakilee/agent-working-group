@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 from .hooks import dispatch_hooks, results_to_dicts
-from .queue import MessageQueue, default_root, find_message_file, read_json
+from .queue import MessageQueue, PRIORITIES, default_root, find_message_file, read_json
 from .timeout import DEFAULT_PROCESSING_TIMEOUT_SEC, TimeoutChecker
 
 
@@ -85,7 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
     send = sub.add_parser("send")
     send.add_argument("--from", required=True, dest="sender")
     send.add_argument("--to", required=True, dest="recipient")
-    send.add_argument("--kind", required=True)
+    send.add_argument("--kind", required=True, choices=sorted(PRIORITIES))
     send.add_argument("--reply-to")
     send.add_argument("--correlation-id")
     send.add_argument("--work-id")
