@@ -496,6 +496,9 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("report_target=None", content)
             self.assertIn("repo=None", content)
             self.assertIn("workspace=None", content)
+            self.assertIn("expected_response_within=None", content)
+            self.assertIn("top-level `expectedResponseWithin`", content)
+            self.assertIn("response monitoring", content)
             self.assertIn("refs.sourceChannel", content)
             self.assertIn("refs.reportTarget", content)
             self.assertIn("traceability", content)
@@ -516,6 +519,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             queue_text = queue_source.read_text(encoding="utf-8")
             self.assertIn("source_channel: object = None", queue_text)
             self.assertIn("report_target: object = None", queue_text)
+            self.assertIn("expected_response_within: object = None", queue_text)
 
             self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"

@@ -76,7 +76,7 @@ Primary methods:
 
 - `initialize(agents)`: create queue directories and log files.
 - `initialize_default_roles()`, `roles()`: create or inspect the fixed role registry used by the CLI.
-- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: send a message and return its id; optional metadata is stored only under `refs`.
+- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, work_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None, expected_response_within=None) -> str`: send a message and return its id. Optional relationship/source metadata is stored under `refs`; `expected_response_within` stores top-level `expectedResponseWithin` for response monitoring.
 - `receive(agent, timeout=None, report_target=None) -> dict | None`: claim one matching inbox message into `processing/`, or return `None` on timeout.
 - `ack(agent, message_id)`: move a `processing/` message to `processed/`.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None)`: explicitly acknowledge one reviewed inbox message by id.
