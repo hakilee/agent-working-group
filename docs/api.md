@@ -5,6 +5,7 @@ The public API is intentionally small:
 ```python
 from agent_working_group import MessageQueue, MessageKind, PRIORITIES
 from agent_working_group import dispatch_hooks
+from agent_working_group.timeout import TimeoutChecker
 ```
 
 ## MessageQueue
@@ -81,6 +82,19 @@ cleanup_artifacts(
 ```
 
 `cleanup_artifacts` removes generated worker clutter without touching queue JSON.
+
+## TimeoutChecker
+
+`TimeoutChecker` performs read-only liveness scans over existing queue files. Import it from `agent_working_group.timeout`; it is the same implementation used by the monitor CLI commands.
+
+```python
+TimeoutChecker(root=None, now=None)
+stale_processing(timeout_seconds=600) -> list[StaleItem]
+response_contract_breaches() -> list[ContractBreach]
+```
+
+- `stale_processing(...)`: inspect `processing/` files and report items older than the timeout without moving, writing, or deleting queue files.
+- `response_contract_breaches()`: inspect `inbox/` and `processing/` for top-level `expectedResponseWithin` breaches without changing queue lifecycle state.
 
 ## Hooks
 
