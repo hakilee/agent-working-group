@@ -378,6 +378,35 @@ class QueueCoreTests(QueueTestCase):
             self.assertNotIn("repo", message)
             self.assertNotIn("workspace", message)
 
+    def test_cli_send_rejects_unknown_kind_before_queue_write(self):
+            _, root = self.with_queue()
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_working_group.cli",
+                    "--root",
+                    str(root),
+                    "send",
+                    "--from",
+                    "lead",
+                    "--to",
+                    "reviewer",
+                    "--kind",
+                    "review_request",
+                    "--body",
+                    "Review PR #1.",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("invalid choice: 'review_request'", result.stderr)
+            self.assertIn("instruction", result.stderr)
+            self.assertEqual(MessageQueue(root).peek("reviewer"), [])
+
     def test_work_items_groups_messages_by_work_id_without_mutation(self):
             queue, _ = self.with_queue()
             first_id = queue.send("lead", "worker", "instruction", "start", work_id="work-1")
