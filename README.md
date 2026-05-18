@@ -81,7 +81,7 @@ Primary methods:
 - `ack(agent, message_id)`: move a `processing/` message to `processed/`.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None)`: explicitly acknowledge one reviewed inbox message by id.
 - `retry(agent, message_id)`: requeue a message from `processing/` or `processed/`.
-- `requeue_stale(agent, older_than_sec=300, max_retries=None)`: requeue stale unacked messages or move them to `dead/`.
+- `requeue_stale(agent, older_than_sec=300, max_retries=None)`: requeue stale unacked messages or move them to `dead/`; `max_retries=N` allows N requeues, and the next stale retry is dead-lettered.
 - `status(agent, tz="UTC")`, `peek(agent)`, `pending(agent)`, `processing(agent)`, `processed(agent)`, `dead(agent)`, `work_items(agent=None, report_target=None, tz="UTC")`, `log_lines(tz="UTC")`: inspect queue state without mutating work.
 - `prune(agent=None, processed_keep=1000, include_processing=False, processing_keep=100, log_keep_lines=None, dry_run=False)`: archive old queue/log data.
 - `cleanup_artifacts(dry_run=True, temp_file_min_age_sec=3600, stale_lock_min_age_sec=600)`: remove generated worker clutter without touching queue JSON.
@@ -100,7 +100,7 @@ awg ack --as=worker --id=<message-id>
 awg ack-pending --as=worker --id=<message-id> --expect-kind=instruction
 awg retry --as=worker --id=<message-id>
 awg nack --as=worker --id=<message-id>
-awg requeue-stale --as=worker --older-than-sec=300 --max-retries=3
+awg requeue-stale --as=worker --older-than-sec=300 --max-retries=3  # allow 3 requeues; 4th stale recovery goes to dead/
 awg peek --as=worker
 awg pending --as=worker --json
 awg processing --as=worker --limit=5

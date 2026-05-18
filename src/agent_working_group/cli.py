@@ -151,7 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
     stale = sub.add_parser("requeue-stale")
     stale.add_argument("--as", required=True, dest="agent")
     stale.add_argument("--older-than-sec", type=float, default=300)
-    stale.add_argument("--max-retries", type=int)
+    stale.add_argument("--max-retries", type=int, help="Allow up to N stale requeues; the next retry moves the item to dead/.")
 
     prune = sub.add_parser("prune")
     prune.add_argument("--as", dest="agent")

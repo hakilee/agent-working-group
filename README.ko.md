@@ -80,7 +80,7 @@ status = queue.status("worker", tz="Asia/Seoul")
 - `ack(agent, message_id)`: `processing/` 메시지를 `processed/`로 이동합니다.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None)`: 검토된 inbox 메시지 하나를 id로 명시적으로 acknowledge합니다.
 - `retry(agent, message_id)`: `processing/` 또는 `processed/` 메시지를 다시 큐에 넣습니다.
-- `requeue_stale(agent, older_than_sec=300, max_retries=None)`: stale unacked 메시지를 재큐잉하거나 `dead/`로 이동합니다.
+- `requeue_stale(agent, older_than_sec=300, max_retries=None)`: stale unacked 메시지를 재큐잉하거나 `dead/`로 이동합니다. `max_retries=N`은 N회 재큐잉까지 허용하고, 그 다음 stale retry는 dead-letter 처리됩니다.
 - `status(agent, tz="UTC")`, `peek(agent)`, `pending(agent)`, `processing(agent)`, `processed(agent)`, `dead(agent)`, `work_items(agent=None, report_target=None, tz="UTC")`, `log_lines(tz="UTC")`: 큐 상태를 mutation 없이 확인합니다.
 - `prune(agent=None, processed_keep=1000, include_processing=False, processing_keep=100, log_keep_lines=None, dry_run=False)`: 오래된 큐/로그 데이터를 archive합니다.
 - `cleanup_artifacts(dry_run=True, temp_file_min_age_sec=3600, stale_lock_min_age_sec=600)`: queue JSON을 건드리지 않고 생성된 worker clutter를 정리합니다.
@@ -99,7 +99,7 @@ awg ack --as=worker --id=<message-id>
 awg ack-pending --as=worker --id=<message-id> --expect-kind=instruction
 awg retry --as=worker --id=<message-id>
 awg nack --as=worker --id=<message-id>
-awg requeue-stale --as=worker --older-than-sec=300 --max-retries=3
+awg requeue-stale --as=worker --older-than-sec=300 --max-retries=3  # 3회 재큐잉 허용, 4번째 stale recovery는 dead/로 이동
 awg peek --as=worker
 awg pending --as=worker --json
 awg processing --as=worker --limit=5

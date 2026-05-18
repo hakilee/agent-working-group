@@ -27,6 +27,25 @@ class QueueCoreTests(QueueTestCase):
             self.assertEqual(dead["refs"]["retryCount"], 2)
             self.assertEqual(queue.status("worker")["dead"], 1)
 
+    def test_requeue_stale_max_retries_allows_exactly_that_many_requeues(self):
+            queue, _ = self.with_queue()
+            message_id = queue.send("lead", "worker", "instruction", "retry twice")
+
+            for expected_count in (1, 2):
+                self.assertIsNotNone(queue.receive("worker", timeout=0))
+                result = queue.requeue_stale("worker", older_than_sec=-1, max_retries=2)
+                self.assertEqual(result, {"agent": "worker", "requeued": 1, "dead": 0})
+                pending = queue.peek("worker")[0]
+                self.assertEqual(pending["id"], message_id)
+                self.assertEqual(pending["refs"]["retryCount"], expected_count)
+
+            self.assertIsNotNone(queue.receive("worker", timeout=0))
+            result = queue.requeue_stale("worker", older_than_sec=-1, max_retries=2)
+            self.assertEqual(result, {"agent": "worker", "requeued": 0, "dead": 1})
+            dead = queue.dead("worker", limit=1)[0]
+            self.assertEqual(dead["id"], message_id)
+            self.assertEqual(dead["refs"]["retryCount"], 3)
+
     def test_ack_moves_processing_to_processed(self):
             queue, _ = self.with_queue()
             message_id = queue.send("lead", "worker", "instruction", "do work")
