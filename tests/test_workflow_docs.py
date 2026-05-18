@@ -548,6 +548,27 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertNotRegex(api, local_path_pattern)
             self.assertNotRegex(api, r"[\uac00-\ud7af]")
 
+
+    def test_python_api_docs_cover_timeout_checker_methods(self):
+            project_root = Path(__file__).resolve().parents[1]
+            api = (project_root / "docs" / "api.md").read_text(encoding="utf-8")
+            timeout_source = (project_root / "src" / "agent_working_group" / "timeout.py").read_text(encoding="utf-8")
+
+            self.assertIn("class TimeoutChecker", timeout_source)
+            self.assertIn("def stale_processing(self, timeout_seconds: int = DEFAULT_PROCESSING_TIMEOUT_SEC)", timeout_source)
+            self.assertIn("def response_contract_breaches(self) -> list[ContractBreach]", timeout_source)
+            self.assertIn("from agent_working_group.timeout import TimeoutChecker", api)
+            self.assertIn("TimeoutChecker(root=None, now=None)", api)
+            self.assertIn("stale_processing(timeout_seconds=600) -> list[StaleItem]", api)
+            self.assertIn("response_contract_breaches() -> list[ContractBreach]", api)
+            self.assertIn("without moving, writing, or deleting queue files", api)
+            self.assertIn("without changing queue lifecycle state", api)
+
+            self.assert_public_safe_content(api)
+            local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+            self.assertNotRegex(api, local_path_pattern)
+            self.assertNotRegex(api, r"[\uac00-\ud7af]")
+
     def test_independent_analysis_template_helper_outputs_required_fields(self):
             project_root = Path(__file__).resolve().parents[1]
             task_template = (project_root / "docs" / "templates" / "task-spec.md").read_text(encoding="utf-8")
