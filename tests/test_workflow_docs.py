@@ -77,6 +77,14 @@ class QueueWorkflowDocsTests(QueueTestCase):
                 self.assertIn("queue: role=reviewer pending=1", text_run.stdout)
                 self.assertIn("artifacts:", text_run.stdout)
 
+    def test_readmes_document_body_file_stdin_example(self):
+            project_root = Path(__file__).resolve().parents[1]
+            for name in ("README.md", "README.ko.md"):
+                    readme = (project_root / name).read_text(encoding="utf-8")
+                    self.assertIn("--body-file=review-request.md", readme)
+                    self.assertIn('printf "Review notes\\n" | awg send', readme)
+                    self.assertIn("--body-file=-", readme)
+
     def test_protocol_documents_body_file_for_long_queue_specs(self):
             project_root = Path(__file__).resolve().parents[1]
             protocol = (project_root / "docs" / "protocol.md").read_text(encoding="utf-8")
