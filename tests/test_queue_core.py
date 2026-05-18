@@ -477,6 +477,25 @@ class QueueCoreTests(QueueTestCase):
             self.assertNotIn("repo", message)
             self.assertNotIn("workspace", message)
 
+    def test_cli_send_help_lists_supported_kind_choices(self):
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_working_group.cli",
+                    "send",
+                    "--help",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Message kind; one of:", result.stdout)
+            for kind in ("answer", "blocker", "instruction", "note", "question", "status"):
+                    self.assertIn(kind, result.stdout)
+
     def test_cli_send_rejects_unknown_kind_before_queue_write(self):
             _, root = self.with_queue()
             result = subprocess.run(
