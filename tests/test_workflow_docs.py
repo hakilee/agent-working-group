@@ -529,6 +529,25 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertNotRegex(content.lower(), platform_pattern)
             self.assertNotRegex(content.lower(), r"api[_-]?key\s*[:=]|token\s*[:=]|password\s*[:=]|secret\s*[:=]")
 
+
+    def test_python_api_docs_cover_role_and_work_item_methods(self):
+            project_root = Path(__file__).resolve().parents[1]
+            api = (project_root / "docs" / "api.md").read_text(encoding="utf-8")
+            queue_source = (project_root / "src" / "agent_working_group" / "queue.py").read_text(encoding="utf-8")
+
+            self.assertIn("def initialize_default_roles(self) -> dict", queue_source)
+            self.assertIn("def roles(self) -> dict", queue_source)
+            self.assertIn("def work_items(self, agent: str | None = None", queue_source)
+            self.assertIn("initialize_default_roles() -> dict", api)
+            self.assertIn("roles() -> dict", api)
+            self.assertIn('work_items(agent=None, report_target=None, tz="UTC") -> list[dict]', api)
+            self.assertIn("without mutating lifecycle state", api)
+
+            self.assert_public_safe_content(api)
+            local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
+            self.assertNotRegex(api, local_path_pattern)
+            self.assertNotRegex(api, r"[\uac00-\ud7af]")
+
     def test_independent_analysis_template_helper_outputs_required_fields(self):
             project_root = Path(__file__).resolve().parents[1]
             task_template = (project_root / "docs" / "templates" / "task-spec.md").read_text(encoding="utf-8")
