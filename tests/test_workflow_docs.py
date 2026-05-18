@@ -77,6 +77,15 @@ class QueueWorkflowDocsTests(QueueTestCase):
                 self.assertIn("queue: role=reviewer pending=1", text_run.stdout)
                 self.assertIn("artifacts:", text_run.stdout)
 
+    def test_protocol_classifies_requeue_stale_as_recovery_not_inspection(self):
+            project_root = Path(__file__).resolve().parents[1]
+            protocol = (project_root / "docs" / "protocol.md").read_text(encoding="utf-8")
+
+            self.assertIn("non-consuming commands such as `status`, `pending`, `peek`, `processing`, `dead`, and `log`", protocol)
+            self.assertNotIn("`log`, and `requeue-stale`", protocol)
+            self.assertIn("`requeue-stale` is a recovery command, not a read-only inspection command", protocol)
+            self.assertIn("Schedule it only as explicit recovery with a configured retry limit", protocol)
+
     def test_operator_baseline_doctor_docs_and_script_are_safe(self):
             project_root = Path(__file__).resolve().parents[1]
             checked_paths = [
