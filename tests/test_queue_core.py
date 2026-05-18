@@ -477,6 +477,38 @@ class QueueCoreTests(QueueTestCase):
             self.assertNotIn("repo", message)
             self.assertNotIn("workspace", message)
 
+
+    def test_cli_top_level_help_lists_command_summaries(self):
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agent_working_group.cli",
+                    "--help",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            expectations = (
+                "send                Enqueue a message for another role.",
+                "recv                Claim the next pending message into processing/.",
+                "peek                Inspect pending inbox messages without claiming them.",
+                "pending             Count pending inbox messages.",
+                "status              Summarize queue counts and oldest pending item.",
+                "ack                 Move a processing message to processed/.",
+                "ack-pending         Acknowledge one reviewed pending message by id",
+                "requeue-stale       Recover stale processing messages or dead-letter",
+                "prune               Archive old processed/log entries",
+                "cleanup-artifacts   Remove generated worker clutter without touching queue",
+                "dispatch-hooks      Run configured hook commands",
+                "log                 Read or follow the queue JSONL log.",
+            )
+            for text in expectations:
+                    self.assertIn(text, result.stdout)
+
     def test_cli_send_help_lists_supported_kind_choices(self):
             result = subprocess.run(
                 [
