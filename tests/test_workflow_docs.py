@@ -352,6 +352,14 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("opt-in receive filter", content)
             self.assertIn("queue selection skips non-matching pending messages", content)
             self.assertIn("not access control or automatic routing", content)
+            self.assertIn("send --kind", content)
+            self.assertIn("closed contract", content)
+            self.assertIn("test_cli_send_help_lists_supported_kind_choices", content)
+            self.assertIn("exactly one body source", content)
+            self.assertIn("--body-file -", content)
+            self.assertIn("expectedResponseWithin", content)
+            self.assertIn("advisory soft SLA", content)
+            self.assertIn("test_response_contract_breaches_detect_overdue_items", content)
 
             self.assert_public_safe_content(content)
             local_path_pattern = "/" + "Users/|" + "/" + "home/|~" + r"/|\$" + "HOME"
