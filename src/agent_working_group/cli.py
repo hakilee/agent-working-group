@@ -93,7 +93,12 @@ def build_parser() -> argparse.ArgumentParser:
     send = sub.add_parser("send")
     send.add_argument("--from", required=True, dest="sender")
     send.add_argument("--to", required=True, dest="recipient")
-    send.add_argument("--kind", required=True, choices=sorted(PRIORITIES))
+    send.add_argument(
+        "--kind",
+        required=True,
+        choices=sorted(PRIORITIES),
+        help="Message kind; one of: " + ", ".join(sorted(PRIORITIES)),
+    )
     send.add_argument("--reply-to")
     send.add_argument("--correlation-id")
     send.add_argument("--work-id")
