@@ -17,6 +17,14 @@ def print_json(data) -> None:
     print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
+def _read_body_arg(args) -> str:
+    if args.body_file == "-":
+        return sys.stdin.read()
+    if args.body_file:
+        return Path(args.body_file).expanduser().read_text(encoding="utf-8")
+    return args.body
+
+
 def _scan_heartbeats(root: Path, timeout_seconds: int) -> list[dict]:
     alerts: list[dict] = []
     heartbeats_dir = root / "heartbeats"
@@ -94,7 +102,9 @@ def build_parser() -> argparse.ArgumentParser:
     send.add_argument("--report-target")
     send.add_argument("--repo")
     send.add_argument("--workspace")
-    send.add_argument("--body", required=True)
+    body_group = send.add_mutually_exclusive_group(required=True)
+    body_group.add_argument("--body")
+    body_group.add_argument("--body-file", help="Read message body from a UTF-8 file, or '-' for stdin.")
     send.add_argument("--expected-response-within", type=int, help="Optional response contract: integer seconds within which a reply is expected.")
     send.add_argument("--dispatch-hooks", action="store_true", help="Run matching message.sent hooks after the message is durably enqueued.")
     send.add_argument("--hook-config", help="Path to hooks.json. Defaults to <AWG_ROOT>/hooks.json.")
@@ -226,7 +236,7 @@ def main(argv=None) -> int:
                 args.sender,
                 args.recipient,
                 args.kind,
-                args.body,
+                _read_body_arg(args),
                 args.reply_to,
                 correlation_id=args.correlation_id,
                 work_id=args.work_id,
