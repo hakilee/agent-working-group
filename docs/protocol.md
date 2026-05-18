@@ -179,7 +179,9 @@ Example multi-message task flow:
 
 ## Scheduling Semantics
 
-Scheduled observers should inspect queues with non-consuming commands such as `status`, `pending`, `peek`, `processing`, `dead`, `log`, and `requeue-stale`.
+Scheduled observers should inspect queues with non-consuming commands such as `status`, `pending`, `peek`, `processing`, `dead`, and `log`.
+
+`requeue-stale` is a recovery command, not a read-only inspection command: it mutates stale `processing/` messages by moving them back to `inbox/` or into `dead/`. Schedule it only as explicit recovery with a configured retry limit.
 
 Do not schedule `recv` unless a real processor is attached to the output. `recv` moves messages out of `inbox/`; a cron job that only prints the message can silently lose work. See [Safe Scheduling](safe-scheduling.md) for safe cron, timer, and watchdog patterns.
 
