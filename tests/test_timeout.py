@@ -95,6 +95,14 @@ class TimeoutCheckerTests(QueueTestCase):
 
 
 class ResponseContractTests(QueueTestCase):
+    def test_protocol_documents_expected_response_contract_field(self):
+        project_root = Path(__file__).resolve().parents[1]
+        protocol = (project_root / "docs" / "protocol.md").read_text(encoding="utf-8")
+
+        self.assertIn("expectedResponseWithin", protocol)
+        self.assertIn("optional top-level message fields, not refs", protocol)
+        self.assertIn("--expected-response-within=600", protocol)
+
     def test_send_stores_expected_response_within_in_message_json(self):
         queue, root = self.with_queue()
         message_id = queue.send(
