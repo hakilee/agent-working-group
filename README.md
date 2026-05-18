@@ -95,6 +95,7 @@ awg init
 awg roles
 awg send --from=lead --to=worker --kind=instruction --body="Do one clear task."
 awg send --from=lead --to=reviewer --kind=instruction --body-file=review-request.md
+printf "Review notes\n" | awg send --from=lead --to=reviewer --kind=instruction --body-file=-
 awg send --from=lead --to=worker --kind=instruction --body="Notify then inspect." --dispatch-hooks
 awg recv --as=worker --timeout=120
 awg ack --as=worker --id=<message-id>
