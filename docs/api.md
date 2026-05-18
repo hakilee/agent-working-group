@@ -20,7 +20,7 @@ MessageQueue(root=None)
 ### Core Methods
 
 - `initialize(agents=())`: create queue directories and `log/messages.jsonl`.
-- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, work_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: send a JSON message and return its UUID.
+- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, work_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None, expected_response_within=None) -> str`: send a JSON message and return its UUID.
 - `receive(agent, timeout=None, report_target=None) -> dict | None`: claim one matching inbox message into `processing/`. Returns `None` on timeout.
 - `ack(agent, message_id) -> str`: acknowledge a message from `processing/`.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None) -> str`: acknowledge one reviewed inbox message by id without using `recv`.
@@ -39,6 +39,8 @@ MessageQueue(root=None)
 - `report_target` -> `refs.reportTarget`: operator-defined place where progress or final summaries should be reported.
 - `repo` -> `refs.repo`: repository or project slug.
 - `workspace` -> `refs.workspace`: checkout, workspace, or workstream label.
+
+`expected_response_within` is separate from refs. When provided, it stores positive integer seconds in top-level `message["expectedResponseWithin"]` as an advisory response contract for timeout monitors.
 
 These fields are optional conventions. They do not change delivery order, priority, acknowledgement, retry, pruning, cleanup, dead-letter behavior, or access control by default. When a caller opts into `report_target`, `receive`, `peek`, and `status` use `refs.reportTarget` as a queue selection filter and leave non-matching pending messages untouched. This is not automatic routing or access control. message.id remains the canonical message identity, and processing/ remains the only durable active claim-like queue state.
 

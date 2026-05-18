@@ -75,7 +75,7 @@ status = queue.status("worker", tz="Asia/Seoul")
 
 - `initialize(agents)`: 큐 디렉터리와 로그 파일을 만듭니다.
 - `initialize_default_roles()`, `roles()`: CLI가 사용하는 고정 role registry를 만들거나 확인합니다.
-- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None) -> str`: 메시지를 보내고 id를 반환합니다. 선택 metadata는 `refs` 아래에만 저장됩니다.
+- `send(sender, recipient, kind, body, reply_to=None, *, correlation_id=None, work_id=None, parent_id=None, source_channel=None, report_target=None, repo=None, workspace=None, expected_response_within=None) -> str`: 메시지를 보내고 id를 반환합니다. 선택 관계/source metadata는 `refs` 아래에 저장되고, `expected_response_within`은 response monitoring용 top-level `expectedResponseWithin`으로 저장됩니다.
 - `receive(agent, timeout=None, report_target=None) -> dict | None`: matching inbox 메시지 하나를 `processing/`으로 claim하거나 timeout 시 `None`을 반환합니다.
 - `ack(agent, message_id)`: `processing/` 메시지를 `processed/`로 이동합니다.
 - `ack_pending(agent, message_id, expect_kind=None, expect_from=None, expect_to=None, expect_created_at=None)`: 검토된 inbox 메시지 하나를 id로 명시적으로 acknowledge합니다.
