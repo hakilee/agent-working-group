@@ -210,9 +210,12 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn('--body-file "$BODY_FILE"', script)
             self.assertIn('--repo "$REPO"', script)
             self.assertIn('--work-id "pr-$PR-review"', script)
-            self.assertIn('--correlation-id "pr-review-$REPO-$PR"', script)
+            self.assertIn(r'CORRELATION_REPO=${REPO//\//-}', script)
+            self.assertIn('--correlation-id "pr-review-$CORRELATION_REPO-$PR"', script)
+            self.assertNotIn('--correlation-id "pr-review-$REPO-$PR"', script)
             self.assertNotIn('--body "$(cat "$BODY_FILE")"', script)
             self.assertIn("sets queue refs for `repo`, `workId`, and `correlationId`", content)
+            self.assertIn("normalizes repository slashes to dashes", content)
             self.assertIn("pr_review_gate=fulfilled", gate_script)
             self.assertIn("pr_review_gate=skipped", gate_script)
             combined_scripts = script + "\n" + gate_script

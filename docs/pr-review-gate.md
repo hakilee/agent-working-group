@@ -62,7 +62,7 @@ Never auto-merge or auto-approve from this workflow. Review comments are evidenc
 
 `scripts/awg-pr-publish-gate-check.sh` is a read-only pre-merge check. It verifies that a pull request has a public evidence comment containing review evidence markers, or that the operator supplied an explicit skip reason. It must not comment, review, approve, merge, checkout, build, test, or mutate queue state.
 
-The helper is opt-in. It must not merge, approve, checkout, build, test, or execute pull request code. It only reads PR metadata and sends a queue message.
+The helper is opt-in. It must not merge, approve, checkout, build, test, or execute pull request code. It only reads PR metadata and sends a queue message. The generated review `correlationId` normalizes repository slashes to dashes, for example `pr-review-owner-repo-123`.
 
 ## Failure Handling
 
