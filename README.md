@@ -18,7 +18,7 @@ The package is designed around a practical working pattern: a lead decomposes wo
 - **Safe scheduling:** observers can inspect and recover queues without consuming work.
 - **Queue reconciliation policy:** old inbox items require evidence before any future reconciliation action.
 - **Explicit queue hooks:** local argv-list adapters can be dispatched around sent or pending messages without becoming queue authority.
-- **Reliable implementation runtime:** optional helpers persist active work state, watch tmux sessions conservatively, protect the main branch, and supervise the dashboard.
+- **Reliable implementation runtime:** optional helpers persist active work state, watch tmux sessions conservatively, protect the main branch, and record PR evidence.
 
 ## Installation
 
@@ -192,7 +192,7 @@ Queue routing uses role names (`lead`, `worker`, `reviewer`), not personal agent
 Use this flow for every enhancement:
 
 1. Define the operational problem and expected behavior.
-2. Implement the smallest generic change in `src/agent_working_group/`, `scripts/`, `dashboard/`, or docs that solves the scoped problem.
+2. Implement the smallest generic change in `src/agent_working_group/`, `scripts/`, or docs that solves the scoped problem.
 3. Update `README.md`, protocol/API docs, runtime docs, or script docs in English when behavior changes.
 4. Add or update tests in `tests/`.
 5. Run the smallest meaningful verification from the project root, then broader tests when the change affects shared behavior.
@@ -201,39 +201,13 @@ Use this flow for every enhancement:
 
 This keeps implementation, documentation, and tests aligned.
 
-## Claude Code Worker
-
-For code-related instructions, a Claude Code adapter can drive the executor
-bridge alongside the existing Codex adapter. A dual-agent executor wraps
-both: it tries the primary agent and automatically falls back to the other
-on a 429 / rate-limit retry, without changing the bridge's
-ack-on-structured-success contract.
-
-```bash
-export AWG_ROOT=.agent-working-group
-export WORKER=worker
-export LEAD=lead
-export AGENT=claude              # primary; "codex" is also supported
-export AWG_FALLBACK=1            # 1 = enable cross-agent fallback
-export AWG_CLAUDE_REPO=/path/to/repo
-scripts/awg-claude-worker-tmux.sh start
-scripts/awg-claude-worker-tmux.sh status
-scripts/awg-claude-worker-tmux.sh stop
-```
-
-The Claude worker is opt-in, bounded by `MAX_TASKS` and `MAX_IDLE_SECONDS`,
-treats message bodies as prompt data only, and writes a JSON run summary
-under `log/claude-worker/run-summaries/`. See
-[Dual-Agent Executor](docs/executors.md) for architecture, fallback rules,
-and the full environment matrix.
-
 ## Current Scope
 
 This is intentionally simple and local-first. It does not require a broker, database, network service, or daemon. It is best suited for local agent orchestration, coding-agent experiments, office workflows, and small workflow projects.
 
 For a clean-clone operator setup, see [Operator Runbook](docs/operator-runbook.md). It distinguishes the workflow that ships with this repository from environment-specific choices such as agent identities, notification surfaces, credentials, and private artifact locations. For a runnable queue lifecycle demo, see [Examples](examples/README.md).
 
-For queue-first planning, handoff, review, and closure patterns, see [Queue-First Workflow](docs/queue-first-workflow.md). Substantive specs should go through AWG queue messages; external chat or issue trackers should only announce that a queue item was added. For implementation-mode reliability, PR boundaries, active work state, tmux completion watching, branch protection, and dashboard supervision, see [Reliable AWG Runtime](docs/reliable-awg-runtime.md).
+For queue-first planning, handoff, review, and closure patterns, see [Queue-First Workflow](docs/queue-first-workflow.md). Substantive specs should go through AWG queue messages; external chat or issue trackers should only announce that a queue item was added. For implementation-mode reliability, PR boundaries, active work state, tmux completion watching, and branch protection, see [Reliable AWG Runtime](docs/reliable-awg-runtime.md).
 
 For safety guarantees mapped to tests, see [Spec Matrix](docs/spec-matrix.md). For optional multi-message, work-item, and cross-surface traceability, see the `refs.correlationId`, `refs.workId`, `refs.parentId`, `refs.sourceChannel`, `refs.reportTarget`, `refs.repo`, and `refs.workspace` conventions in [Working-Group Queue Protocol](docs/protocol.md). `awg send` can set them with optional `--correlation-id`, `--work-id`, `--parent-id`, `--source-channel`, `--report-target`, `--repo`, and `--workspace` flags. `awg recv`, `peek`, `pending`, and `status` can opt into `--report-target` filtering so a channel-bound worker leaves non-matching messages pending and advances to matching work. message.id remains the canonical message identity, and `processing/` remains the only durable active claim-like queue state.
 
@@ -245,7 +219,7 @@ For the general output boundary model, see [Output And Publish Gate](docs/output
 
 For operational Markdown artifact lifecycle, timestamped filenames, and active/completed/archive retention, see [Artifact Retention](docs/artifact-retention.md). For read-only discovery across an ops workspace, see [Artifact Index](docs/artifact-index.md).
 
-For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-executor-bridge.md). The bridge acknowledges only successful instruction execution and never executes message bodies as shell. `scripts/awg-real-executor-template.sh` provides a provider-neutral adapter template for private real executor wrappers. For the dual-agent (Codex + Claude Code) executor architecture with automatic 429 fallback, see [Dual-Agent Executor](docs/executors.md). For operational usage of the Codex Tmux Worker and Claude Code Worker — manual bounded runs, tmux commands, operator flow, and stale recovery — see [Worker Tmux Guide](docs/codex-tmux-worker.md). Codex, Claude Code, and tmux are optional worker paths, not requirements for office, local artifact, or non-coding workflows.
+For the opt-in queue-to-executor bridge, see [AI Executor Bridge](docs/ai-executor-bridge.md). The bridge acknowledges only successful instruction execution and never executes message bodies as shell. `scripts/awg-real-executor-template.sh` provides a provider-neutral adapter template for private real executor wrappers. Codex, Claude Code, and tmux are optional worker paths, not requirements for office, local artifact, or non-coding workflows.
 
 For repository-first commit message and pull request title rules with Conventional Commits fallback, see [Repository Rules](docs/repository-rules.md). `scripts/awg-detect-repository-rules.sh` provides a read-only advisory scan for candidate rule sources.
 

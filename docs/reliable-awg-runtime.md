@@ -1,6 +1,6 @@
 # Reliable AWG Runtime
 
-This document defines the reliability baseline for AWG implementation work. It covers coding or documentation changes that need durable coordination across queues, tmux sessions, PRs, and dashboard operations.
+This document defines the reliability baseline for AWG implementation work. It covers coding or documentation changes that need durable coordination across queues, tmux sessions, PRs, and active work state.
 
 ## Operating Model
 
@@ -30,9 +30,6 @@ own reviewer after compaction or context drift.
 - **Decouple completion detection.** tmux completion is detected by a watcher
   process that writes durable files, not by main-session cron/systemEvents.
   The safe default requires a new run-scoped marker in pane output.
-- **Supervise the dashboard.** The dashboard is a production surface and must be
-  managed by a process supervisor with restart-on-failure, not ad-hoc `nohup`.
-
 ## Required Helpers
 
 - `scripts/github-protect-main.sh` applies baseline GitHub branch protection.
@@ -42,10 +39,6 @@ own reviewer after compaction or context drift.
   writes completion evidence to `.agent-working-group/runtime/tmux-results/`.
 - `scripts/awg-pr-create-and-stop.sh` pushes the implementation branch, creates
   the PR, records the PR URL, and stops implementation mode.
-- `scripts/install-dashboard-launchd.sh` installs a macOS LaunchAgent that keeps
-  the dashboard running after crashes, logout/login, or reboot.
-- `scripts/awg-dashboard-healthcheck.sh` verifies `/api/status` and fails if the
-  dashboard is unreachable or using an unsafe temporary root.
 
 ## Implementation Checklist
 
@@ -119,23 +112,3 @@ scripts/install-local-main-guard.sh
 The local guard is not a substitute for GitHub branch protection, but it prevents
 this workstation from accidentally pushing `main` while repo-admin protection is
 being enabled.
-
-## Dashboard Supervision
-
-Install the macOS LaunchAgent on the host that serves the dashboard:
-
-```bash
-scripts/install-dashboard-launchd.sh
-scripts/awg-dashboard-healthcheck.sh --url http://127.0.0.1:8000/api/status
-```
-
-The LaunchAgent runs `scripts/awg-dashboard-start.sh` with `RunAtLoad` and
-`KeepAlive`, writing logs to `.agent-working-group/log/dashboard/`. It sets
-`DASHBOARD_ROOT` to the selected AWG root and includes a configurable `PATH` so
-local tools such as `tmux` remain visible under launchd. Manual starts remain
-available for debugging, but production use should rely on launchd so a crash or
-reboot does not leave the public route pointing at a dead local origin.
-
-The healthcheck exits non-zero when the status endpoint is unreachable, reports
-`isTmpRoot: true`, or reports a missing queue path. Run it after installation,
-after host reboot, and before declaring dashboard incidents resolved.

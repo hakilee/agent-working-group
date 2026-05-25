@@ -9,8 +9,6 @@ Worker helpers are optional execution paths. AWG users doing non-coding local, o
 - `scripts/awg-worker-loop.sh`: receive one message at a time with `recv`, log it, and acknowledge it.
 - `scripts/awg-worker-tmux.sh`: start, inspect, stop, or recover a bounded worker loop inside tmux.
 - `scripts/awg-safe-poll.sh`: inspect status and optionally requeue stale processing messages without consuming the inbox.
-- `scripts/awg-codex-worker-loop.sh`: run the executor bridge with the Codex adapter under manual bounded limits.
-- `scripts/awg-codex-worker-tmux.sh`: start, inspect, stop, or recover a bounded Codex worker loop inside tmux.
 - `scripts/awg-worker-state-report.sh`: print a read-only worker state and readiness snapshot for one role.
 
 All scripts use `AWG_ROOT` and `awg --root`. If `AWG_ROOT` is unset, they use `.agent-working-group` under the current directory.
@@ -88,7 +86,7 @@ Important bounds:
 
 ## Instruction Auto-ack Risk
 
-The generic worker loop is a queue runner, not an AI executor. It acknowledges every supported message kind after logging it, including `instruction`. The Codex worker is different: it uses the executor bridge and acknowledges only after structured success from the Codex adapter.
+The generic worker loop is a queue runner, not an AI executor. It acknowledges every supported message kind after logging it, including `instruction`. Executor-aware worker loops (Codex, Claude Code) are different: they use the executor bridge and acknowledge only after structured success from the adapter.
 
 While a bounded worker is active, send operational `note`, `status`, or `question` messages to it. Do not send new `instruction` messages unless you intentionally want the queue runner to acknowledge them without doing the work. Stop the worker and handle instructions directly when real task execution is required.
 
@@ -163,41 +161,6 @@ The category is not queue authority. It must not be used to decide completion, s
 
 The worker writes generated logs under `<AWG_ROOT>/log/worker-sessions/` and lock directories under `<AWG_ROOT>/tmp/locks/`. Use `awg cleanup-artifacts --dry-run` before deleting generated worker clutter. Cleanup must not delete queue JSON directly.
 
-## Codex Worker End-to-End Operator Flow
+## Run Summaries
 
-For code work, keep the Codex worker path explicit and bounded. Do not apply this code-worker checklist to non-coding AWG tasks unless the task explicitly uses Codex against a Git worktree:
-
-1. Run `scripts/awg-codex-prepare-worktree.sh --repo DIR` and confirm the target is ready. Dirty Git worktrees fail closed in the Codex adapter unless `AWG_CODEX_ALLOW_DIRTY=1` is set for an explicitly supervised exception.
-2. Send an `instruction` with explicit `--repo DIR` and `--workspace DIR` refs so the adapter does not infer the target.
-3. Start `scripts/awg-codex-worker-tmux.sh start` with bounds such as `MAX_TASKS=1`, `MAX_IDLE_SECONDS=900`, and a clear `SESSION` name.
-4. Use `scripts/awg-codex-worker-tmux.sh status` to see session state, queue state, and `latest_summary=PATH` when a run summary exists.
-5. Inspect the summary and log evidence. The summary points to `logFile` when available; otherwise use the tmux wrapper `log` command.
-6. Reconcile queue state only after evidence review. Use safe reviewed-item operations, not direct queue JSON edits, and do not assume a summary or log is enough to ack, retry, or delete work.
-
-This sequence does not create an always-on daemon, does not auto-dispatch work, and does not change queue ack/retry policy. If the run is part of implementation-mode repository work, pair the tmux session with the conservative completion watcher described in [Reliable AWG Runtime](reliable-awg-runtime.md) and emit only the watcher-specific `AWG_TMUX_DONE:<watchId>` marker after evidence is complete.
-
-## Codex Worker Stale Recovery
-
-Stale recovery for Codex worker processing items is an operator decision, not an automatic worker behavior. Follow this decision tree:
-
-1. Check `scripts/awg-codex-worker-tmux.sh status` and confirm the session is stopped, missing, or intentionally stopped for recovery.
-2. Review worker queue status and identify the exact processing item before considering any mutation.
-3. Use `latest_summary=PATH` and the worker log as evidence. They do not authorize ack, retry, delete, prune, or direct queue edits by themselves.
-4. Choose a conservative stale threshold that is higher than expected Codex runtime and bridge acknowledgement latency.
-5. Run recovery only as an explicit operator action after review, such as `REQUEUE_STALE=1 STALE_SECONDS=1800 scripts/awg-safe-poll.sh` for a generic worker queue when the threshold and target worker are appropriate.
-
-Do not run recovery while the tmux session may still be processing the item. Do not call `recv` for inspection, do not edit queue JSON directly, and do not bulk recover items without reviewing each affected message.
-
-## Codex Worker Repository Preflight
-
-Codex worker jobs should target a clean Git worktree. `scripts/awg-codex-executor.sh` checks `git status --porcelain` when the target is inside Git and returns a blocker before `codex exec` if uncommitted changes are present. Operators can set `AWG_CODEX_ALLOW_DIRTY=1` for an explicitly supervised exception.
-
-## Codex Worker Run Summaries
-
-The Codex worker loop writes one JSON summary per run under `LOG_DIR/run-summaries`. The file includes worker, lead, start and stop timestamps, duration, stop reason, task count, and log location. This is an inspection artifact only; it does not change queue acknowledgement or retry behavior.
-
-Status reports `latest_summary=PATH` when a summary exists, or `latest_summary=none` before the first summary. Use this as a pointer from session status to run evidence; do not treat summary contents as worker control state. Summary files, logs, watcher status files, and status pointers are not authority for `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, `prune`, deletion, routing, or direct queue JSON edits. Before any reviewed-item mutation, re-read live queue state, compare expected metadata such as kind, sender, recipient, and createdAt, and fail closed on drift without moving the message.
-
-## Codex Worker Branch and Worktree Prep
-
-Run `scripts/awg-codex-prepare-worktree.sh --repo DIR` before dispatching a Codex job when you want an operator-facing readiness report. The default mode is read-only and reports branch, HEAD, dirty state, upstream relation when available, and readiness. Use `--branch NAME` to require a specific current branch. Use `--branch NAME --create-branch` only when you explicitly want the helper to create and switch to a new branch from a clean worktree. The helper does not commit, push, open PRs, merge, delete branches, or mutate queue JSON.
+The worker loop may write one JSON summary per run under `LOG_DIR/run-summaries`. Status reports `latest_summary=PATH` when a summary exists, or `latest_summary=none` before the first summary. This is an inspection artifact only; it does not change queue acknowledgement or retry behavior. Summary files, logs, and status pointers are not authority for `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, `prune`, deletion, routing, or direct queue JSON edits. Before any reviewed-item mutation, re-read live queue state, compare expected metadata such as kind, from, to, and createdAt, and fail closed on drift without moving the message.

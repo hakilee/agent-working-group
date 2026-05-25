@@ -111,7 +111,7 @@ A useful review result includes:
 
 AWG's general gate is the output or publish boundary, not a pull request. Before closing substantive work, record the final output, appropriate evidence, review or owner signoff, the closure or delivery decision, and remaining risk. Use the lightest gate that fits the work: PR gate for GitHub PRs, artifact gate for local files, office/admin gate for reports or handoffs, external-send gate for outbound messages, queue-mutation gate for reconciliation, and worker-execution gate for tmux or Codex runs.
 
-For implementation-mode code or repository documentation changes, the publish boundary is normally PR creation/update; review and merge should happen in a separate review-mode workflow. See [Reliable AWG Runtime](reliable-awg-runtime.md) for the branch protection, active work-state, tmux watcher, and dashboard supervision baseline.
+For implementation-mode code or repository documentation changes, the publish boundary is normally PR creation/update; review and merge should happen in a separate review-mode workflow. See [Reliable AWG Runtime](reliable-awg-runtime.md) for the branch protection, active work-state, tmux watcher baseline.
 
 Do not impose PR, branch, clean-worktree, Codex, or tmux rules on non-coding local work unless the task scope actually needs them. Conversely, when work is published through a non-trivial PR, the PR-specific gate remains required.
 
