@@ -651,10 +651,10 @@ class QueueCoreTests(QueueTestCase):
     def test_work_items_all_agents_ignores_non_queue_directories(self):
             queue, root = self.with_queue()
             queue.send("lead", "worker", "instruction", "real", work_id="real-work")
-            dashboard_dir = root / "queues" / "dashboard"
-            dashboard_dir.mkdir(parents=True)
-            (dashboard_dir / "cache").mkdir()
-            (dashboard_dir / "cache" / "not-a-message.json").write_text("{}", encoding="utf-8")
+            non_queue_dir = root / "queues" / "non-canonical-test-role"
+            non_queue_dir.mkdir(parents=True)
+            (non_queue_dir / "cache").mkdir()
+            (non_queue_dir / "cache" / "not-a-message.json").write_text("{}", encoding="utf-8")
 
             items = queue.work_items()
 

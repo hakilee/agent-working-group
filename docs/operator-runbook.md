@@ -8,7 +8,7 @@ This runbook describes the workflow that ships with Agent Working Group from a c
 - File-backed queues under an operator-selected `AWG_ROOT`.
 - Message lifecycle commands: `send`, `recv`, `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, inspection commands, pruning, and cleanup.
 - Worker helper scripts for bounded local loops and tmux sessions.
-- Reliability helpers for PR-only implementation flow, active work state, tmux completion watching, local Git guards, GitHub branch protection, and dashboard supervision.
+- Reliability helpers for PR-only implementation flow, active work state, tmux completion watching, local Git guards, and GitHub branch protection.
 - Public workflow docs, safety policies, review templates, and reconciliation guidance.
 
 ## What Operators Must Provide

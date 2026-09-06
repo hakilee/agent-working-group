@@ -27,7 +27,7 @@ AWG_CLI=./tools/awg-cli scripts/awg-operator-baseline-doctor.sh --role reviewer
 
 ## Output
 
-Text output is meant for quick operator reading. JSON output is available for local dashboards or later wrappers:
+Text output is meant for quick operator reading. JSON output is available for downstream tooling or later wrappers:
 
 ```bash
 scripts/awg-operator-baseline-doctor.sh --format json --role reviewer

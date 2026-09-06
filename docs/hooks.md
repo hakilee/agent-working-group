@@ -309,7 +309,7 @@ Two read-only audit scripts cover liveness gaps:
   contract is breached.
 
 Both scripts are observer-only (no queue mutation) and are safe to run
-from cron, a dispatcher loop, or a dashboard.
+from cron, a dispatcher loop, or another observer.
 
 Set `expectedResponseWithin` at send time:
 
@@ -349,7 +349,7 @@ alert on stdout, and are wired into the `awg` CLI:
   `expectedResponseWithin` contract. Exits 1 if any breach is detected.
 
 All three monitors are observer-only and safe to run from cron, a
-dispatcher loop, or a dashboard. Recommended cron cadences:
+dispatcher loop, or another observer. Recommended cron cadences:
 
 ```cron
 */1  * * * *  scripts/awg-heartbeat-monitor.sh           >> $AWG_LOG_DIR/heartbeat-monitor.jsonl 2>&1

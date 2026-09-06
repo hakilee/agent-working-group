@@ -151,7 +151,6 @@ class QueueWorkflowDocsTests(QueueTestCase):
                 project_root / "docs" / "queue-first-workflow.md",
                 project_root / "docs" / "templates" / "task-spec.md",
                 project_root / "docs" / "templates" / "close-report.md",
-                project_root / "docs" / "codex-tmux-worker.md",
                 project_root / "docs" / "worker-operations.md",
                 project_root / "docs" / "spec-matrix.md",
                 project_root / "README.md",
@@ -168,7 +167,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             self.assertIn("worker execution", content)
             self.assertIn("AWG does not require pull requests, Codex, tmux, or coding-specific ceremony", content)
             self.assertIn("Codex and tmux workers are optional execution paths", content)
-            self.assertIn("clean-worktree rules are scoped to Codex/Git execution", content)
+            self.assertIn("Clean worktree checks", content)
             self.assertIn("non-trivial PR", content)
             self.assertIn("PR review gate: fulfilled", content)
 
@@ -300,7 +299,6 @@ class QueueWorkflowDocsTests(QueueTestCase):
     def test_run_summary_and_log_non_authority_docs_are_safe(self):
             project_root = Path(__file__).resolve().parents[1]
             checked_paths = [
-                project_root / "docs" / "codex-tmux-worker.md",
                 project_root / "docs" / "worker-operations.md",
                 project_root / "docs" / "queue-reconciliation.md",
                 project_root / "docs" / "spec-matrix.md",
@@ -309,7 +307,7 @@ class QueueWorkflowDocsTests(QueueTestCase):
             content = "\n".join(path.read_text(encoding="utf-8") for path in checked_paths)
 
             self.assertIn("latest_summary=PATH", content)
-            self.assertIn("Run summaries, logs, and status pointers are not queue authority", content)
+            self.assertIn("not authority for", content)
             self.assertIn("Summary files, logs, and status pointers can be evidence references", content)
             self.assertIn("not queue authority", content)
             self.assertIn("not authority for `ack`, `ack-pending`, `retry`, `nack`, `requeue-stale`, `prune`, deletion, routing, or direct queue JSON edits", content)

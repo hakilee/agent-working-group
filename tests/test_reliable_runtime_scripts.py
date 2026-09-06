@@ -137,20 +137,6 @@ def test_branch_protection_replace_existing_can_emit_baseline_nulls() -> None:
     assert payload["restrictions"] is None
 
 
-def test_dashboard_launchd_dry_run_contains_keepalive(tmp_path: Path) -> None:
-    result = run_script(
-        "install-dashboard-launchd.sh",
-        "--dry-run",
-        "--repo-root",
-        str(ROOT),
-        "--awg-root",
-        str(tmp_path / ".agent-working-group"),
-    )
-    assert "<key>KeepAlive</key>" in result.stdout
-    assert "awg-dashboard-start.sh" in result.stdout
-    assert "DASHBOARD_ROOT" in result.stdout
-
-
 def test_tmux_watcher_requires_new_explicit_completion_marker(tmp_path: Path) -> None:
     if subprocess.run(["sh", "-c", "command -v tmux"], stdout=subprocess.DEVNULL).returncode != 0:
         return
